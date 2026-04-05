@@ -33,7 +33,6 @@ FROM base AS runner
 WORKDIR /app
 
 RUN apk add --no-cache openssl
-RUN npm install -g prisma@7.6.0 dotenv-cli
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -42,14 +41,12 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
+
+# Copy prisma files and full node_modules for migrate deploy
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/package.json ./package.json
-
-# Copy Prisma client from node_modules (needed for migrations)
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
+COPY --from=builder /app/node_modules ./node_modules
 
 # Standalone output
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
@@ -62,4 +59,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["sh", "-c", "prisma migrate deploy && node server.js"]
+# Run migrations then start server
+CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
