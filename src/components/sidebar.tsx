@@ -10,6 +10,7 @@ import {
   Calendar,
   FileText,
   Users,
+  Plug,
   LogOut,
   Menu,
   X,
@@ -26,6 +27,7 @@ const navItems = [
 
 const adminNavItems = [
   { href: "/users", label: "Users", icon: Users },
+  { href: "/settings/m365", label: "MS365 Connector", icon: Plug },
 ];
 
 export function Sidebar({ userName, userRole }: { userName: string; userRole: string }) {

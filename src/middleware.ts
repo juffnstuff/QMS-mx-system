@@ -12,7 +12,9 @@ export default auth((req) => {
     pathname.startsWith("/login") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/health") ||
-    pathname.startsWith("/api/seed")
+    pathname.startsWith("/api/seed") ||
+    pathname.startsWith("/api/m365/callback") ||
+    pathname.startsWith("/api/cron/")
   ) {
     return NextResponse.next();
   }

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { StatusBadge } from "@/components/status-badge";
-import { AlertTriangle, CheckCircle, Clock, Wrench } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, Wrench, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 export default async function DashboardPage() {
@@ -13,6 +13,7 @@ export default async function DashboardPage() {
     overdueSchedules,
     recentLogs,
     criticalOrders,
+    pendingSuggestions,
   ] = await Promise.all([
     prisma.equipment.count(),
     prisma.equipment.count({ where: { status: "operational" } }),
@@ -33,6 +34,7 @@ export default async function DashboardPage() {
       orderBy: { createdAt: "desc" },
       include: { equipment: true, assignedTo: true },
     }),
+    prisma.aISuggestion.count({ where: { status: "pending" } }).catch(() => 0),
   ]);
 
   const stats = [
@@ -101,6 +103,21 @@ export default async function DashboardPage() {
             </p>
             <Link href="/schedules" className="ml-auto text-red-600 hover:text-red-800 text-sm font-medium underline">
               View Schedules
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* AI Suggestions Alert */}
+      {pendingSuggestions > 0 && (
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-8">
+          <div className="flex items-center gap-2">
+            <Sparkles size={20} className="text-purple-600" />
+            <p className="text-purple-800 font-medium">
+              {pendingSuggestions} AI suggestion{pendingSuggestions !== 1 ? "s" : ""} awaiting review
+            </p>
+            <Link href="/settings/m365/suggestions" className="ml-auto text-purple-600 hover:text-purple-800 text-sm font-medium underline">
+              Review
             </Link>
           </div>
         </div>

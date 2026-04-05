@@ -18,6 +18,8 @@ model User {
   maintenanceLogs MaintenanceLog[]
   assignedOrders  WorkOrder[]      @relation("AssignedTo")
   createdOrders   WorkOrder[]      @relation("CreatedBy")
+  m365Connections M365Connection[]
+  reviewedSuggestions AISuggestion[] @relation("SuggestionReviewer")
 }
 
 model Equipment {
@@ -80,4 +82,67 @@ model WorkOrder {
   equipment  Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   assignedTo User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
   createdBy  User      @relation("CreatedBy", fields: [createdById], references: [id])
+}
+
+model M365Connection {
+  id              String   @id @default(cuid())
+  tenantId        String
+  clientId        String
+  accessTokenEnc  String
+  refreshTokenEnc String
+  tokenExpiresAt  DateTime
+  scopes          String   // comma-separated scopes
+  connectedBy     String
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  connectedByUser User @relation(fields: [connectedBy], references: [id])
+}
+
+model M365MonitorConfig {
+  id           String    @id @default(cuid())
+  sourceType   String    // "mailbox" | "teams_channel"
+  sourceId     String    // email address or "teamId/channelId"
+  displayName  String
+  isActive     Boolean   @default(true)
+  lastPolledAt DateTime?
+  deltaLink    String?   // MS Graph delta link for incremental polling
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model ProcessedMessage {
+  id           String   @id @default(cuid())
+  externalId   String   @unique // MS Graph message ID
+  sourceType   String   // "email" | "teams"
+  sourceId     String
+  subject      String?
+  senderName   String?
+  senderEmail  String?
+  bodyPreview  String   // first ~500 chars
+  receivedAt   DateTime
+  processedAt  DateTime @default(now())
+  aiAnalysis   String?  // Full JSON from Claude
+  actionTaken  String   // "work_order" | "maintenance_log" | "status_update" | "ignored"
+  confidence   Float?
+
+  suggestions  AISuggestion[]
+}
+
+model AISuggestion {
+  id                 String    @id @default(cuid())
+  processedMessageId String
+  suggestionType     String    // "create_work_order" | "create_maintenance_log" | "update_equipment_status"
+  status             String    @default("pending") // "pending" | "approved" | "rejected" | "auto_applied"
+  payload            String    // JSON with proposed action details
+  createdRecordType  String?   // "WorkOrder" | "MaintenanceLog" | "Equipment"
+  createdRecordId    String?
+  reviewedBy         String?
+  reviewedAt         DateTime?
+  reviewNote         String?
+  createdAt          DateTime  @default(now())
+
+  processedMessage ProcessedMessage @relation(fields: [processedMessageId], references: [id], onDelete: Cascade)
+  reviewer         User?            @relation("SuggestionReviewer", fields: [reviewedBy], references: [id])
 }
