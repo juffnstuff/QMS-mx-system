@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { FileText } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
+import Link from "next/link";
 
 export default async function MaintenancePage() {
   const logs = await prisma.maintenanceLog.findMany({
@@ -10,13 +11,25 @@ export default async function MaintenancePage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Maintenance Log</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Maintenance Log</h1>
+        <Link
+          href="/maintenance/new"
+          className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+        >
+          <Plus size={16} />
+          Log Maintenance
+        </Link>
+      </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         {logs.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
             <FileText size={40} className="mx-auto mb-3 text-gray-300" />
             <p>No maintenance events logged yet.</p>
+            <Link href="/maintenance/new" className="text-blue-600 hover:text-blue-800 text-sm mt-2 inline-block">
+              Log your first maintenance event
+            </Link>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
@@ -24,14 +37,21 @@ export default async function MaintenancePage() {
               <div key={log.id} className="p-4">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                   <div>
-                    <p className="font-medium text-gray-900">{log.equipment.name}</p>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/equipment/${log.equipmentId}`}
+                        className="font-medium text-blue-600 hover:text-blue-800"
+                      >
+                        {log.equipment.name}
+                      </Link>
+                    </div>
                     <p className="text-sm text-gray-600 mt-0.5">{log.description}</p>
                     {log.partsUsed && (
                       <p className="text-sm text-gray-400 mt-0.5">Parts: {log.partsUsed}</p>
                     )}
                   </div>
                   <div className="text-left sm:text-right text-sm text-gray-500 whitespace-nowrap">
-                    <p>{log.user.name}</p>
+                    <p className="font-medium">{log.user.name}</p>
                     <p>{new Date(log.performedAt).toLocaleDateString()}</p>
                   </div>
                 </div>
