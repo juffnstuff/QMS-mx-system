@@ -25,7 +25,8 @@ RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-RUN npm run build
+# Provide a dummy DATABASE_URL for build-time (Prisma client generation only, no actual connection)
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npm run build
 
 # Production image
 FROM base AS runner
