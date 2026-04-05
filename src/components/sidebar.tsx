@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Calendar,
   FileText,
+  Users,
   LogOut,
   Menu,
   X,
@@ -21,6 +22,10 @@ const navItems = [
   { href: "/schedules", label: "Schedules", icon: Calendar },
   { href: "/maintenance", label: "Maintenance Log", icon: FileText },
   { href: "/work-orders", label: "Work Orders", icon: ClipboardList },
+];
+
+const adminNavItems = [
+  { href: "/users", label: "Users", icon: Users },
 ];
 
 export function Sidebar({ userName, userRole }: { userName: string; userRole: string }) {
@@ -58,6 +63,32 @@ export function Sidebar({ userName, userRole }: { userName: string; userRole: st
             </Link>
           );
         })}
+
+        {userRole === "admin" && (
+          <>
+            <div className="pt-3 pb-1">
+              <p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</p>
+            </div>
+            {adminNavItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                    isActive(item.href)
+                      ? "bg-blue-600 text-white"
+                      : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                  }`}
+                >
+                  <Icon size={18} />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       <div className="p-4 border-t border-gray-700">

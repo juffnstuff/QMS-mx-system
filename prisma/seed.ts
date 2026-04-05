@@ -1,10 +1,9 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
-import path from "path";
+import "dotenv/config";
 
-const dbPath = path.join(process.cwd(), "dev.db");
-const adapter = new PrismaBetterSqlite3({ url: `file:${dbPath}` });
+const adapter = new PrismaPg(process.env.DATABASE_URL!);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
@@ -128,6 +127,11 @@ async function main() {
   const pastDate = (days: number) => new Date(now.getTime() - days * 86400000);
   const futureDate = (days: number) => new Date(now.getTime() + days * 86400000);
 
+  // Delete existing schedules to avoid duplicates on re-seed
+  await prisma.maintenanceSchedule.deleteMany();
+  await prisma.maintenanceLog.deleteMany();
+  await prisma.workOrder.deleteMany();
+
   await prisma.maintenanceSchedule.createMany({
     data: [
       {
@@ -148,7 +152,7 @@ async function main() {
         equipmentId: mixer.id,
         title: "Rotor seal inspection",
         frequency: "monthly",
-        nextDue: pastDate(5), // overdue!
+        nextDue: pastDate(5),
         lastDone: pastDate(35),
       },
       {
@@ -182,7 +186,6 @@ async function main() {
     ],
   });
 
-  // Create maintenance logs
   await prisma.maintenanceLog.createMany({
     data: [
       {
@@ -221,7 +224,6 @@ async function main() {
     ],
   });
 
-  // Create work orders
   await prisma.workOrder.createMany({
     data: [
       {
@@ -229,7 +231,8 @@ async function main() {
         assignedToId: operator1.id,
         createdById: admin.id,
         title: "Replace hydraulic cylinder seals",
-        description: "Press #2 has a hydraulic cylinder leak. Replace all cylinder seals and test. Parts on order from Parker Hannifin.",
+        description:
+          "Press #2 has a hydraulic cylinder leak. Replace all cylinder seals and test. Parts on order from Parker Hannifin.",
         priority: "critical",
         status: "open",
         dueDate: futureDate(3),
@@ -239,7 +242,8 @@ async function main() {
         assignedToId: operator2.id,
         createdById: admin.id,
         title: "Rotor seal replacement",
-        description: "Replace worn rotor seals identified during last inspection. Order seals from vendor if not in stock.",
+        description:
+          "Replace worn rotor seals identified during last inspection. Order seals from vendor if not in stock.",
         priority: "high",
         status: "in_progress",
         dueDate: futureDate(7),
@@ -249,7 +253,8 @@ async function main() {
         assignedToId: operator1.id,
         createdById: admin.id,
         title: "Install vibration monitoring sensor",
-        description: "Install new vibration sensor on main bearing housing for predictive maintenance program.",
+        description:
+          "Install new vibration sensor on main bearing housing for predictive maintenance program.",
         priority: "medium",
         status: "open",
         dueDate: futureDate(14),
