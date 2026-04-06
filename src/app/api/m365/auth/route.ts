@@ -11,21 +11,48 @@ const SCOPES = [
   "offline_access",
 ];
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "admin") {
-    return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+export async function GET(req: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user || session.user.role !== "admin") {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
+
+    // Check required env vars
+    const missing = [];
+    if (!process.env.AZURE_AD_CLIENT_ID) missing.push("AZURE_AD_CLIENT_ID");
+    if (!process.env.AZURE_AD_CLIENT_SECRET) missing.push("AZURE_AD_CLIENT_SECRET");
+    if (!process.env.AZURE_AD_TENANT_ID) missing.push("AZURE_AD_TENANT_ID");
+    if (missing.length > 0) {
+      return NextResponse.json(
+        { error: `Missing environment variables: ${missing.join(", ")}. Add them in Railway.` },
+        { status: 500 }
+      );
+    }
+
+    const appUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
+    if (!appUrl) {
+      return NextResponse.json(
+        { error: "Missing NEXT_PUBLIC_APP_URL environment variable. Add it in Railway." },
+        { status: 500 }
+      );
+    }
+
+    const msalClient = getMsalClient();
+    const redirectUri = `${appUrl}/api/m365/callback`;
+
+    const authUrl = await msalClient.getAuthCodeUrl({
+      scopes: SCOPES,
+      redirectUri,
+      responseMode: "query",
+      prompt: "consent",
+    });
+
+    return NextResponse.redirect(authUrl);
+  } catch (error) {
+    console.error("[M365 Auth] Error:", error);
+    const url = new URL("/settings/m365", req.url);
+    url.searchParams.set("error", `auth_failed: ${String(error).slice(0, 200)}`);
+    return NextResponse.redirect(url);
   }
-
-  const msalClient = getMsalClient();
-  const redirectUri = `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL}/api/m365/callback`;
-
-  const authUrl = await msalClient.getAuthCodeUrl({
-    scopes: SCOPES,
-    redirectUri,
-    responseMode: "query",
-    prompt: "consent",
-  });
-
-  return NextResponse.redirect(authUrl);
 }

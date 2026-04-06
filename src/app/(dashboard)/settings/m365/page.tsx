@@ -57,7 +57,7 @@ export default async function M365SettingsPage({
             ? "Microsoft 365 authorization was denied."
             : params.error === "token_exchange"
             ? "Failed to complete Microsoft 365 connection. Please try again."
-            : "An error occurred."}
+            : `Error: ${decodeURIComponent(params.error)}`}
         </div>
       )}
 
