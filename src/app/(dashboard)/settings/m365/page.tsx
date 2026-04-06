@@ -20,15 +20,15 @@ export default async function M365SettingsPage({
   const connection = await prisma.m365Connection.findFirst({
     where: { isActive: true },
     include: { connectedByUser: { select: { name: true } } },
-  });
+  }).catch(() => null);
 
   const monitors = await prisma.m365MonitorConfig.findMany({
     orderBy: { createdAt: "desc" },
-  });
+  }).catch(() => []);
 
   const pendingSuggestions = await prisma.aISuggestion.count({
     where: { status: "pending" },
-  });
+  }).catch(() => 0);
 
   const messagesLast24h = await prisma.processedMessage.count({
     where: { processedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
