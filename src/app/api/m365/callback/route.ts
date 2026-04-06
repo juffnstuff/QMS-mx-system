@@ -22,10 +22,13 @@ export async function GET(req: NextRequest) {
 
   const code = req.nextUrl.searchParams.get("code");
   const error = req.nextUrl.searchParams.get("error");
+  const errorDescription = req.nextUrl.searchParams.get("error_description");
 
   if (error) {
-    console.error("[M365 Callback] OAuth error:", error);
-    return NextResponse.redirect(publicUrl("/settings/m365?error=oauth_denied"));
+    console.error("[M365 Callback] OAuth error:", error, errorDescription);
+    return NextResponse.redirect(
+      publicUrl(`/settings/m365?error=${encodeURIComponent(error + ": " + (errorDescription || "Unknown error"))}`)
+    );
   }
 
   if (!code) {
@@ -66,6 +69,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(publicUrl("/settings/m365?success=connected"));
   } catch (err) {
     console.error("[M365 Callback] Token exchange error:", err);
-    return NextResponse.redirect(publicUrl("/settings/m365?error=token_exchange"));
+    const errMsg = err instanceof Error ? err.message : String(err);
+    return NextResponse.redirect(
+      publicUrl(`/settings/m365?error=${encodeURIComponent("token_exchange: " + errMsg.slice(0, 300))}`)
+    );
   }
 }
