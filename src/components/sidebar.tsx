@@ -100,7 +100,7 @@ export function Sidebar({ userName, userRole }: { userName: string; userRole: st
             <p className="text-xs text-gray-400 capitalize">{userRole}</p>
           </div>
           <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={() => signOut({ callbackUrl: `${window.location.origin}/login` })}
             className="text-gray-400 hover:text-white transition-colors"
             title="Sign out"
           >

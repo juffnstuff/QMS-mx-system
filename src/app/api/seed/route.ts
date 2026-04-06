@@ -10,14 +10,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Safety: only allow seeding if no users exist or in development
-  const existingUsers = await prisma.user.count();
-  if (existingUsers > 0 && process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { error: "Database already seeded. Delete users first if you need to re-seed." },
-      { status: 403 }
-    );
-  }
+
 
   try {
     const adminPassword = await bcrypt.hash("admin123", 10);
@@ -33,11 +26,6 @@ export async function GET(req: Request) {
         role: "admin",
       },
     });
-
-    // Remove old placeholder operators if they exist
-    await prisma.user.deleteMany({
-      where: { email: { in: ["mike@rubberform.com", "sarah@rubberform.com"] } },
-    }).catch(() => {});
 
     const operator1 = await prisma.user.upsert({
       where: { email: "anthony@rubberform.com" },
@@ -133,6 +121,11 @@ export async function GET(req: Request) {
     await prisma.maintenanceSchedule.deleteMany();
     await prisma.maintenanceLog.deleteMany();
     await prisma.workOrder.deleteMany();
+
+    // Remove old placeholder users (now safe since their records are deleted)
+    await prisma.user.deleteMany({
+      where: { email: { in: ["mike@rubberform.com", "sarah@rubberform.com"] } },
+    });
 
     await prisma.maintenanceSchedule.createMany({
       data: [
