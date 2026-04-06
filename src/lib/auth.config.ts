@@ -24,6 +24,7 @@ export const authConfig: NextAuthConfig = {
   },
   session: {
     strategy: "jwt",
+    maxAge: 8 * 60 * 60, // 8 hours — auto logout after a shift
   },
   providers: [], // Providers are added in auth.ts (not edge-compatible)
 };

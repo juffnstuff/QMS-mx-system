@@ -18,10 +18,33 @@ export default function LoginPage() {
     setError("");
 
     const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
 
+    // Check rate limit first
+    const rateCheck = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (rateCheck.status === 429) {
+      const data = await rateCheck.json();
+      setError(data.error);
+      setLoading(false);
+      return;
+    }
+
+    if (!rateCheck.ok) {
+      setError("Invalid email or password");
+      setLoading(false);
+      return;
+    }
+
+    // Rate limit passed + credentials valid — now sign in via NextAuth
     const result = await signIn("credentials", {
-      email: formData.get("email") as string,
-      password: formData.get("password") as string,
+      email,
+      password,
       redirect: false,
     });
 

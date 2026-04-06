@@ -3,16 +3,25 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
 export async function GET(req: Request) {
-  // Simple secret check to prevent unauthorized seeding
+  // Secret key check
   const url = new URL(req.url);
   const key = url.searchParams.get("key");
   if (key !== "rubberform-setup-2026") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Safety: only allow seeding if no users exist or in development
+  const existingUsers = await prisma.user.count();
+  if (existingUsers > 0 && process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Database already seeded. Delete users first if you need to re-seed." },
+      { status: 403 }
+    );
+  }
+
   try {
     const adminPassword = await bcrypt.hash("admin123", 10);
-    const operatorPassword = await bcrypt.hash("operator123", 10);
+    const operatorPassword = await bcrypt.hash("RFRPoper2026!", 10);
 
     const admin = await prisma.user.upsert({
       where: { email: "admin@rubberform.com" },
@@ -25,23 +34,17 @@ export async function GET(req: Request) {
       },
     });
 
-    const operator1 = await prisma.user.upsert({
-      where: { email: "mike@rubberform.com" },
-      update: {},
-      create: {
-        email: "mike@rubberform.com",
-        name: "Mike Johnson",
-        passwordHash: operatorPassword,
-        role: "operator",
-      },
-    });
+    // Remove old placeholder operators if they exist
+    await prisma.user.deleteMany({
+      where: { email: { in: ["mike@rubberform.com", "sarah@rubberform.com"] } },
+    }).catch(() => {});
 
-    const operator2 = await prisma.user.upsert({
-      where: { email: "sarah@rubberform.com" },
+    const operator1 = await prisma.user.upsert({
+      where: { email: "anthony@rubberform.com" },
       update: {},
       create: {
-        email: "sarah@rubberform.com",
-        name: "Sarah Martinez",
+        email: "anthony@rubberform.com",
+        name: "Anthony Cescon",
         passwordHash: operatorPassword,
         role: "operator",
       },
@@ -147,8 +150,8 @@ export async function GET(req: Request) {
       data: [
         { equipmentId: granulator.id, userId: operator1.id, description: "Replaced dulled granulator blades. Set #4 installed.", partsUsed: "Blade set #4 (6x cutting blades)", performedAt: pastDate(4) },
         { equipmentId: press1.id, userId: operator1.id, description: "Topped off hydraulic fluid. Level was slightly low.", partsUsed: "2 gallons AW-46 hydraulic fluid", performedAt: pastDate(5) },
-        { equipmentId: conveyor.id, userId: operator2.id, description: "Adjusted belt tracking. Replaced worn idler roller on return side.", partsUsed: "1x idler roller", performedAt: pastDate(18) },
-        { equipmentId: forklift.id, userId: operator2.id, description: "Daily pre-shift inspection completed. All systems normal.", performedAt: now },
+        { equipmentId: conveyor.id, userId: operator1.id, description: "Adjusted belt tracking. Replaced worn idler roller on return side.", partsUsed: "1x idler roller", performedAt: pastDate(18) },
+        { equipmentId: forklift.id, userId: operator1.id, description: "Daily pre-shift inspection completed. All systems normal.", performedAt: now },
         { equipmentId: mixer.id, userId: operator1.id, description: "Noticed minor seal wear on rotor. Scheduled for follow-up service.", performedAt: pastDate(10) },
       ],
     });
@@ -156,7 +159,7 @@ export async function GET(req: Request) {
     await prisma.workOrder.createMany({
       data: [
         { equipmentId: press2.id, assignedToId: operator1.id, createdById: admin.id, title: "Replace hydraulic cylinder seals", description: "Press #2 has a hydraulic cylinder leak.", priority: "critical", status: "open", dueDate: futureDate(3) },
-        { equipmentId: mixer.id, assignedToId: operator2.id, createdById: admin.id, title: "Rotor seal replacement", description: "Replace worn rotor seals identified during last inspection.", priority: "high", status: "in_progress", dueDate: futureDate(7) },
+        { equipmentId: mixer.id, assignedToId: operator1.id, createdById: admin.id, title: "Rotor seal replacement", description: "Replace worn rotor seals identified during last inspection.", priority: "high", status: "in_progress", dueDate: futureDate(7) },
         { equipmentId: granulator.id, assignedToId: operator1.id, createdById: admin.id, title: "Install vibration monitoring sensor", description: "Install new vibration sensor on main bearing housing.", priority: "medium", status: "open", dueDate: futureDate(14) },
         { equipmentId: conveyor.id, createdById: admin.id, title: "Replace drive belt", description: "Drive belt showing signs of cracking.", priority: "low", status: "open", dueDate: futureDate(30) },
       ],
@@ -167,8 +170,7 @@ export async function GET(req: Request) {
       message: "Database seeded! You can now login.",
       credentials: {
         admin: "admin@rubberform.com / admin123",
-        operator1: "mike@rubberform.com / operator123",
-        operator2: "sarah@rubberform.com / operator123",
+        operator: "anthony@rubberform.com / RFRPoper2026!",
       },
     });
   } catch (error) {

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { UserPlus } from "lucide-react";
 import { AddUserForm } from "@/components/add-user-form";
+import { ResetPasswordButton } from "@/components/reset-password-button";
 
 export default async function UsersPage() {
   const session = await auth();
@@ -51,6 +52,7 @@ export default async function UsersPage() {
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Activity</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -74,6 +76,9 @@ export default async function UsersPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
                     {new Date(user.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-3">
+                    <ResetPasswordButton userId={user.id} userName={user.name} />
                   </td>
                 </tr>
               ))}
@@ -102,6 +107,9 @@ export default async function UsersPage() {
                 >
                   {user.role === "admin" ? "Admin" : "Operator"}
                 </span>
+              </div>
+              <div className="mt-2">
+                <ResetPasswordButton userId={user.id} userName={user.name} />
               </div>
             </div>
           ))}
