@@ -51,8 +51,11 @@ export async function GET(req: Request) {
     return NextResponse.redirect(authUrl);
   } catch (error) {
     console.error("[M365 Auth] Error:", error);
-    const url = new URL("/settings/m365", req.url);
-    url.searchParams.set("error", `auth_failed: ${String(error).slice(0, 200)}`);
-    return NextResponse.redirect(url);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    // Return JSON with the actual error so user can see it
+    return NextResponse.json(
+      { error: "MS365 auth failed", details: errorMsg },
+      { status: 500 }
+    );
   }
 }
