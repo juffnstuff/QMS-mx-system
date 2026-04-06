@@ -46,7 +46,7 @@ export default async function WorkOrdersPage({
           <select
             name="status"
             defaultValue={params.status || "all"}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Statuses</option>
             <option value="open">Open</option>
@@ -57,7 +57,7 @@ export default async function WorkOrdersPage({
           <select
             name="priority"
             defaultValue={params.priority || "all"}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Priorities</option>
             <option value="critical">Critical</option>

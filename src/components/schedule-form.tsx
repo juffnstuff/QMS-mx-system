@@ -64,7 +64,7 @@ export function ScheduleForm({ equipment }: Props) {
             id="title"
             name="title"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., Blade inspection and sharpening"
           />
         </div>
@@ -78,7 +78,7 @@ export function ScheduleForm({ equipment }: Props) {
               id="equipmentId"
               name="equipmentId"
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select equipment...</option>
               {equipment.map((e) => (
@@ -96,7 +96,7 @@ export function ScheduleForm({ equipment }: Props) {
               id="frequency"
               name="frequency"
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select frequency...</option>
               <option value="daily">Daily</option>
@@ -117,7 +117,7 @@ export function ScheduleForm({ equipment }: Props) {
             name="nextDue"
             type="date"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-xs"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-xs"
           />
         </div>
 
@@ -129,7 +129,7 @@ export function ScheduleForm({ equipment }: Props) {
             id="description"
             name="description"
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Optional details about this maintenance task..."
           />
         </div>

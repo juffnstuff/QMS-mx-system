@@ -78,7 +78,7 @@ export function EquipmentForm({ equipment }: { equipment?: EquipmentData }) {
             name="name"
             required
             defaultValue={equipment?.name}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., Granulator #1"
           />
         </div>
@@ -93,7 +93,7 @@ export function EquipmentForm({ equipment }: { equipment?: EquipmentData }) {
               name="type"
               required
               defaultValue={equipment?.type}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g., Granulator"
             />
           </div>
@@ -106,7 +106,7 @@ export function EquipmentForm({ equipment }: { equipment?: EquipmentData }) {
               name="location"
               required
               defaultValue={equipment?.location}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g., Plant Floor - Bay 3"
             />
           </div>
@@ -122,7 +122,7 @@ export function EquipmentForm({ equipment }: { equipment?: EquipmentData }) {
               name="serialNumber"
               required
               defaultValue={equipment?.serialNumber}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
               placeholder="e.g., GRN-2024-001"
             />
           </div>
@@ -134,7 +134,7 @@ export function EquipmentForm({ equipment }: { equipment?: EquipmentData }) {
               id="status"
               name="status"
               defaultValue={equipment?.status || "operational"}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="operational">Operational</option>
               <option value="needs_service">Needs Service</option>
@@ -152,7 +152,7 @@ export function EquipmentForm({ equipment }: { equipment?: EquipmentData }) {
             name="notes"
             rows={3}
             defaultValue={equipment?.notes || ""}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Optional notes about this equipment..."
           />
         </div>
