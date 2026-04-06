@@ -43,24 +43,28 @@ export default async function DashboardPage() {
       value: totalEquipment,
       icon: Wrench,
       color: "bg-blue-500",
+      href: "/equipment",
     },
     {
       label: "Operational",
       value: operationalCount,
       icon: CheckCircle,
       color: "bg-green-500",
+      href: "/equipment?status=operational",
     },
     {
       label: "Needs Service",
       value: needsServiceCount + downCount,
       icon: AlertTriangle,
       color: "bg-yellow-500",
+      href: "/equipment?status=needs_service",
     },
     {
       label: "Open Work Orders",
       value: openWorkOrders,
       icon: Clock,
       color: "bg-purple-500",
+      href: "/work-orders?status=open",
     },
   ];
 
@@ -73,9 +77,10 @@ export default async function DashboardPage() {
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div
+            <Link
               key={stat.label}
-              className="bg-white rounded-lg shadow-sm p-5 border border-gray-200"
+              href={stat.href}
+              className="bg-white rounded-lg shadow-sm p-5 border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -88,7 +93,7 @@ export default async function DashboardPage() {
                   <Icon size={24} className="text-white" />
                 </div>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
