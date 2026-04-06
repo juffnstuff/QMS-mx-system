@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getMsalClient } from "@/lib/m365/graph-client";
 import { encrypt } from "@/lib/m365/encryption";
 import { prisma } from "@/lib/prisma";
+import { publicUrl } from "@/lib/url";
 
 const SCOPES = [
   "Mail.Read",
@@ -16,7 +17,7 @@ const SCOPES = [
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user || session.user.role !== "admin") {
-    return NextResponse.redirect(new URL("/login", req.url));
+    return NextResponse.redirect(publicUrl("/login"));
   }
 
   const code = req.nextUrl.searchParams.get("code");
@@ -24,20 +25,16 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error("[M365 Callback] OAuth error:", error);
-    return NextResponse.redirect(
-      new URL("/settings/m365?error=oauth_denied", req.url)
-    );
+    return NextResponse.redirect(publicUrl("/settings/m365?error=oauth_denied"));
   }
 
   if (!code) {
-    return NextResponse.redirect(
-      new URL("/settings/m365?error=no_code", req.url)
-    );
+    return NextResponse.redirect(publicUrl("/settings/m365?error=no_code"));
   }
 
   try {
     const msalClient = getMsalClient();
-    const redirectUri = `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL}/api/m365/callback`;
+    const redirectUri = publicUrl("/api/m365/callback");
 
     const result = await msalClient.acquireTokenByCode({
       code,
@@ -66,13 +63,9 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.redirect(
-      new URL("/settings/m365?success=connected", req.url)
-    );
+    return NextResponse.redirect(publicUrl("/settings/m365?success=connected"));
   } catch (err) {
     console.error("[M365 Callback] Token exchange error:", err);
-    return NextResponse.redirect(
-      new URL("/settings/m365?error=token_exchange", req.url)
-    );
+    return NextResponse.redirect(publicUrl("/settings/m365?error=token_exchange"));
   }
 }

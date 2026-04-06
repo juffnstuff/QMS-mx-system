@@ -21,7 +21,9 @@ export default auth((req) => {
 
   // Redirect unauthenticated users to login
   if (!req.auth) {
-    const loginUrl = new URL("/login", req.url);
+    // Use public URL to avoid Railway's internal 0.0.0.0:8080 redirect
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || req.url;
+    const loginUrl = new URL("/login", baseUrl);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
