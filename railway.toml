@@ -7,8 +7,3 @@ healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
-
-# MS365 connector polling - every 5 minutes
-[[deploy.cronSchedule]]
-schedule = "*/5 * * * *"
-endpoint = "/api/cron/m365-poll"
