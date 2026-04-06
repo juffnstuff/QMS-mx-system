@@ -35,14 +35,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f2440] to-[#1e3a5f] px-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-lg shadow-md p-8">
+        <div className="bg-white rounded-2xl shadow-2xl p-8">
           <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-[#1e3a5f] to-[#0f2440] rounded-2xl mb-4 shadow-lg">
+              <span className="text-white font-extrabold text-2xl tracking-tight">RFRP</span>
+            </div>
             <h1 className="text-2xl font-bold text-gray-900">
-              QMS Equipment Tracker
+              QMS Tracker
             </h1>
-            <p className="text-gray-500 mt-1">
+            <p className="text-gray-500 mt-1 text-sm">
               RubberForm Recycled Products LLC
             </p>
           </div>
@@ -66,7 +69,7 @@ export default function LoginPage() {
                 name="email"
                 type="email"
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="you@rubberform.com"
               />
             </div>
@@ -83,7 +86,7 @@ export default function LoginPage() {
                 name="password"
                 type="password"
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
