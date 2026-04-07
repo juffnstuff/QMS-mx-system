@@ -10,8 +10,8 @@ export default async function SuggestionsPage({
   searchParams: Promise<{ status?: string; page?: string }>;
 }) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "admin") {
-    redirect("/");
+  if (!session?.user) {
+    redirect("/login");
   }
 
   const params = await searchParams;

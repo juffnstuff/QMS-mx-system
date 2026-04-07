@@ -20,6 +20,16 @@ export async function getActiveConnection() {
   });
 }
 
+/**
+ * Get the active M365 connection for a specific user.
+ */
+export async function getUserConnection(userId: string) {
+  return prisma.m365Connection.findFirst({
+    where: { connectedBy: userId, isActive: true },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 async function refreshTokenIfNeeded(connectionId: string): Promise<string> {
   const connection = await prisma.m365Connection.findUniqueOrThrow({
     where: { id: connectionId },
@@ -48,8 +58,6 @@ async function refreshTokenIfNeeded(connectionId: string): Promise<string> {
     data: {
       accessTokenEnc: encrypt(result.accessToken),
       tokenExpiresAt: result.expiresOn || new Date(Date.now() + 3600 * 1000),
-      // MSAL may return a new refresh token
-      ...(result.account ? {} : {}),
     },
   });
 
@@ -68,9 +76,7 @@ export async function getGraphClient(connectionId: string): Promise<Client> {
 
 /**
  * Get an app-level Graph client using client credentials flow.
- * This uses application permissions (not delegated) and can access
- * ALL org mailboxes, SharePoint sites, etc. without a user context.
- * Requires application permissions granted by Azure AD admin.
+ * Used for SharePoint access which requires application permissions.
  */
 export async function getAppGraphClient(): Promise<Client> {
   const msalClient = getMsalClient();

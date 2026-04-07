@@ -6,8 +6,8 @@ import { ActivityItem } from "@/components/m365/activity-item";
 
 export default async function ActivityPage() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "admin") {
-    redirect("/");
+  if (!session?.user) {
+    redirect("/login");
   }
 
   const messages = await prisma.processedMessage.findMany({

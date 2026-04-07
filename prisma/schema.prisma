@@ -85,17 +85,19 @@ model WorkOrder {
 }
 
 model M365Connection {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   tenantId        String
   clientId        String
   accessTokenEnc  String
   refreshTokenEnc String
   tokenExpiresAt  DateTime
-  scopes          String   // comma-separated scopes
+  scopes          String    // comma-separated scopes
   connectedBy     String
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  isActive        Boolean   @default(true)
+  deltaLink       String?   // delta link for incremental mail polling
+  lastPolledAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   connectedByUser User @relation(fields: [connectedBy], references: [id])
 }
@@ -113,19 +115,20 @@ model M365MonitorConfig {
 }
 
 model ProcessedMessage {
-  id           String   @id @default(cuid())
-  externalId   String   @unique // MS Graph message ID
-  sourceType   String   // "email" | "teams"
-  sourceId     String
-  subject      String?
-  senderName   String?
-  senderEmail  String?
-  bodyPreview  String   // first ~500 chars
-  receivedAt   DateTime
-  processedAt  DateTime @default(now())
-  aiAnalysis   String?  // Full JSON from Claude
-  actionTaken  String   // "work_order" | "maintenance_log" | "status_update" | "ignored"
-  confidence   Float?
+  id              String   @id @default(cuid())
+  externalId      String   @unique // MS Graph message ID
+  sourceType      String   // "email" | "teams" | "sharepoint"
+  sourceId        String
+  scannedByUserId String?  // which user triggered this scan
+  subject         String?
+  senderName      String?
+  senderEmail     String?
+  bodyPreview     String   // first ~500 chars
+  receivedAt      DateTime
+  processedAt     DateTime @default(now())
+  aiAnalysis      String?  // Full JSON from Claude
+  actionTaken     String   // "work_order" | "maintenance_log" | "status_update" | "ignored" | "pre_filtered" | "flag_for_review"
+  confidence      Float?
 
   suggestions  AISuggestion[]
 }
@@ -146,28 +149,6 @@ model AISuggestion {
 
   processedMessage ProcessedMessage @relation(fields: [processedMessageId], references: [id], onDelete: Cascade)
   reviewer         User?            @relation("SuggestionReviewer", fields: [reviewedBy], references: [id])
-}
-
-model M365UserMailbox {
-  id                String    @id @default(cuid())
-  userPrincipalName String    @unique
-  displayName       String
-  mail              String?
-  isActive          Boolean   @default(true)
-  deltaLink         String?
-  lastPolledAt      DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-}
-
-model M365ScanConfig {
-  id                String    @id @default("default")
-  scanAllMailboxes  Boolean   @default(true)
-  excludedMailboxes String    @default("[]")
-  scanSharePoint    Boolean   @default(false)
-  lastUserSyncAt    DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
 }
 
 model M365SharePointSite {

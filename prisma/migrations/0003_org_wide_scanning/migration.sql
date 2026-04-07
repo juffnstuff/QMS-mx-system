@@ -1,33 +1,12 @@
 -- AlterTable: Add sharePointDocId to AISuggestion
 ALTER TABLE "AISuggestion" ADD COLUMN "sharePointDocId" TEXT;
 
--- CreateTable
-CREATE TABLE "M365UserMailbox" (
-    "id" TEXT NOT NULL,
-    "userPrincipalName" TEXT NOT NULL,
-    "displayName" TEXT NOT NULL,
-    "mail" TEXT,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "deltaLink" TEXT,
-    "lastPolledAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+-- AlterTable: Add deltaLink and lastPolledAt to M365Connection for per-user delta tracking
+ALTER TABLE "M365Connection" ADD COLUMN "deltaLink" TEXT;
+ALTER TABLE "M365Connection" ADD COLUMN "lastPolledAt" TIMESTAMP(3);
 
-    CONSTRAINT "M365UserMailbox_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "M365ScanConfig" (
-    "id" TEXT NOT NULL DEFAULT 'default',
-    "scanAllMailboxes" BOOLEAN NOT NULL DEFAULT true,
-    "excludedMailboxes" TEXT NOT NULL DEFAULT '[]',
-    "scanSharePoint" BOOLEAN NOT NULL DEFAULT false,
-    "lastUserSyncAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "M365ScanConfig_pkey" PRIMARY KEY ("id")
-);
+-- AlterTable: Add scannedByUserId to ProcessedMessage
+ALTER TABLE "ProcessedMessage" ADD COLUMN "scannedByUserId" TEXT;
 
 -- CreateTable
 CREATE TABLE "M365SharePointSite" (
@@ -60,14 +39,7 @@ CREATE TABLE "SharePointDocument" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "M365UserMailbox_userPrincipalName_key" ON "M365UserMailbox"("userPrincipalName");
-
--- CreateIndex
 CREATE UNIQUE INDEX "M365SharePointSite_siteId_key" ON "M365SharePointSite"("siteId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "SharePointDocument_externalId_key" ON "SharePointDocument"("externalId");
-
--- Insert default scan config
-INSERT INTO "M365ScanConfig" ("id", "scanAllMailboxes", "excludedMailboxes", "scanSharePoint", "updatedAt")
-VALUES ('default', true, '[]', false, CURRENT_TIMESTAMP);

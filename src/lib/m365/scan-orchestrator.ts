@@ -1,12 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { getAppGraphClient, getActiveConnection, getGraphClient } from "./graph-client";
-import { syncOrgUsers, pollAllMailboxes } from "./org-mail-scanner";
-import { pollTeamsChannel } from "./teams-poller";
-import { syncSharePointSites, scanAllSharePointSites } from "./sharepoint-scanner";
+import { getUserConnection, getGraphClient } from "./graph-client";
 import { analyzeMessage } from "@/lib/ai/analyze-message";
 import type { RawMessage } from "./mail-poller";
-
-const AUTO_APPLY_THRESHOLD = 0.92;
 
 // Maintenance-related keywords for pre-filtering messages before AI analysis
 const MAINTENANCE_KEYWORDS = [
@@ -39,21 +34,15 @@ const MAINTENANCE_KEYWORDS = [
 ];
 
 export interface ScanResult {
-  source: "cron" | "manual";
-  mailboxesSynced: number;
-  messagesPolled: number;
+  messagesFound: number;
   messagesAnalyzed: number;
   suggestionsCreated: number;
-  autoApplied: number;
-  teamsMessages: number;
-  sharePointDocs: number;
   preFiltered: number;
   errors: string[];
 }
 
 /**
  * Pre-filter: check if a message likely contains maintenance-related content.
- * Returns true if the message should be sent to Claude for full analysis.
  */
 function isMaintenanceRelated(message: RawMessage): boolean {
   const text = `${message.subject} ${message.bodyContent}`.toLowerCase();
@@ -61,36 +50,123 @@ function isMaintenanceRelated(message: RawMessage): boolean {
 }
 
 /**
- * Process messages through AI analysis and create suggestions.
- * Shared logic used by both cron and manual scan.
+ * Poll the logged-in user's own mailbox using their delegated Graph token.
+ * Uses /me/mailFolders/inbox/messages/delta for incremental fetching.
  */
-async function processMessages(
-  messages: RawMessage[],
-  sourceType: string,
-  sourceId: string,
-  result: ScanResult
-) {
+async function pollUserMailbox(
+  connectionId: string
+): Promise<RawMessage[]> {
+  const connection = await prisma.m365Connection.findUniqueOrThrow({
+    where: { id: connectionId },
+  });
+
+  const graphClient = await getGraphClient(connectionId);
+  const messages: RawMessage[] = [];
+
+  try {
+    let url: string;
+    if (connection.deltaLink) {
+      url = connection.deltaLink;
+    } else {
+      // First scan — get messages from last 7 days
+      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      url = `/me/mailFolders/inbox/messages/delta?$filter=receivedDateTime ge ${since}&$select=id,subject,from,bodyPreview,body,receivedDateTime&$top=50`;
+    }
+
+    const response = await graphClient.api(url).get();
+
+    for (const msg of response.value || []) {
+      // Skip if already processed
+      const existing = await prisma.processedMessage.findUnique({
+        where: { externalId: msg.id },
+      });
+      if (existing) continue;
+
+      messages.push({
+        externalId: msg.id,
+        subject: msg.subject || "(No subject)",
+        senderName: msg.from?.emailAddress?.name || "Unknown",
+        senderEmail: msg.from?.emailAddress?.address || "",
+        bodyPreview: (msg.bodyPreview || "").slice(0, 500),
+        bodyContent: msg.body?.content || msg.bodyPreview || "",
+        receivedAt: new Date(msg.receivedDateTime),
+      });
+    }
+
+    // Store delta link for next scan
+    const newDeltaLink = response["@odata.deltaLink"] || response["@odata.nextLink"];
+    await prisma.m365Connection.update({
+      where: { id: connectionId },
+      data: {
+        deltaLink: newDeltaLink || null,
+        lastPolledAt: new Date(),
+      },
+    });
+  } catch (error) {
+    console.error(`[User Scan] Error polling mailbox:`, error);
+    // Clear stale delta link
+    if (connection.deltaLink) {
+      await prisma.m365Connection.update({
+        where: { id: connectionId },
+        data: { deltaLink: null },
+      });
+    }
+    throw error;
+  }
+
+  return messages;
+}
+
+/**
+ * Run a scan of the logged-in user's own mailbox.
+ * Uses their delegated OAuth token to read /me/messages.
+ * Creates suggestions that the user must approve before content is visible to all.
+ */
+export async function runUserScan(userId: string): Promise<ScanResult> {
+  const result: ScanResult = {
+    messagesFound: 0,
+    messagesAnalyzed: 0,
+    suggestionsCreated: 0,
+    preFiltered: 0,
+    errors: [],
+  };
+
+  // Get this user's M365 connection
+  const connection = await getUserConnection(userId);
+  if (!connection) {
+    result.errors.push("No MS365 connection found. Please connect your account first.");
+    return result;
+  }
+
+  // Poll the user's inbox
+  let messages: RawMessage[];
+  try {
+    messages = await pollUserMailbox(connection.id);
+  } catch (err) {
+    result.errors.push(
+      `Failed to read mailbox: ${err instanceof Error ? err.message : String(err)}`
+    );
+    return result;
+  }
+
+  result.messagesFound = messages.length;
+
+  if (messages.length === 0) return result;
+
+  // Load equipment list for AI analysis
   const equipment = await prisma.equipment.findMany({
-    select: {
-      id: true,
-      name: true,
-      type: true,
-      location: true,
-      serialNumber: true,
-      status: true,
-    },
+    select: { id: true, name: true, type: true, location: true, serialNumber: true, status: true },
   });
 
   for (const msg of messages) {
-    result.messagesPolled++;
-
     // Pre-filter: skip non-maintenance messages
     if (!isMaintenanceRelated(msg)) {
       await prisma.processedMessage.create({
         data: {
           externalId: msg.externalId,
-          sourceType,
-          sourceId,
+          sourceType: "email",
+          sourceId: connection.connectedBy,
+          scannedByUserId: userId,
           subject: msg.subject,
           senderName: msg.senderName,
           senderEmail: msg.senderEmail,
@@ -119,8 +195,9 @@ async function processMessages(
       const processed = await prisma.processedMessage.create({
         data: {
           externalId: msg.externalId,
-          sourceType,
-          sourceId,
+          sourceType: "email",
+          sourceId: connection.connectedBy,
+          scannedByUserId: userId,
           subject: msg.subject,
           senderName: msg.senderName,
           senderEmail: msg.senderEmail,
@@ -138,149 +215,21 @@ async function processMessages(
 
       if (!analysis.relevant || analysis.suggestedActions.length === 0) continue;
 
+      // Create suggestions — all start as "pending" for user approval
       for (const action of analysis.suggestedActions) {
-        const shouldAutoApply =
-          analysis.confidence >= AUTO_APPLY_THRESHOLD &&
-          action.type === "create_work_order";
-
-        const suggestion = await prisma.aISuggestion.create({
+        await prisma.aISuggestion.create({
           data: {
             processedMessageId: processed.id,
             suggestionType: action.type,
-            status: shouldAutoApply ? "auto_applied" : "pending",
+            status: "pending",
             payload: JSON.stringify(action),
           },
         });
-
         result.suggestionsCreated++;
-
-        if (shouldAutoApply) {
-          try {
-            const adminUser = await prisma.user.findFirst({
-              where: { role: "admin" },
-            });
-            if (adminUser) {
-              const workOrder = await prisma.workOrder.create({
-                data: {
-                  equipmentId: action.equipmentId,
-                  createdById: adminUser.id,
-                  title: action.title,
-                  description: `[Auto-created by AI from ${sourceType}]\n\n${action.description}`,
-                  priority: action.priority || "medium",
-                },
-              });
-
-              await prisma.aISuggestion.update({
-                where: { id: suggestion.id },
-                data: {
-                  createdRecordType: "WorkOrder",
-                  createdRecordId: workOrder.id,
-                },
-              });
-
-              result.autoApplied++;
-            }
-          } catch (err) {
-            console.error("[Scan] Auto-apply failed:", err);
-            await prisma.aISuggestion.update({
-              where: { id: suggestion.id },
-              data: { status: "pending" },
-            });
-          }
-        }
       }
     } catch (err) {
-      console.error("[Scan] AI analysis failed for message:", msg.externalId, err);
-      result.errors.push(`AI analysis failed for ${msg.externalId}`);
-    }
-  }
-}
-
-/**
- * Run a full scan of all email, Teams, and SharePoint sources.
- * Called by both the cron job and the "Scan All" button.
- */
-export async function runFullScan(
-  options: { source: "cron" | "manual" } = { source: "cron" }
-): Promise<ScanResult> {
-  const result: ScanResult = {
-    source: options.source,
-    mailboxesSynced: 0,
-    messagesPolled: 0,
-    messagesAnalyzed: 0,
-    suggestionsCreated: 0,
-    autoApplied: 0,
-    teamsMessages: 0,
-    sharePointDocs: 0,
-    preFiltered: 0,
-    errors: [],
-  };
-
-  // Get scan config
-  const scanConfig = await prisma.m365ScanConfig.findUnique({
-    where: { id: "default" },
-  });
-
-  // --- ORG-WIDE EMAIL SCANNING ---
-  if (scanConfig?.scanAllMailboxes !== false) {
-    try {
-      const appClient = await getAppGraphClient();
-
-      // Sync org users if stale (>1 hour) or if manual scan
-      const lastSync = scanConfig?.lastUserSyncAt;
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      if (!lastSync || lastSync < oneHourAgo || options.source === "manual") {
-        result.mailboxesSynced = await syncOrgUsers(appClient);
-      }
-
-      // Poll all mailboxes
-      const mailMessages = await pollAllMailboxes(appClient);
-      await processMessages(mailMessages, "email", "org-wide", result);
-    } catch (err) {
-      console.error("[Scan] Org-wide mail scanning failed:", err);
-      result.errors.push(
-        `Org-wide mail scan failed: ${err instanceof Error ? err.message : String(err)}`
-      );
-    }
-  }
-
-  // --- TEAMS CHANNEL SCANNING ---
-  try {
-    const connection = await getActiveConnection();
-    if (connection) {
-      const monitors = await prisma.m365MonitorConfig.findMany({
-        where: { isActive: true, sourceType: "teams_channel" },
-      });
-
-      const delegatedClient = await getGraphClient(connection.id);
-
-      for (const monitor of monitors) {
-        try {
-          const teamsMessages = await pollTeamsChannel(delegatedClient, monitor.id);
-          result.teamsMessages += teamsMessages.length;
-          await processMessages(teamsMessages, "teams", monitor.sourceId, result);
-        } catch (err) {
-          console.error(`[Scan] Teams channel ${monitor.displayName} failed:`, err);
-          result.errors.push(`Teams: ${monitor.displayName} failed`);
-        }
-      }
-    }
-  } catch (err) {
-    console.error("[Scan] Teams scanning failed:", err);
-    result.errors.push("Teams scanning failed");
-  }
-
-  // --- SHAREPOINT SCANNING ---
-  if (scanConfig?.scanSharePoint) {
-    try {
-      const appClient = await getAppGraphClient();
-      await syncSharePointSites(appClient);
-      result.sharePointDocs = await scanAllSharePointSites(appClient);
-    } catch (err) {
-      console.error("[Scan] SharePoint scanning failed:", err);
-      result.errors.push(
-        `SharePoint scan failed: ${err instanceof Error ? err.message : String(err)}`
-      );
+      console.error("[User Scan] AI analysis failed:", msg.externalId, err);
+      result.errors.push(`AI analysis failed for: ${msg.subject}`);
     }
   }
 

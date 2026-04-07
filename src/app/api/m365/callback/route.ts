@@ -7,11 +7,7 @@ import { publicUrl } from "@/lib/url";
 
 const SCOPES = [
   "Mail.Read",
-  "ChannelMessage.Read.All",
-  "Team.ReadBasic.All",
-  "Channel.ReadBasic.All",
   "User.Read",
-  "User.Read.All",
   "Sites.Read.All",
   "Files.Read.All",
   "offline_access",
@@ -19,7 +15,7 @@ const SCOPES = [
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "admin") {
+  if (!session?.user) {
     return NextResponse.redirect(publicUrl("/login"));
   }
 
@@ -48,13 +44,13 @@ export async function GET(req: NextRequest) {
       redirectUri,
     });
 
-    // Deactivate any existing connections
+    // Deactivate any existing connections FOR THIS USER
     await prisma.m365Connection.updateMany({
-      where: { isActive: true },
+      where: { connectedBy: session.user.id!, isActive: true },
       data: { isActive: false },
     });
 
-    // Store new connection with encrypted tokens
+    // Store new connection with encrypted tokens for this user
     await prisma.m365Connection.create({
       data: {
         tenantId: process.env.AZURE_AD_TENANT_ID!,

@@ -4,21 +4,17 @@ import { getMsalClient } from "@/lib/m365/graph-client";
 
 const SCOPES = [
   "Mail.Read",
-  "ChannelMessage.Read.All",
-  "Team.ReadBasic.All",
-  "Channel.ReadBasic.All",
   "User.Read",
-  "User.Read.All",
   "Sites.Read.All",
   "Files.Read.All",
   "offline_access",
 ];
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
     const session = await auth();
-    if (!session?.user || session.user.role !== "admin") {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    if (!session?.user) {
+      return NextResponse.json({ error: "Login required" }, { status: 401 });
     }
 
     // Check required env vars
@@ -55,7 +51,6 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error("[M365 Auth] Error:", error);
     const errorMsg = error instanceof Error ? error.message : String(error);
-    // Return JSON with the actual error so user can see it
     return NextResponse.json(
       { error: "MS365 auth failed", details: errorMsg },
       { status: 500 }

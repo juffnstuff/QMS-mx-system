@@ -4,9 +4,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ConnectionCard } from "@/components/m365/connection-card";
 import { ScanButton } from "@/components/m365/scan-button";
-import { OrgScanConfig } from "@/components/m365/org-scan-config";
-import { MonitorList } from "@/components/m365/monitor-list";
-import { SharePointPanel } from "@/components/m365/sharepoint-panel";
 
 export default async function M365SettingsPage({
   searchParams,
@@ -14,66 +11,62 @@ export default async function M365SettingsPage({
   searchParams: Promise<{ success?: string; error?: string }>;
 }) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "admin") {
-    redirect("/");
+  if (!session?.user) {
+    redirect("/login");
   }
 
   const params = await searchParams;
 
+  // Get THIS user's connection
   const connection = await prisma.m365Connection
     .findFirst({
-      where: { isActive: true },
+      where: { connectedBy: session.user.id!, isActive: true },
       include: { connectedByUser: { select: { name: true } } },
     })
     .catch(() => null);
 
-  const monitors = await prisma.m365MonitorConfig
-    .findMany({
-      orderBy: { createdAt: "desc" },
-    })
-    .catch(() => []);
-
+  // Stats scoped to this user's scans
   const pendingSuggestions = await prisma.aISuggestion
     .count({
-      where: { status: "pending" },
+      where: {
+        status: "pending",
+        processedMessage: { scannedByUserId: session.user.id },
+      },
     })
     .catch(() => 0);
 
   const messagesLast24h = await prisma.processedMessage
     .count({
       where: {
+        scannedByUserId: session.user.id,
         processedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
     })
     .catch(() => 0);
 
-  const autoAppliedLast24h = await prisma.aISuggestion
+  const approvedTotal = await prisma.aISuggestion
     .count({
       where: {
-        status: "auto_applied",
-        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        status: "approved",
+        processedMessage: { scannedByUserId: session.user.id },
       },
     })
     .catch(() => 0);
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            MS365 Smart Scanner
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            AI-powered org-wide email, Teams, and SharePoint scanning for
-            automatic maintenance tracking
-          </p>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">My Email Scanner</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Connect your MS365 account and AI will scan your emails for
+          maintenance items, equipment mentions, and work orders
+        </p>
       </div>
 
       {params.success === "connected" && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm">
-          Microsoft 365 connected successfully! The system will now
-          automatically scan all org emails for maintenance items.
+          Your Microsoft 365 account is connected! Click &ldquo;Scan My
+          Email&rdquo; to start finding maintenance items.
         </div>
       )}
 
@@ -94,7 +87,34 @@ export default async function M365SettingsPage({
         connectedAt={connection?.createdAt}
       />
 
-      {/* Scan All Button — the main action */}
+      {/* How it works */}
+      {!connection && (
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-5">
+          <h3 className="font-semibold text-blue-900 mb-2">How it works</h3>
+          <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
+            <li>
+              Connect your @rubberform.com email using the button above
+            </li>
+            <li>
+              Click &ldquo;Scan My Email&rdquo; to scan your inbox for
+              maintenance-related content
+            </li>
+            <li>
+              AI finds mentions of equipment, vehicles, pumps, parts, oil,
+              hoses, and more
+            </li>
+            <li>
+              Review the suggestions and approve them to create work orders,
+              maintenance logs, or update equipment status
+            </li>
+            <li>
+              Approved items become visible to the whole team
+            </li>
+          </ol>
+        </div>
+      )}
+
+      {/* Scan Button — the main action */}
       {connection && (
         <div className="mt-6">
           <ScanButton />
@@ -102,52 +122,45 @@ export default async function M365SettingsPage({
       )}
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-3 gap-4 mt-6">
-        <Link
-          href="/settings/m365/suggestions"
-          className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
-        >
-          <p className="text-sm text-gray-500">Pending Suggestions</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {pendingSuggestions}
-          </p>
-          <p className="text-xs text-blue-600 mt-1">Review &rarr;</p>
-        </Link>
-        <Link
-          href="/settings/m365/activity"
-          className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
-        >
-          <p className="text-sm text-gray-500">Messages (24h)</p>
-          <p className="text-2xl font-bold text-gray-900">{messagesLast24h}</p>
-          <p className="text-xs text-blue-600 mt-1">View activity &rarr;</p>
-        </Link>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <p className="text-sm text-gray-500">Auto-Applied (24h)</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {autoAppliedLast24h}
-          </p>
-          <p className="text-xs text-green-600 mt-1">Work orders created</p>
-        </div>
-      </div>
-
-      {/* Org Scanning Config */}
       {connection && (
-        <div className="mt-6">
-          <OrgScanConfig />
-        </div>
-      )}
-
-      {/* Teams Channel Monitors */}
-      {connection && (
-        <div className="mt-6">
-          <MonitorList monitors={monitors} />
+        <div className="grid grid-cols-3 gap-4 mt-6">
+          <Link
+            href="/settings/m365/suggestions"
+            className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
+          >
+            <p className="text-sm text-gray-500">Pending Review</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {pendingSuggestions}
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              Review &amp; approve &rarr;
+            </p>
+          </Link>
+          <Link
+            href="/settings/m365/activity"
+            className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
+          >
+            <p className="text-sm text-gray-500">Scanned (24h)</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {messagesLast24h}
+            </p>
+            <p className="text-xs text-blue-600 mt-1">View activity &rarr;</p>
+          </Link>
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <p className="text-sm text-gray-500">Approved</p>
+            <p className="text-2xl font-bold text-gray-900">{approvedTotal}</p>
+            <p className="text-xs text-green-600 mt-1">
+              Items pushed to team
+            </p>
+          </div>
         </div>
       )}
 
-      {/* SharePoint */}
-      {connection && (
-        <div className="mt-6">
-          <SharePointPanel />
+      {/* Last polled info */}
+      {connection?.lastPolledAt && (
+        <div className="mt-4 text-xs text-gray-400 text-center">
+          Last scanned:{" "}
+          {new Date(connection.lastPolledAt).toLocaleString()}
         </div>
       )}
     </div>

@@ -10,7 +10,7 @@ import {
   Calendar,
   FileText,
   Users,
-  Plug,
+  Mail,
   LogOut,
   Menu,
   X,
@@ -23,11 +23,11 @@ const navItems = [
   { href: "/schedules", label: "Schedules", icon: Calendar },
   { href: "/maintenance", label: "Maintenance Log", icon: FileText },
   { href: "/work-orders", label: "Work Orders", icon: ClipboardList },
+  { href: "/settings/m365", label: "My Email Scanner", icon: Mail },
 ];
 
 const adminNavItems = [
   { href: "/users", label: "Users", icon: Users },
-  { href: "/settings/m365", label: "MS365 Connector", icon: Plug },
 ];
 
 export function Sidebar({ userName, userRole }: { userName: string; userRole: string }) {

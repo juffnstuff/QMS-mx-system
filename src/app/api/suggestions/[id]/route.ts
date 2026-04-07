@@ -7,8 +7,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "admin") {
-    return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Login required" }, { status: 401 });
   }
 
   const { id } = await params;
@@ -44,7 +44,7 @@ export async function PUT(
     return NextResponse.json(updated);
   }
 
-  // Approve: create the actual record
+  // Approve: create the actual record — now visible to everyone
   const payload = JSON.parse(suggestion.payload);
   let createdRecordType: string | null = null;
   let createdRecordId: string | null = null;
@@ -54,9 +54,9 @@ export async function PUT(
       const workOrder = await prisma.workOrder.create({
         data: {
           equipmentId: payload.equipmentId,
-          createdById: session.user.id!,
+          createdById: session.user.id,
           title: payload.title,
-          description: payload.description,
+          description: `[Created from AI email scan]\n\n${payload.description}`,
           priority: payload.priority || "medium",
         },
       });
@@ -66,7 +66,7 @@ export async function PUT(
       const log = await prisma.maintenanceLog.create({
         data: {
           equipmentId: payload.equipmentId,
-          userId: session.user.id!,
+          userId: session.user.id,
           description: payload.description,
           partsUsed: payload.partsUsed || null,
         },
