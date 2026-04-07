@@ -16,11 +16,13 @@ interface Monitor {
 export function MonitorList({ monitors }: { monitors: Monitor[] }) {
   const router = useRouter();
   const [showAddForm, setShowAddForm] = useState(false);
-  const [sourceType, setSourceType] = useState<"mailbox" | "teams_channel">("mailbox");
   const [sourceId, setSourceId] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Only show Teams channel monitors — mailboxes are now auto-discovered
+  const teamsMonitors = monitors.filter((m) => m.sourceType === "teams_channel");
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -31,7 +33,7 @@ export function MonitorList({ monitors }: { monitors: Monitor[] }) {
       const res = await fetch("/api/m365/monitors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceType, sourceId, displayName }),
+        body: JSON.stringify({ sourceType: "teams_channel", sourceId, displayName }),
       });
       if (!res.ok) throw new Error("Failed to add monitor");
       setShowAddForm(false);
@@ -39,7 +41,7 @@ export function MonitorList({ monitors }: { monitors: Monitor[] }) {
       setDisplayName("");
       router.refresh();
     } catch {
-      setError("Failed to add monitor");
+      setError("Failed to add Teams channel");
     } finally {
       setLoading(false);
     }
@@ -55,7 +57,7 @@ export function MonitorList({ monitors }: { monitors: Monitor[] }) {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Remove this monitor?")) return;
+    if (!confirm("Remove this Teams channel monitor?")) return;
     await fetch(`/api/m365/monitors/${id}`, { method: "DELETE" });
     router.refresh();
   }
@@ -63,12 +65,17 @@ export function MonitorList({ monitors }: { monitors: Monitor[] }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold text-gray-900">Monitored Sources</h2>
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Teams Channels</h2>
+          <p className="text-sm text-gray-500">
+            Teams channels still need manual configuration
+          </p>
+        </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
           className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
         >
-          + Add Source
+          + Add Channel
         </button>
       </div>
 
@@ -77,41 +84,26 @@ export function MonitorList({ monitors }: { monitors: Monitor[] }) {
           {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-              <select
-                value={sourceType}
-                onChange={(e) => setSourceType(e.target.value as "mailbox" | "teams_channel")}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="mailbox">Email Mailbox</option>
-                <option value="teams_channel">Teams Channel</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Channel Name</label>
               <input
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder={sourceType === "mailbox" ? "Maintenance Inbox" : "#maintenance-alerts"}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="#maintenance-alerts"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
                 required
               />
             </div>
-            <div className="md:col-span-2">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                {sourceType === "mailbox" ? "Email Address" : "Team ID / Channel ID (format: teamId/channelId)"}
+                Team ID / Channel ID
               </label>
               <input
                 type="text"
                 value={sourceId}
                 onChange={(e) => setSourceId(e.target.value)}
-                placeholder={
-                  sourceType === "mailbox"
-                    ? "maintenance@rubberform.com"
-                    : "team-id/channel-id"
-                }
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="team-id/channel-id"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
                 required
               />
             </div>
@@ -122,7 +114,7 @@ export function MonitorList({ monitors }: { monitors: Monitor[] }) {
               disabled={loading}
               className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? "Adding..." : "Add Monitor"}
+              {loading ? "Adding..." : "Add Channel"}
             </button>
             <button
               type="button"
@@ -135,14 +127,14 @@ export function MonitorList({ monitors }: { monitors: Monitor[] }) {
         </form>
       )}
 
-      {monitors.length === 0 ? (
-        <div className="text-center py-8 bg-white rounded-lg border border-gray-200">
-          <p className="text-gray-500">No monitored sources yet</p>
-          <p className="text-sm text-gray-400 mt-1">Add an email mailbox or Teams channel to start</p>
+      {teamsMonitors.length === 0 ? (
+        <div className="text-center py-6 bg-white rounded-lg border border-gray-200">
+          <p className="text-gray-500 text-sm">No Teams channels monitored yet</p>
+          <p className="text-xs text-gray-400 mt-1">Add a Teams channel to scan for maintenance messages</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {monitors.map((monitor) => (
+          {teamsMonitors.map((monitor) => (
             <div
               key={monitor.id}
               className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between"
@@ -156,8 +148,7 @@ export function MonitorList({ monitors }: { monitors: Monitor[] }) {
                 <div>
                   <p className="font-medium text-gray-900">{monitor.displayName}</p>
                   <p className="text-sm text-gray-500">
-                    {monitor.sourceType === "mailbox" ? "Email" : "Teams"} &middot;{" "}
-                    {monitor.sourceId}
+                    Teams &middot; {monitor.sourceId}
                     {monitor.lastPolledAt && (
                       <> &middot; Last polled {format(new Date(monitor.lastPolledAt), "MMM d, h:mm a")}</>
                     )}

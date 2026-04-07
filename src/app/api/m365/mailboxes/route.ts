@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getActiveConnection, getGraphClient } from "@/lib/m365/graph-client";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   const session = await auth();
@@ -8,42 +8,30 @@ export async function GET() {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
 
-  const connection = await getActiveConnection();
-  if (!connection) {
-    return NextResponse.json({ error: "MS365 not connected" }, { status: 400 });
+  const mailboxes = await prisma.m365UserMailbox.findMany({
+    orderBy: { displayName: "asc" },
+  });
+
+  return NextResponse.json({ mailboxes });
+}
+
+export async function PUT(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user || session.user.role !== "admin") {
+    return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
 
-  try {
-    const client = await getGraphClient(connection.id);
+  const body = await req.json();
+  const { id, isActive } = body;
 
-    // Get the current user's mailbox info
-    const me = await client.api("/me").select("displayName,mail").get();
-
-    // Try to list shared mailboxes (requires appropriate permissions)
-    let sharedMailboxes: { displayName: string; mail: string }[] = [];
-    try {
-      const shared = await client
-        .api("/users")
-        .filter("accountEnabled eq true")
-        .select("displayName,mail,userType")
-        .top(50)
-        .get();
-      sharedMailboxes = (shared.value || [])
-        .filter((u: { mail: string }) => u.mail)
-        .map((u: { displayName: string; mail: string }) => ({
-          displayName: u.displayName,
-          mail: u.mail,
-        }));
-    } catch {
-      // May not have permission to list users — just return current user
-    }
-
-    return NextResponse.json({
-      currentUser: { displayName: me.displayName, mail: me.mail },
-      availableMailboxes: sharedMailboxes,
-    });
-  } catch (error) {
-    console.error("[M365 Mailboxes] Error:", error);
-    return NextResponse.json({ error: "Failed to fetch mailboxes" }, { status: 500 });
+  if (!id || typeof isActive !== "boolean") {
+    return NextResponse.json({ error: "id and isActive required" }, { status: 400 });
   }
+
+  const mailbox = await prisma.m365UserMailbox.update({
+    where: { id },
+    data: { isActive },
+  });
+
+  return NextResponse.json(mailbox);
 }

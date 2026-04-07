@@ -66,4 +66,26 @@ export async function getGraphClient(connectionId: string): Promise<Client> {
   });
 }
 
+/**
+ * Get an app-level Graph client using client credentials flow.
+ * This uses application permissions (not delegated) and can access
+ * ALL org mailboxes, SharePoint sites, etc. without a user context.
+ * Requires application permissions granted by Azure AD admin.
+ */
+export async function getAppGraphClient(): Promise<Client> {
+  const msalClient = getMsalClient();
+
+  const result = await msalClient.acquireTokenByClientCredential({
+    scopes: ["https://graph.microsoft.com/.default"],
+  });
+
+  if (!result) throw new Error("Client credential token acquisition failed");
+
+  return Client.init({
+    authProvider: (done) => {
+      done(null, result.accessToken);
+    },
+  });
+}
+
 export { getMsalClient };

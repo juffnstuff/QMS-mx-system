@@ -133,11 +133,12 @@ model ProcessedMessage {
 model AISuggestion {
   id                 String    @id @default(cuid())
   processedMessageId String
-  suggestionType     String    // "create_work_order" | "create_maintenance_log" | "update_equipment_status"
+  suggestionType     String    // "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review"
   status             String    @default("pending") // "pending" | "approved" | "rejected" | "auto_applied"
   payload            String    // JSON with proposed action details
   createdRecordType  String?   // "WorkOrder" | "MaintenanceLog" | "Equipment"
   createdRecordId    String?
+  sharePointDocId    String?   // optional link to SharePointDocument
   reviewedBy         String?
   reviewedAt         DateTime?
   reviewNote         String?
@@ -145,4 +146,50 @@ model AISuggestion {
 
   processedMessage ProcessedMessage @relation(fields: [processedMessageId], references: [id], onDelete: Cascade)
   reviewer         User?            @relation("SuggestionReviewer", fields: [reviewedBy], references: [id])
+}
+
+model M365UserMailbox {
+  id                String    @id @default(cuid())
+  userPrincipalName String    @unique
+  displayName       String
+  mail              String?
+  isActive          Boolean   @default(true)
+  deltaLink         String?
+  lastPolledAt      DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model M365ScanConfig {
+  id                String    @id @default("default")
+  scanAllMailboxes  Boolean   @default(true)
+  excludedMailboxes String    @default("[]")
+  scanSharePoint    Boolean   @default(false)
+  lastUserSyncAt    DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model M365SharePointSite {
+  id            String    @id @default(cuid())
+  siteId        String    @unique
+  siteName      String
+  siteUrl       String
+  isActive      Boolean   @default(true)
+  lastScannedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model SharePointDocument {
+  id           String   @id @default(cuid())
+  externalId   String   @unique
+  siteId       String
+  name         String
+  webUrl       String
+  contentType  String?
+  lastModified DateTime
+  aiAnalysis   String?
+  actionTaken  String   @default("none")
+  processedAt  DateTime @default(now())
 }

@@ -8,6 +8,9 @@ const SCOPES = [
   "Team.ReadBasic.All",
   "Channel.ReadBasic.All",
   "User.Read",
+  "User.Read.All",
+  "Sites.Read.All",
+  "Files.Read.All",
   "offline_access",
 ];
 
