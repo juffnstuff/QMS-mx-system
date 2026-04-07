@@ -2,13 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-export async function GET(req: Request) {
-  // Secret key check
-  const url = new URL(req.url);
-  const key = url.searchParams.get("key");
-  if (key !== "rubberform-setup-2026") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET() {
+  // Seed endpoint disabled in production
+  return NextResponse.json(
+    { error: "Seed endpoint is disabled. Contact admin." },
+    { status: 403 }
+  );
 
 
 
