@@ -63,7 +63,7 @@ ${equipmentContext || "(No equipment registered yet — suggest adding new equip
 ## Manufacturing Domain Knowledge
 RubberForm processes recycled rubber. Watch for mentions of:
 
-**Vehicles & Fleet:** forklift, truck, loader, bobcat, plow, trailer, fleet, van, pickup, delivery vehicle, company truck, dump truck, flatbed
+**Vehicles & Fleet:** forklift, truck, loader, bobcat, plow, trailer, fleet, van, pickup, delivery vehicle, company truck, dump truck, flatbed, **Penske truck** (rental box truck), **F250 / Ford F-250** (company pickup truck), box truck, rental truck
 **Pumps:** hydraulic pump, water pump, sump pump, vacuum pump, transfer pump, fuel pump, coolant pump
 **Rubber Processing Equipment:** extruder, grinder, baler, conveyor, shredder, granulator, mixer, press, mold, vulcanizer, crusher, roller, cutter, dryer, hopper, feeder, separator, screen, classifier, magnetic separator, metal detector
 **Motors & Power:** motor, compressor, generator, engine, drive, gearbox, VFD, variable frequency drive, starter, transformer, panel, breaker, electrical, power supply, battery, charger
@@ -80,8 +80,16 @@ Subject: ${message.subject || "(No subject)"}
 Body:
 ${message.body.slice(0, 4000)}
 
+## Known Company Assets
+- **Penske truck** — rental box truck used for deliveries/pickups. Any mention of "Penske", "box truck", or "rental truck" is vehicle-related.
+- **Ford F-250** — company pickup truck. Any mention of "F250", "F-250", "Ford", or "the pickup" likely refers to this.
+- **Hydraulic press pump** — the presses need pumps. Any email about "pump for the press", "press pump", "hydraulic pump" related to the press is maintenance-critical.
+
+## MS Forms Responses
+If the message subject starts with "Form:" it's an MS Forms response from SharePoint. These are structured submissions (like maintenance requests, inspection checklists, or work requests). Treat ALL form fields as relevant data — extract equipment references, issues described, and actions needed.
+
 ## Instructions
-1. Determine if this message relates to: equipment maintenance, repairs, breakdowns, parts ordering, service requests, safety issues, facility maintenance, fleet/vehicle issues, vendor/supplier communications about equipment, or operational projects.
+1. Determine if this message relates to: equipment maintenance, repairs, breakdowns, parts ordering, service requests, safety issues, facility maintenance, fleet/vehicle issues, vendor/supplier communications about equipment, operational projects, or MS Forms submissions about any of the above.
 
 2. **Be smart about informal language.** RubberForm people write casually:
    - "the big green one is making that noise again" → equipment issue
