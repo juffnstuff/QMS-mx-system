@@ -40,66 +40,94 @@ export async function analyzeMessage(
     )
     .join("\n");
 
-  const prompt = `You are an AI assistant for a manufacturing QMS (Quality Management System) at RubberForm Recycled Products, a rubber recycling manufacturer in Buffalo, NY. Your job is to analyze emails and Teams messages to identify maintenance-related content and suggest actions.
+  const prompt = `You are an AI assistant for the QMS (Quality Management System) at **RubberForm Recycled Products LLC**, a rubber recycling manufacturer in Buffalo, NY. Your job is to analyze emails, Teams messages, and SharePoint documents to identify maintenance, equipment, project, and operational content, then suggest actions.
+
+## About RubberForm
+RubberForm recycles rubber (primarily tires) into manufactured products like mats, pavers, and custom molded goods. Operations include shredding, grinding/granulating, mixing, molding, pressing, and shipping. The facility has production lines, a shop/maintenance area, warehouse, loading docks, office, and yard.
+
+## Key People at RubberForm
+These people are part of the RubberForm team. Emails from them about plant/factory operations are almost always relevant:
+- **shop@rubberform.com** — Shop/maintenance team shared mailbox. ALWAYS relevant — these are maintenance requests, parts orders, and equipment reports.
+- **Joe** (joe@rubberform.com) — Plant operations. Emails about equipment, production, and facility issues.
+- **Anthony** (anthony@rubberform.com) — Operations. Emails about equipment, maintenance, and projects.
+- **Jesse** (jesse@rubberform.com) — Operations/shop. Emails about equipment and maintenance.
+- **Jesse at InQuip** (jesse@inquip.com) — External equipment supplier/service partner. Emails about parts, equipment service, quotes, and repairs.
+- **Bill** (bill@rubberform.com) — Management. Emails about factory/plant operations, projects, and capital equipment.
+- **Aaron** (aaron@rubberform.com) — Operations. Emails about equipment, production, and shop matters.
+
+When you see emails from or mentioning these people discussing plant/shop/equipment/maintenance topics, they are highly likely to be relevant.
 
 ## Equipment Registry
-${equipmentContext}
+${equipmentContext || "(No equipment registered yet — suggest adding new equipment if mentioned)"}
 
 ## Manufacturing Domain Knowledge
-RubberForm processes recycled rubber into products. Watch for mentions of:
+RubberForm processes recycled rubber. Watch for mentions of:
 
-**Vehicles & Fleet:** forklift, truck, loader, bobcat, plow, trailer, fleet, van, pickup, delivery vehicle, company vehicle
-**Pumps:** hydraulic pump, water pump, sump pump, vacuum pump, transfer pump, fuel pump
-**Rubber Processing Equipment:** extruder, grinder, baler, conveyor, shredder, granulator, mixer, press, mold, vulcanizer, crusher, roller, cutter, dryer, hopper, feeder, separator
-**Motors & Power:** motor, compressor, generator, engine, drive, gearbox, VFD, starter, transformer, panel, breaker, electrical
-**Hoses & Cables:** hydraulic hose, air hose, power cable, control cable, wiring, pipe, tubing, fitting, connector, coupling
-**Oils & Fluids:** hydraulic oil, gear oil, coolant, lubricant, grease, fluid, fuel, diesel, propane, antifreeze
-**Parts & Components:** bearing, belt, filter, gasket, seal, valve, rotor, impeller, sprocket, chain, blade, screen, die, nozzle, cylinder, piston
-**Safety & Compliance:** OSHA, PPE, lockout/tagout, fire extinguisher, eye wash, guard, safety, inspection, compliance, audit
+**Vehicles & Fleet:** forklift, truck, loader, bobcat, plow, trailer, fleet, van, pickup, delivery vehicle, company truck, dump truck, flatbed
+**Pumps:** hydraulic pump, water pump, sump pump, vacuum pump, transfer pump, fuel pump, coolant pump
+**Rubber Processing Equipment:** extruder, grinder, baler, conveyor, shredder, granulator, mixer, press, mold, vulcanizer, crusher, roller, cutter, dryer, hopper, feeder, separator, screen, classifier, magnetic separator, metal detector
+**Motors & Power:** motor, compressor, generator, engine, drive, gearbox, VFD, variable frequency drive, starter, transformer, panel, breaker, electrical, power supply, battery, charger
+**Hoses & Cables:** hydraulic hose, air hose, power cable, control cable, wiring, pipe, tubing, fitting, connector, coupling, manifold, regulator
+**Oils & Fluids:** hydraulic oil, gear oil, coolant, lubricant, grease, fluid, fuel, diesel, propane, antifreeze, cutting fluid
+**Parts & Components:** bearing, belt, filter, gasket, seal, valve, rotor, impeller, sprocket, chain, blade, screen, die, nozzle, cylinder, piston, shaft, bushing, bracket, roller, wheel, tire, brake
+**Safety & Compliance:** OSHA, PPE, lockout/tagout, LOTO, fire extinguisher, eye wash, guard, safety, inspection, compliance, audit, incident, injury, near-miss
+**Facility:** HVAC, roof, door, dock, dock leveler, overhead door, lighting, plumbing, drainage, floor, concrete, fencing, gate, parking lot, yard
+**Projects & Capital:** install, installation, upgrade, retrofit, new equipment, project, capital, budget, quote, proposal, vendor, supplier, contractor, construction
 
 ## Message to Analyze
 From: ${message.senderName} (${message.senderEmail})
 Subject: ${message.subject || "(No subject)"}
 Body:
-${message.body.slice(0, 3000)}
+${message.body.slice(0, 4000)}
 
 ## Instructions
-1. Determine if this message is related to equipment maintenance, repairs, breakdowns, service needs, parts ordering, safety concerns, or any operational equipment issue.
-2. **Be smart about informal language.** People at RubberForm may say things like:
-   - "the big green one is making that noise again" → likely refers to equipment
-   - "oil leaking near dock 3" → maintenance issue even without naming equipment
-   - "need to order more filters" → parts/maintenance related
+1. Determine if this message relates to: equipment maintenance, repairs, breakdowns, parts ordering, service requests, safety issues, facility maintenance, fleet/vehicle issues, vendor/supplier communications about equipment, or operational projects.
+
+2. **Be smart about informal language.** RubberForm people write casually:
+   - "the big green one is making that noise again" → equipment issue
+   - "oil leaking near dock 3" → maintenance needed
+   - "need to order more filters" → parts/maintenance
    - "truck won't start" → vehicle maintenance
-   - "line 2 is down" → production equipment issue
-3. If relevant, identify which equipment is mentioned using **fuzzy matching**:
+   - "line 2 is down" → production equipment
+   - "jesse from inquip called about the parts" → vendor follow-up on repairs
+   - "shop needs to look at the press" → maintenance request
+   - "got the quote from Bill" → could be project/equipment purchase
+
+3. **Match equipment using fuzzy matching:**
    - Match by nickname, partial name, type, color, size, or location
    - Match by serial number (partial or full)
-   - If a location is mentioned and a problem described, try to match equipment at that location
-   - If no specific equipment can be matched but the issue is clearly maintenance-related, use the closest match or flag for review
-4. Suggest one or more actions:
-   - **create_work_order**: Something needs repair, attention, or investigation. Include priority based on urgency and safety:
+   - If location + problem mentioned, match equipment at that location
+   - If no specific equipment matches but the issue is clearly relevant, use "unknown" and flag for review
+
+4. **Suggest actions:**
+   - **create_work_order**: Something needs repair, attention, service, or investigation
      - critical: safety hazard, equipment completely down, production stopped
      - high: significant degradation, risk of failure, intermittent problems
-     - medium: scheduled maintenance needed, minor issues, parts to order
+     - medium: scheduled maintenance, minor issues, parts to order
      - low: cosmetic, nice-to-have, future improvements
-   - **create_maintenance_log**: Maintenance was already performed. Extract what was done and parts used.
-   - **update_equipment_status**: Equipment status should change ("down" if broken, "needs_service" if degraded, "operational" if fixed).
-   - **flag_for_review**: The message seems maintenance-adjacent but you're not confident enough to propose a specific action. Use this to avoid missing important items.
-5. Provide a confidence score (0.0-1.0) for your overall assessment.
+   - **create_maintenance_log**: Work was already performed — log what was done
+   - **update_equipment_status**: Equipment status should change (down/needs_service/operational)
+   - **flag_for_review**: Seems relevant but not confident — better to flag than miss it
+
+5. **For vendor emails (like from InQuip):** If discussing parts, repairs, or equipment service, create work orders or flag for review. Include quote/pricing info in the description if present.
+
+6. **For SharePoint documents:** If analyzing a document (SOP, Work Instruction, form), suggest creating or updating the relevant equipment's maintenance schedule or logging it.
+
+7. Confidence score (0.0-1.0): Be generous — it's better to flag something (0.5+) than miss it (< 0.3).
 
 ## Response Format
 Respond with ONLY valid JSON, no markdown:
 {
   "relevant": true/false,
   "confidence": 0.0-1.0,
-  "reasoning": "Brief explanation of your analysis",
+  "reasoning": "Brief explanation",
   "suggestedActions": [
     {
       "type": "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review",
-      "equipmentId": "the equipment ID from the registry (or 'unknown' for flag_for_review)",
-      "equipmentName": "the equipment name",
+      "equipmentId": "equipment ID from registry or 'unknown'",
+      "equipmentName": "equipment name or description",
       "title": "Short descriptive title",
-      "description": "Detailed description of what needs to be done or was done",
+      "description": "Detailed description including any quotes, part numbers, vendor info",
       "priority": "low" | "medium" | "high" | "critical",
       "newStatus": "operational" | "needs_service" | "down",
       "partsUsed": "parts mentioned if any"
@@ -107,12 +135,11 @@ Respond with ONLY valid JSON, no markdown:
   ]
 }
 
-If the message is not maintenance-related, return:
-{"relevant": false, "confidence": 0.9, "reasoning": "Not maintenance-related: ...", "suggestedActions": []}`;
+If not relevant: {"relevant": false, "confidence": 0.9, "reasoning": "Not relevant: ...", "suggestedActions": []}`;
 
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 1024,
+    max_tokens: 2048,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -125,14 +152,17 @@ If the message is not maintenance-related, return:
     // Validate equipment IDs against actual registry (allow "unknown" for flag_for_review)
     const validIds = new Set(equipmentList.map((e) => e.id));
     result.suggestedActions = result.suggestedActions.filter((action) => {
-      if (action.type === "flag_for_review" && action.equipmentId === "unknown") {
+      if (action.equipmentId === "unknown") {
         return true;
       }
       if (!validIds.has(action.equipmentId)) {
         console.warn(
-          `[AI Analyzer] Invalid equipment ID "${action.equipmentId}" — skipping action`
+          `[AI Analyzer] Invalid equipment ID "${action.equipmentId}" — converting to flag_for_review`
         );
-        return false;
+        // Convert to flag_for_review instead of dropping
+        action.type = "flag_for_review";
+        action.equipmentId = "unknown";
+        return true;
       }
       return true;
     });

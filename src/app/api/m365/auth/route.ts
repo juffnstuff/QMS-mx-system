@@ -5,6 +5,8 @@ import { getMsalClient } from "@/lib/m365/graph-client";
 const SCOPES = [
   "Mail.Read",
   "User.Read",
+  "Team.ReadBasic.All",
+  "ChannelMessage.Read.All",
   "Sites.Read.All",
   "Files.Read.All",
   "offline_access",
