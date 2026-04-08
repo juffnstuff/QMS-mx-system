@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { equipmentId, title, description, frequency, nextDue } = body;
+  const { equipmentId, title, description, frequency, nextDue, sourceWorkOrderId } = body;
 
   if (!equipmentId || !title || !frequency || !nextDue) {
     return NextResponse.json(
@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       description: description || null,
       frequency,
       nextDue: new Date(nextDue),
+      sourceWorkOrderId: sourceWorkOrderId || null,
     },
   });
 

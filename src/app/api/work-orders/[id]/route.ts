@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendNotification } from "@/lib/notifications/send-notification";
+import { statusChanged, workOrderAssigned } from "@/lib/notifications/email-templates";
 
 export async function PUT(
   req: NextRequest,
@@ -14,6 +16,12 @@ export async function PUT(
   const { id } = await params;
   const body = await req.json();
   const { status, assignedToId, priority, title, description, dueDate } = body;
+
+  // Fetch existing to detect changes
+  const existing = await prisma.workOrder.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const updateData: Record<string, unknown> = {};
   if (status !== undefined) {
@@ -32,6 +40,47 @@ export async function PUT(
     where: { id },
     data: updateData,
   });
+
+  // Notify on status change
+  if (status && status !== existing.status) {
+    const email = statusChanged(existing.title, existing.status, status, id);
+    const notifyUserIds = new Set<string>();
+    if (existing.createdById !== session.user.id) notifyUserIds.add(existing.createdById);
+    if (existing.assignedToId && existing.assignedToId !== session.user.id) notifyUserIds.add(existing.assignedToId);
+
+    for (const userId of notifyUserIds) {
+      sendNotification({
+        userId,
+        type: "status_changed",
+        title: `Work Order Updated: ${existing.title}`,
+        message: `Status changed from ${existing.status} to ${status}`,
+        relatedType: "WorkOrder",
+        relatedId: id,
+        emailSubject: email.subject,
+        emailHtml: email.html,
+        smsText: email.plain,
+      }).catch((e) => console.error("[Notification] Failed:", e));
+    }
+  }
+
+  // Notify on reassignment
+  if (assignedToId && assignedToId !== existing.assignedToId && assignedToId !== session.user.id) {
+    const assignee = await prisma.user.findUnique({ where: { id: assignedToId } });
+    if (assignee) {
+      const email = workOrderAssigned(existing.title, assignee.name, id);
+      sendNotification({
+        userId: assignedToId,
+        type: "work_order_assigned",
+        title: `Work Order Assigned: ${existing.title}`,
+        message: `You've been assigned work order "${existing.title}"`,
+        relatedType: "WorkOrder",
+        relatedId: id,
+        emailSubject: email.subject,
+        emailHtml: email.html,
+        smsText: email.plain,
+      }).catch((e) => console.error("[Notification] Failed:", e));
+    }
+  }
 
   return NextResponse.json(workOrder);
 }

@@ -132,21 +132,37 @@ export default async function EquipmentDetailPage({
           {equipment.workOrders.length === 0 ? (
             <p className="p-4 text-sm text-gray-500">No work orders for this equipment.</p>
           ) : (
-            equipment.workOrders.map((order) => (
-              <div key={order.id} className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">{order.title}</p>
-                  <p className="text-sm text-gray-500">
-                    {order.assignedTo ? order.assignedTo.name : "Unassigned"} •{" "}
-                    {new Date(order.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <StatusBadge status={order.priority} />
-                  <StatusBadge status={order.status} />
-                </div>
+            <>
+              {equipment.workOrders.map((order) => (
+                <Link
+                  key={order.id}
+                  href={`/work-orders/${order.id}`}
+                  className="block p-4 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-blue-600 hover:text-blue-800">{order.title}</p>
+                      <p className="text-sm text-gray-500">
+                        {order.assignedTo ? order.assignedTo.name : "Unassigned"} •{" "}
+                        {new Date(order.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <StatusBadge status={order.priority} />
+                      <StatusBadge status={order.status} />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+              <div className="p-3 border-t border-gray-100 text-center">
+                <Link
+                  href={`/work-orders?equipmentId=${equipment.id}`}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  View all work orders for this equipment
+                </Link>
               </div>
-            ))
+            </>
           )}
         </div>
       </div>

@@ -10,6 +10,8 @@ const statusStyles: Record<string, string> = {
   medium: "bg-blue-100 text-blue-800",
   high: "bg-orange-100 text-orange-800",
   critical: "bg-red-100 text-red-800",
+  planning: "bg-blue-100 text-blue-800",
+  on_hold: "bg-gray-100 text-gray-600",
 };
 
 const statusLabels: Record<string, string> = {
@@ -24,6 +26,8 @@ const statusLabels: Record<string, string> = {
   medium: "Medium",
   high: "High",
   critical: "Critical",
+  planning: "Planning",
+  on_hold: "On Hold",
 };
 
 export function StatusBadge({ status }: { status: string }) {

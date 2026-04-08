@@ -50,10 +50,46 @@ export async function PUT(
   let createdRecordId: string | null = null;
 
   try {
+    // Auto-create equipment if unknown and isNewEquipment
+    let equipmentId = payload.equipmentId;
+    if (equipmentId === "unknown" && payload.isNewEquipment !== false) {
+      const nameLC = (payload.equipmentName || "").toLowerCase();
+      let inferredType = "General";
+      if (/truck|vehicle|forklift|loader|bobcat|van|pickup|trailer|f[- ]?250|penske/i.test(nameLC)) {
+        inferredType = "Vehicle";
+      } else if (/pump/.test(nameLC)) {
+        inferredType = "Pump";
+      } else if (/press/.test(nameLC)) {
+        inferredType = "Press";
+      } else if (/grinder|granulator|shredder|crusher|baler|mixer|extruder/.test(nameLC)) {
+        inferredType = "Processing Equipment";
+      } else if (/conveyor/.test(nameLC)) {
+        inferredType = "Conveyor";
+      } else if (/motor|compressor|generator|engine|drive/.test(nameLC)) {
+        inferredType = "Motor/Power";
+      } else if (/hvac|roof|door|dock|lighting|plumbing/.test(nameLC)) {
+        inferredType = "Facility";
+      }
+
+      const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const tempSerial = `AUTO-${Date.now()}-${rand}`;
+      const newEquipment = await prisma.equipment.create({
+        data: {
+          name: payload.equipmentName || "Unknown Equipment",
+          type: inferredType,
+          location: "TBD",
+          serialNumber: tempSerial,
+          status: "needs_service",
+          notes: "Auto-created from AI suggestion approval. Please update serial number, location, and type.",
+        },
+      });
+      equipmentId = newEquipment.id;
+    }
+
     if (suggestion.suggestionType === "create_work_order") {
       const workOrder = await prisma.workOrder.create({
         data: {
-          equipmentId: payload.equipmentId,
+          equipmentId: equipmentId,
           createdById: session.user.id,
           title: payload.title,
           description: `[Created from AI email scan]\n\n${payload.description}`,
@@ -65,7 +101,7 @@ export async function PUT(
     } else if (suggestion.suggestionType === "create_maintenance_log") {
       const log = await prisma.maintenanceLog.create({
         data: {
-          equipmentId: payload.equipmentId,
+          equipmentId: equipmentId,
           userId: session.user.id,
           description: payload.description,
           partsUsed: payload.partsUsed || null,
@@ -75,11 +111,23 @@ export async function PUT(
       createdRecordId = log.id;
     } else if (suggestion.suggestionType === "update_equipment_status") {
       await prisma.equipment.update({
-        where: { id: payload.equipmentId },
+        where: { id: equipmentId },
         data: { status: payload.newStatus },
       });
       createdRecordType = "Equipment";
-      createdRecordId = payload.equipmentId;
+      createdRecordId = equipmentId;
+    } else if (suggestion.suggestionType === "create_project") {
+      const project = await prisma.project.create({
+        data: {
+          title: payload.title,
+          description: payload.description || null,
+          priority: payload.priority || "medium",
+          budget: payload.budget || null,
+          createdById: session.user.id,
+        },
+      });
+      createdRecordType = "Project";
+      createdRecordId = project.id;
     }
 
     const updated = await prisma.aISuggestion.update({

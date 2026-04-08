@@ -94,4 +94,25 @@ export async function getAppGraphClient(): Promise<Client> {
   });
 }
 
+/**
+ * Send an email via Microsoft Graph sendMail API.
+ * Requires Mail.Send permission in the M365 connection.
+ */
+export async function sendEmail(
+  connectionId: string,
+  to: string,
+  subject: string,
+  htmlBody: string
+) {
+  const client = await getGraphClient(connectionId);
+  await client.api("/me/sendMail").post({
+    message: {
+      subject,
+      body: { contentType: "HTML", content: htmlBody },
+      toRecipients: [{ emailAddress: { address: to } }],
+    },
+    saveToSentItems: false,
+  });
+}
+
 export { getMsalClient };

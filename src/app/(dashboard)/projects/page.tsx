@@ -2,54 +2,47 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { StatusBadge } from "@/components/status-badge";
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, FolderKanban } from "lucide-react";
 
-export default async function EquipmentPage({
+export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; search?: string }>;
+  searchParams: Promise<{ status?: string; priority?: string; search?: string }>;
 }) {
   const session = await auth();
   const params = await searchParams;
-  const statusFilter = params.status;
-  const searchQuery = params.search;
 
   const where: Record<string, unknown> = {};
-  if (statusFilter && statusFilter !== "all") {
-    where.status = statusFilter;
+  if (params.status && params.status !== "all") {
+    where.status = params.status;
   }
-  if (searchQuery) {
+  if (params.priority && params.priority !== "all") {
+    where.priority = params.priority;
+  }
+  if (params.search) {
     where.OR = [
-      { name: { contains: searchQuery } },
-      { type: { contains: searchQuery } },
-      { location: { contains: searchQuery } },
-      { serialNumber: { contains: searchQuery } },
+      { title: { contains: params.search, mode: "insensitive" } },
+      { description: { contains: params.search, mode: "insensitive" } },
     ];
   }
 
-  const equipment = await prisma.equipment.findMany({
+  const projects = await prisma.project.findMany({
     where,
-    orderBy: { name: "asc" },
-    include: {
-      _count: {
-        select: {
-          workOrders: { where: { status: { in: ["open", "in_progress"] } } },
-        },
-      },
-    },
+    include: { createdBy: { select: { id: true, name: true } } },
+    orderBy: { createdAt: "desc" },
   });
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Equipment Registry</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
         {session?.user.role === "admin" && (
           <Link
-            href="/equipment/new"
+            href="/projects/new"
             className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
           >
             <Plus size={16} />
-            Add Equipment
+            New Project
           </Link>
         )}
       </div>
@@ -65,20 +58,32 @@ export default async function EquipmentPage({
             <input
               name="search"
               type="text"
-              placeholder="Search equipment..."
-              defaultValue={searchQuery || ""}
+              placeholder="Search projects..."
+              defaultValue={params.search || ""}
               className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <select
             name="status"
-            defaultValue={statusFilter || "all"}
+            defaultValue={params.status || "all"}
             className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Statuses</option>
-            <option value="operational">Operational</option>
-            <option value="needs_service">Needs Service</option>
-            <option value="down">Down</option>
+            <option value="planning">Planning</option>
+            <option value="in_progress">In Progress</option>
+            <option value="on_hold">On Hold</option>
+            <option value="completed">Completed</option>
+          </select>
+          <select
+            name="priority"
+            defaultValue={params.priority || "all"}
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Priorities</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
           </select>
           <button
             type="submit"
@@ -89,7 +94,7 @@ export default async function EquipmentPage({
         </form>
       </div>
 
-      {/* Equipment Table */}
+      {/* Projects Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         {/* Desktop table */}
         <div className="hidden md:block overflow-x-auto">
@@ -97,62 +102,52 @@ export default async function EquipmentPage({
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Location
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Serial #
+                  Title
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Open WOs
+                  Priority
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Budget
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Due Date
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Created By
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {equipment.map((item) => (
-                <tr
-                  key={item.id}
-                  className="hover:bg-gray-50 transition-colors"
-                >
+              {projects.map((project) => (
+                <tr key={project.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     <Link
-                      href={`/equipment/${item.id}`}
+                      href={`/projects/${project.id}`}
                       className="text-blue-600 hover:text-blue-800 font-medium"
                     >
-                      {item.name}
+                      {project.title}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {item.type}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {item.location}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500 font-mono">
-                    {item.serialNumber}
+                  <td className="px-4 py-3">
+                    <StatusBadge status={project.status} />
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge status={item.status} />
+                    <StatusBadge status={project.priority} />
                   </td>
-                  <td className="px-4 py-3">
-                    {item._count.workOrders > 0 ? (
-                      <Link
-                        href={`/work-orders?equipmentId=${item.id}`}
-                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200"
-                      >
-                        {item._count.workOrders}
-                      </Link>
-                    ) : (
-                      <span className="text-sm text-gray-400">0</span>
-                    )}
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {project.budget || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {project.dueDate
+                      ? new Date(project.dueDate).toLocaleDateString()
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {project.createdBy.name}
                   </td>
                 </tr>
               ))}
@@ -162,37 +157,43 @@ export default async function EquipmentPage({
 
         {/* Mobile cards */}
         <div className="md:hidden divide-y divide-gray-100">
-          {equipment.map((item) => (
+          {projects.map((project) => (
             <Link
-              key={item.id}
-              href={`/equipment/${item.id}`}
+              key={project.id}
+              href={`/projects/${project.id}`}
               className="block p-4 hover:bg-gray-50"
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="font-medium text-gray-900">{item.name}</p>
+                  <p className="font-medium text-gray-900">{project.title}</p>
                   <p className="text-sm text-gray-500 mt-0.5">
-                    {item.type} • {item.location}
+                    {project.budget || "No budget"} • {project.createdBy.name}
                   </p>
-                  <p className="text-xs text-gray-400 mt-0.5 font-mono">
-                    {item.serialNumber}
-                  </p>
+                  {project.dueDate && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Due: {new Date(project.dueDate).toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
-                <StatusBadge status={item.status} />
+                <div className="flex flex-col gap-1 items-end">
+                  <StatusBadge status={project.status} />
+                  <StatusBadge status={project.priority} />
+                </div>
               </div>
             </Link>
           ))}
         </div>
 
-        {equipment.length === 0 && (
+        {projects.length === 0 && (
           <div className="p-8 text-center text-gray-500">
-            <p>No equipment found.</p>
+            <FolderKanban size={40} className="mx-auto mb-3 text-gray-300" />
+            <p>No projects found.</p>
             {session?.user.role === "admin" && (
               <Link
-                href="/equipment/new"
+                href="/projects/new"
                 className="text-blue-600 hover:text-blue-800 text-sm mt-2 inline-block"
               >
-                Add your first piece of equipment
+                Create your first project
               </Link>
             )}
           </div>

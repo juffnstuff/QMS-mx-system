@@ -10,7 +10,7 @@ interface Equipment {
 }
 
 interface SuggestedAction {
-  type: "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review";
+  type: "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review" | "create_project";
   equipmentId: string;
   equipmentName: string;
   title: string;
@@ -18,6 +18,8 @@ interface SuggestedAction {
   priority?: "low" | "medium" | "high" | "critical";
   newStatus?: "operational" | "needs_service" | "down";
   partsUsed?: string;
+  isNewEquipment?: boolean;
+  budget?: string;
 }
 
 export interface AIAnalysisResult {
@@ -115,7 +117,18 @@ If the message subject starts with "Form:" it's an MS Forms response from ShareP
      - low: cosmetic, nice-to-have, future improvements
    - **create_maintenance_log**: Work was already performed — log what was done
    - **update_equipment_status**: Equipment status should change (down/needs_service/operational)
+   - **create_project**: Large-scale items — equipment purchases, installations, upgrades, capital expenditures, major facility improvements. Use when email discusses budgets, quotes, installation planning, multi-step upgrades. Include budget info if mentioned.
    - **flag_for_review**: Seems relevant but not confident — better to flag than miss it
+
+5. **IMPORTANT: Parts vs Equipment distinction:**
+   - If the email mentions a PART or COMPONENT (pump, belt, filter, motor, hose, seal, bearing) that is FOR a piece of equipment, the \`equipmentName\` should be the PARENT EQUIPMENT (e.g. "Dake Press"), NOT the part itself. Put the part details in \`description\` and \`partsUsed\`.
+   - Set \`isNewEquipment: true\` ONLY when the item is a standalone piece of equipment that should be registered (vehicles, presses, grinders, conveyors, forklifts, etc.)
+   - Set \`isNewEquipment: false\` when the item is a part/component or when equipment already matches a registry entry.
+   - Examples:
+     - "Pump being shipped for the Dake press" → equipmentName: "Dake Press", isNewEquipment: true, partsUsed: "Hydraulic pump"
+     - "New belt for the grinder" → equipmentName: "Grinder", isNewEquipment: true, partsUsed: "Drive belt"
+     - "Penske truck needs oil change" → equipmentName: "Penske Truck", isNewEquipment: true (it's a vehicle)
+     - "Ordered new filters" → equipmentName: "unknown", isNewEquipment: false, flag_for_review
 
 5. **For vendor emails (like from InQuip):** If discussing parts, repairs, or equipment service, create work orders or flag for review. Include quote/pricing info in the description if present.
 
@@ -131,14 +144,16 @@ Respond with ONLY valid JSON, no markdown:
   "reasoning": "Brief explanation",
   "suggestedActions": [
     {
-      "type": "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review",
+      "type": "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review" | "create_project",
       "equipmentId": "equipment ID from registry or 'unknown'",
       "equipmentName": "equipment name or description",
       "title": "Short descriptive title",
       "description": "Detailed description including any quotes, part numbers, vendor info",
       "priority": "low" | "medium" | "high" | "critical",
       "newStatus": "operational" | "needs_service" | "down",
-      "partsUsed": "parts mentioned if any"
+      "partsUsed": "parts mentioned if any",
+      "isNewEquipment": true/false,
+      "budget": "budget amount if mentioned (for create_project)"
     }
   ]
 }

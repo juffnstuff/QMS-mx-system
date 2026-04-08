@@ -14,6 +14,8 @@ import {
   LogOut,
   Menu,
   X,
+  FolderKanban,
+  Bell,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -23,6 +25,8 @@ const navItems = [
   { href: "/schedules", label: "Schedules", icon: Calendar },
   { href: "/maintenance", label: "Maintenance Log", icon: FileText },
   { href: "/work-orders", label: "Work Orders", icon: ClipboardList },
+  { href: "/projects", label: "Projects", icon: FolderKanban },
+  { href: "/notifications", label: "Notifications", icon: Bell, showBadge: true },
   { href: "/settings/m365", label: "My Email Scanner", icon: Mail },
 ];
 
@@ -30,7 +34,7 @@ const adminNavItems = [
   { href: "/users", label: "Users", icon: Users },
 ];
 
-export function Sidebar({ userName, userRole }: { userName: string; userRole: string }) {
+export function Sidebar({ userName, userRole, unreadCount = 0 }: { userName: string; userRole: string; unreadCount?: number }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -49,6 +53,7 @@ export function Sidebar({ userName, userRole }: { userName: string; userRole: st
       <nav className="flex-1 p-3 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
+          const badge = (item as { showBadge?: boolean }).showBadge && unreadCount > 0;
           return (
             <Link
               key={item.href}
@@ -62,6 +67,11 @@ export function Sidebar({ userName, userRole }: { userName: string; userRole: st
             >
               <Icon size={18} />
               {item.label}
+              {badge && (
+                <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
             </Link>
           );
         })}

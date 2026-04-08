@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
 import { WorkOrderStatusUpdate } from "@/components/work-order-status-update";
+import { MakeRecurringButton } from "@/components/make-recurring-button";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -16,7 +17,12 @@ export default async function WorkOrderDetailPage({
 
   const order = await prisma.workOrder.findUnique({
     where: { id },
-    include: { equipment: true, assignedTo: true, createdBy: true },
+    include: {
+      equipment: true,
+      assignedTo: true,
+      createdBy: true,
+      createdSchedules: true,
+    },
   });
 
   if (!order) notFound();
@@ -57,6 +63,34 @@ export default async function WorkOrderDetailPage({
               </p>
             )}
           </div>
+
+          {/* Recurring Maintenance */}
+          {session?.user.role === "admin" && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="font-semibold text-gray-900 mb-3">Recurring Maintenance</h2>
+              {order.createdSchedules.length > 0 ? (
+                <div className="space-y-2">
+                  {order.createdSchedules.map((schedule) => (
+                    <div key={schedule.id} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700">{schedule.title}</span>
+                      <span className="text-gray-500 capitalize">{schedule.frequency}</span>
+                    </div>
+                  ))}
+                  <Link href="/schedules" className="text-blue-600 hover:underline text-sm">
+                    View schedules &rarr;
+                  </Link>
+                </div>
+              ) : (
+                <MakeRecurringButton
+                  workOrderId={order.id}
+                  defaultTitle={order.title}
+                  defaultDescription={order.description}
+                  equipmentId={order.equipmentId}
+                  equipmentName={order.equipment.name}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">

@@ -7,6 +7,7 @@ import { publicUrl } from "@/lib/url";
 
 const SCOPES = [
   "Mail.Read",
+  "Mail.Send",
   "User.Read",
   "Team.ReadBasic.All",
   "ChannelMessage.Read.All",

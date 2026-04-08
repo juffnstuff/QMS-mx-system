@@ -30,12 +30,16 @@ const typeLabels: Record<string, string> = {
   create_work_order: "Create Work Order",
   create_maintenance_log: "Log Maintenance",
   update_equipment_status: "Update Equipment Status",
+  create_project: "Create Project",
+  flag_for_review: "Flag for Review",
 };
 
 const typeBadgeColors: Record<string, string> = {
   create_work_order: "bg-blue-100 text-blue-700",
   create_maintenance_log: "bg-green-100 text-green-700",
   update_equipment_status: "bg-orange-100 text-orange-700",
+  create_project: "bg-indigo-100 text-indigo-700",
+  flag_for_review: "bg-yellow-100 text-yellow-700",
 };
 
 const statusBadgeColors: Record<string, string> = {
@@ -128,6 +132,11 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
               <p>
                 <span className="text-gray-500">Equipment:</span>{" "}
                 <span className="text-gray-900">{payload.equipmentName}</span>
+                {payload.isNewEquipment && payload.equipmentId === "unknown" && (
+                  <span className="ml-2 px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                    New Equipment — will be registered on approval
+                  </span>
+                )}
               </p>
               <p>
                 <span className="text-gray-500">Description:</span>{" "}
@@ -149,6 +158,12 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
                 <p>
                   <span className="text-gray-500">Parts:</span>{" "}
                   <span className="text-gray-900">{payload.partsUsed}</span>
+                </p>
+              )}
+              {payload.budget && (
+                <p>
+                  <span className="text-gray-500">Budget:</span>{" "}
+                  <span className="text-gray-900">{payload.budget}</span>
                 </p>
               )}
             </div>
@@ -192,6 +207,22 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
               className="text-sm text-blue-600 hover:underline"
             >
               View created work order &rarr;
+            </a>
+          )}
+          {suggestion.createdRecordId && suggestion.createdRecordType === "Project" && (
+            <a
+              href={`/projects/${suggestion.createdRecordId}`}
+              className="text-sm text-indigo-600 hover:underline"
+            >
+              View created project &rarr;
+            </a>
+          )}
+          {suggestion.createdRecordId && suggestion.createdRecordType === "Equipment" && (
+            <a
+              href={`/equipment/${suggestion.createdRecordId}`}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              View equipment &rarr;
             </a>
           )}
         </div>

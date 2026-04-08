@@ -12,6 +12,10 @@ model User {
   name           String
   passwordHash   String
   role           String    @default("operator") // "admin" | "operator"
+  phone          String?
+  carrier        String?   // SMS gateway domain: "vtext.com", "tmomail.net", etc.
+  notifyEmail    Boolean   @default(true)
+  notifySMS      Boolean   @default(false)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -20,6 +24,8 @@ model User {
   createdOrders   WorkOrder[]      @relation("CreatedBy")
   m365Connections M365Connection[]
   reviewedSuggestions AISuggestion[] @relation("SuggestionReviewer")
+  notifications   Notification[]
+  createdProjects Project[]        @relation("ProjectCreator")
 }
 
 model Equipment {
@@ -39,17 +45,19 @@ model Equipment {
 }
 
 model MaintenanceSchedule {
-  id          String   @id @default(cuid())
-  equipmentId String
-  title       String
-  description String?
-  frequency   String   // "daily" | "weekly" | "monthly" | "quarterly" | "annual"
-  lastDone    DateTime?
-  nextDue     DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String   @id @default(cuid())
+  equipmentId       String
+  title             String
+  description       String?
+  frequency         String   // "daily" | "weekly" | "monthly" | "quarterly" | "annual"
+  lastDone          DateTime?
+  nextDue           DateTime
+  sourceWorkOrderId String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  equipment       Equipment  @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  sourceWorkOrder WorkOrder? @relation("SourceWorkOrder", fields: [sourceWorkOrderId], references: [id])
 }
 
 model MaintenanceLog {
@@ -82,6 +90,7 @@ model WorkOrder {
   equipment  Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   assignedTo User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
   createdBy  User      @relation("CreatedBy", fields: [createdById], references: [id])
+  createdSchedules MaintenanceSchedule[] @relation("SourceWorkOrder")
 }
 
 model M365Connection {
@@ -173,4 +182,34 @@ model SharePointDocument {
   aiAnalysis   String?
   actionTaken  String   @default("none")
   processedAt  DateTime @default(now())
+}
+
+model Project {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    @default("planning") // "planning" | "in_progress" | "completed" | "on_hold"
+  priority    String    @default("medium")   // "low" | "medium" | "high" | "critical"
+  budget      String?
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  createdBy User @relation("ProjectCreator", fields: [createdById], references: [id])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // "work_order_assigned" | "status_changed" | "suggestion_review" | "maintenance_due"
+  title       String
+  message     String
+  read        Boolean  @default(false)
+  relatedType String?  // "WorkOrder" | "Equipment" | "AISuggestion" | "MaintenanceSchedule" | "Project"
+  relatedId   String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

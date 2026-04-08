@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getUserConnection, getGraphClient, getAppGraphClient } from "./graph-client";
 import { analyzeMessage } from "@/lib/ai/analyze-message";
+import { sendNotificationToAdmins } from "@/lib/notifications/send-notification";
+import { suggestionsNeedReview } from "@/lib/notifications/email-templates";
 import type { RawMessage } from "./mail-poller";
 import type { Client } from "@microsoft/microsoft-graph-client";
 
@@ -533,6 +535,39 @@ async function processMessages(
       if (!analysis.relevant || analysis.suggestedActions.length === 0) continue;
 
       for (const action of analysis.suggestedActions) {
+        // Forms auto-create: if source is forms AND action is create_work_order AND equipment is known
+        if (
+          sourceType === "forms" &&
+          action.type === "create_work_order" &&
+          action.equipmentId !== "unknown"
+        ) {
+          try {
+            const workOrder = await prisma.workOrder.create({
+              data: {
+                equipmentId: action.equipmentId,
+                createdById: userId,
+                title: action.title,
+                description: `[Auto-created from MS Forms submission]\n\n${action.description}`,
+                priority: action.priority || "medium",
+              },
+            });
+            await prisma.aISuggestion.create({
+              data: {
+                processedMessageId: processed.id,
+                suggestionType: action.type,
+                status: "auto_applied",
+                payload: JSON.stringify(action),
+                createdRecordType: "WorkOrder",
+                createdRecordId: workOrder.id,
+              },
+            });
+            result.suggestionsCreated++;
+            continue;
+          } catch (autoErr) {
+            console.warn("[Scan] Forms auto-create failed, falling back to pending:", autoErr);
+          }
+        }
+
         await prisma.aISuggestion.create({
           data: {
             processedMessageId: processed.id,
@@ -606,6 +641,20 @@ export async function runUserScan(
   } catch (err) {
     console.warn("[Scan] SharePoint/Forms scanning failed:", err);
     result.errors.push("SharePoint/Forms: not accessible (may need admin consent)");
+  }
+
+  // --- NOTIFY ADMINS if new suggestions were created ---
+  if (result.suggestionsCreated > 0) {
+    const email = suggestionsNeedReview(result.suggestionsCreated);
+    sendNotificationToAdmins({
+      type: "suggestion_review",
+      title: email.subject,
+      message: `${result.suggestionsCreated} new AI suggestion${result.suggestionsCreated !== 1 ? "s" : ""} from email scanning need review.`,
+      relatedType: "AISuggestion",
+      emailSubject: email.subject,
+      emailHtml: email.html,
+      smsText: email.plain,
+    }).catch((e) => console.error("[Scan] Notification to admins failed:", e));
   }
 
   return result;

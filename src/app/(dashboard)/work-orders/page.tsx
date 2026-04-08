@@ -7,7 +7,7 @@ import Link from "next/link";
 export default async function WorkOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; priority?: string }>;
+  searchParams: Promise<{ status?: string; priority?: string; equipmentId?: string }>;
 }) {
   const session = await auth();
   const params = await searchParams;
@@ -18,6 +18,9 @@ export default async function WorkOrdersPage({
   }
   if (params.priority && params.priority !== "all") {
     where.priority = params.priority;
+  }
+  if (params.equipmentId) {
+    where.equipmentId = params.equipmentId;
   }
 
   const workOrders = await prisma.workOrder.findMany({
@@ -83,16 +86,17 @@ export default async function WorkOrdersPage({
         ) : (
           <div className="divide-y divide-gray-100">
             {workOrders.map((order) => (
-              <Link
-                key={order.id}
-                href={`/work-orders/${order.id}`}
-                className="block p-4 hover:bg-gray-50 transition-colors"
-              >
+              <div key={order.id} className="p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                   <div>
-                    <p className="font-medium text-gray-900">{order.title}</p>
+                    <Link href={`/work-orders/${order.id}`} className="font-medium text-blue-600 hover:text-blue-800">
+                      {order.title}
+                    </Link>
                     <p className="text-sm text-gray-500">
-                      {order.equipment.name} •{" "}
+                      <Link href={`/equipment/${order.equipmentId}`} className="hover:text-blue-600">
+                        {order.equipment.name}
+                      </Link>
+                      {" • "}
                       {order.assignedTo ? `Assigned to ${order.assignedTo.name}` : "Unassigned"}
                     </p>
                     {order.dueDate && (
@@ -106,7 +110,7 @@ export default async function WorkOrdersPage({
                     <StatusBadge status={order.status} />
                   </div>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         )}

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { StatusBadge } from "@/components/status-badge";
-import { AlertTriangle, CheckCircle, Clock, Wrench, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, Wrench, Sparkles, FolderKanban } from "lucide-react";
 import Link from "next/link";
 
 export default async function DashboardPage() {
@@ -14,6 +14,7 @@ export default async function DashboardPage() {
     recentLogs,
     criticalOrders,
     pendingSuggestions,
+    activeProjects,
   ] = await Promise.all([
     prisma.equipment.count(),
     prisma.equipment.count({ where: { status: "operational" } }),
@@ -35,6 +36,7 @@ export default async function DashboardPage() {
       include: { equipment: true, assignedTo: true },
     }),
     prisma.aISuggestion.count({ where: { status: "pending" } }).catch(() => 0),
+    prisma.project.count({ where: { status: { in: ["planning", "in_progress"] } } }),
   ]);
 
   const stats = [
@@ -65,6 +67,13 @@ export default async function DashboardPage() {
       icon: Clock,
       color: "bg-purple-500",
       href: "/work-orders?status=open",
+    },
+    {
+      label: "Active Projects",
+      value: activeProjects,
+      icon: FolderKanban,
+      color: "bg-indigo-500",
+      href: "/projects",
     },
   ];
 
@@ -152,9 +161,13 @@ export default async function DashboardPage() {
                 <div key={order.id} className="p-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-medium text-gray-900">{order.title}</p>
+                      <Link href={`/work-orders/${order.id}`} className="font-medium text-blue-600 hover:text-blue-800">
+                        {order.title}
+                      </Link>
                       <p className="text-sm text-gray-500">
-                        {order.equipment.name}
+                        <Link href={`/equipment/${order.equipmentId}`} className="hover:text-blue-600">
+                          {order.equipment.name}
+                        </Link>
                         {order.assignedTo
                           ? ` • Assigned to ${order.assignedTo.name}`
                           : " • Unassigned"}
@@ -192,9 +205,9 @@ export default async function DashboardPage() {
             ) : (
               recentLogs.map((log) => (
                 <div key={log.id} className="p-4">
-                  <p className="font-medium text-gray-900">
+                  <Link href={`/equipment/${log.equipmentId}`} className="font-medium text-blue-600 hover:text-blue-800">
                     {log.equipment.name}
-                  </p>
+                  </Link>
                   <p className="text-sm text-gray-600 mt-0.5">
                     {log.description}
                   </p>
