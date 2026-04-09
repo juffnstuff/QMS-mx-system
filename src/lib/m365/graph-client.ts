@@ -52,13 +52,29 @@ async function refreshTokenIfNeeded(connectionId: string): Promise<string> {
 
   if (!result) throw new Error("Token refresh failed");
 
-  // Update stored tokens
+  // Extract new refresh token from MSAL cache (Azure rotates refresh tokens)
+  const serializedCache = msalClient.getTokenCache().serialize();
+  const cacheData = JSON.parse(serializedCache);
+  let newRefreshToken = "";
+  if (cacheData.RefreshToken) {
+    const entries = Object.values(cacheData.RefreshToken) as Array<{ secret?: string }>;
+    if (entries.length > 0 && entries[0].secret) {
+      newRefreshToken = entries[0].secret;
+    }
+  }
+
+  // Update stored tokens (including rotated refresh token)
+  const updateData: { accessTokenEnc: string; tokenExpiresAt: Date; refreshTokenEnc?: string } = {
+    accessTokenEnc: encrypt(result.accessToken),
+    tokenExpiresAt: result.expiresOn || new Date(Date.now() + 3600 * 1000),
+  };
+  if (newRefreshToken) {
+    updateData.refreshTokenEnc = encrypt(newRefreshToken);
+  }
+
   await prisma.m365Connection.update({
     where: { id: connectionId },
-    data: {
-      accessTokenEnc: encrypt(result.accessToken),
-      tokenExpiresAt: result.expiresOn || new Date(Date.now() + 3600 * 1000),
-    },
+    data: updateData,
   });
 
   return result.accessToken;

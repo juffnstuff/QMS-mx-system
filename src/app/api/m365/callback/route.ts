@@ -53,15 +53,29 @@ export async function GET(req: NextRequest) {
       data: { isActive: false },
     });
 
+    // Extract refresh token from MSAL's internal token cache
+    // MSAL v5 stores tokens internally; they're not on the AuthenticationResult
+    const serializedCache = msalClient.getTokenCache().serialize();
+    const cacheData = JSON.parse(serializedCache);
+    let refreshToken = "";
+    if (cacheData.RefreshToken) {
+      const entries = Object.values(cacheData.RefreshToken) as Array<{ secret?: string }>;
+      if (entries.length > 0 && entries[0].secret) {
+        refreshToken = entries[0].secret;
+      }
+    }
+
+    if (!refreshToken) {
+      console.warn("[M365 Callback] No refresh token found in MSAL cache — offline_access may not have been granted");
+    }
+
     // Store new connection with encrypted tokens for this user
     await prisma.m365Connection.create({
       data: {
         tenantId: process.env.AZURE_AD_TENANT_ID!,
         clientId: process.env.AZURE_AD_CLIENT_ID!,
         accessTokenEnc: encrypt(result.accessToken),
-        refreshTokenEnc: encrypt(
-          (result as unknown as { refreshToken?: string }).refreshToken || ""
-        ),
+        refreshTokenEnc: encrypt(refreshToken),
         tokenExpiresAt: result.expiresOn || new Date(Date.now() + 3600 * 1000),
         scopes: SCOPES.join(","),
         connectedBy: session.user.id!,
