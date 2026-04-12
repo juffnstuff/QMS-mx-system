@@ -85,9 +85,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(publicUrl("/settings/m365?success=connected"));
   } catch (err) {
     console.error("[M365 Callback] Token exchange error:", err);
-    const errMsg = err instanceof Error ? err.message : String(err);
     return NextResponse.redirect(
-      publicUrl(`/settings/m365?error=${encodeURIComponent("token_exchange: " + errMsg.slice(0, 300))}`)
+      publicUrl(`/settings/m365?error=${encodeURIComponent("MS365 authentication failed")}`)
     );
   }
 }

@@ -26,6 +26,7 @@ model User {
   reviewedSuggestions AISuggestion[] @relation("SuggestionReviewer")
   notifications   Notification[]
   createdProjects Project[]        @relation("ProjectCreator")
+  scannedMessages ProcessedMessage[] @relation("ScannedMessages")
 }
 
 model Equipment {
@@ -42,6 +43,8 @@ model Equipment {
   schedules       MaintenanceSchedule[]
   maintenanceLogs MaintenanceLog[]
   workOrders      WorkOrder[]
+
+  @@index([status])
 }
 
 model MaintenanceSchedule {
@@ -58,6 +61,8 @@ model MaintenanceSchedule {
 
   equipment       Equipment  @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   sourceWorkOrder WorkOrder? @relation("SourceWorkOrder", fields: [sourceWorkOrderId], references: [id])
+
+  @@index([nextDue])
 }
 
 model MaintenanceLog {
@@ -91,6 +96,9 @@ model WorkOrder {
   assignedTo User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
   createdBy  User      @relation("CreatedBy", fields: [createdById], references: [id])
   createdSchedules MaintenanceSchedule[] @relation("SourceWorkOrder")
+
+  @@index([status])
+  @@index([priority])
 }
 
 model M365Connection {
@@ -109,6 +117,8 @@ model M365Connection {
   updatedAt       DateTime  @updatedAt
 
   connectedByUser User @relation(fields: [connectedBy], references: [id])
+
+  @@index([connectedBy])
 }
 
 model M365MonitorConfig {
@@ -139,7 +149,10 @@ model ProcessedMessage {
   actionTaken     String   // "work_order" | "maintenance_log" | "status_update" | "ignored" | "pre_filtered" | "flag_for_review"
   confidence      Float?
 
-  suggestions  AISuggestion[]
+  scannedByUser User? @relation("ScannedMessages", fields: [scannedByUserId], references: [id])
+  suggestions   AISuggestion[]
+
+  @@index([scannedByUserId])
 }
 
 model AISuggestion {
@@ -158,6 +171,8 @@ model AISuggestion {
 
   processedMessage ProcessedMessage @relation(fields: [processedMessageId], references: [id], onDelete: Cascade)
   reviewer         User?            @relation("SuggestionReviewer", fields: [reviewedBy], references: [id])
+
+  @@index([status])
 }
 
 model M365SharePointSite {
