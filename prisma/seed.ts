@@ -15,7 +15,7 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { email: "admin@rubberform.com" },
-    update: {},
+    update: { passwordHash: adminPassword },
     create: {
       email: "admin@rubberform.com",
       name: "Plant Manager",
@@ -25,22 +25,11 @@ async function main() {
   });
 
   const operator1 = await prisma.user.upsert({
-    where: { email: "mike@rubberform.com" },
-    update: {},
+    where: { email: "anthony@rubberform.com" },
+    update: { passwordHash: operatorPassword },
     create: {
-      email: "mike@rubberform.com",
-      name: "Mike Johnson",
-      passwordHash: operatorPassword,
-      role: "operator",
-    },
-  });
-
-  const operator2 = await prisma.user.upsert({
-    where: { email: "sarah@rubberform.com" },
-    update: {},
-    create: {
-      email: "sarah@rubberform.com",
-      name: "Sarah Martinez",
+      email: "anthony@rubberform.com",
+      name: "Anthony",
       passwordHash: operatorPassword,
       role: "operator",
     },
