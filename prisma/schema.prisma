@@ -285,6 +285,7 @@ model NonConformance {
   submittedBy  User  @relation("SubmittedNCRs", fields: [submittedById], references: [id])
   approvedBy   User? @relation("ApprovedNCRs", fields: [approvedById], references: [id])
   capas        CAPA[] @relation("NCRToCapa")
+  linkedComplaints CustomerComplaint[] @relation("ComplaintNCR")
 
   @@index([status])
   @@index([ncrType])
@@ -334,6 +335,7 @@ model CAPA {
   verifiedBy    User?           @relation("VerifiedCAPAs", fields: [verifiedById], references: [id])
   referenceNcr  NonConformance? @relation("NCRToCapa", fields: [referenceNcrId], references: [id])
   actions       CAPAAction[]
+  linkedComplaints CustomerComplaint[] @relation("ComplaintCAPA")
 
   @@index([status])
   @@index([severityLevel])
@@ -395,7 +397,9 @@ model CustomerComplaint {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  submittedBy  User  @relation("SubmittedComplaints", fields: [submittedById], references: [id])
+  submittedBy  User            @relation("SubmittedComplaints", fields: [submittedById], references: [id])
+  linkedNcr    NonConformance? @relation("ComplaintNCR", fields: [linkedNcrId], references: [id])
+  linkedCapa   CAPA?           @relation("ComplaintCAPA", fields: [linkedCapaId], references: [id])
 
   @@index([status])
   @@index([complaintType])
