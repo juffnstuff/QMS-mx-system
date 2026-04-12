@@ -11,7 +11,10 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { equipmentId, title, description, priority, assignedToId, dueDate } = body;
+  const {
+    equipmentId, title, description, priority, assignedToId, dueDate,
+    workOrderType, requirements, managerNotes, estimatedBudget, estimatedLeadTime, plannedStartDate,
+  } = body;
 
   if (!equipmentId || !title || !description) {
     return NextResponse.json(
@@ -29,6 +32,12 @@ export async function POST(req: NextRequest) {
       assignedToId: assignedToId || null,
       createdById: session.user.id,
       dueDate: dueDate ? new Date(dueDate) : null,
+      workOrderType: workOrderType || "corrective",
+      requirements: requirements || null,
+      managerNotes: managerNotes || null,
+      estimatedBudget: estimatedBudget || null,
+      estimatedLeadTime: estimatedLeadTime || null,
+      plannedStartDate: plannedStartDate ? new Date(plannedStartDate) : null,
     },
   });
 

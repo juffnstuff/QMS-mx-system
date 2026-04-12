@@ -28,6 +28,12 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
       priority: formData.get("priority"),
       assignedToId: formData.get("assignedToId") || null,
       dueDate: formData.get("dueDate") || null,
+      workOrderType: formData.get("workOrderType") || "corrective",
+      requirements: (formData.get("requirements") as string) || null,
+      plannedStartDate: (formData.get("plannedStartDate") as string) || null,
+      managerNotes: (formData.get("managerNotes") as string) || null,
+      estimatedBudget: (formData.get("estimatedBudget") as string) || null,
+      estimatedLeadTime: (formData.get("estimatedLeadTime") as string) || null,
     };
 
     const res = await fetch("/api/work-orders", {
@@ -155,6 +161,92 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
             placeholder="Describe the work needed..."
           />
         </div>
+
+        <div>
+          <label htmlFor="workOrderType" className="block text-sm font-medium text-gray-700 mb-1">
+            Work Order Type
+          </label>
+          <select
+            id="workOrderType"
+            name="workOrderType"
+            defaultValue="corrective"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="routine">Routine</option>
+            <option value="preventive">Preventive</option>
+            <option value="corrective">Corrective</option>
+            <option value="emergency">Emergency</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="requirements" className="block text-sm font-medium text-gray-700 mb-1">
+            Requirements
+          </label>
+          <textarea
+            id="requirements"
+            name="requirements"
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Please explain the end goal, specific requirements and detailed expectations"
+          />
+        </div>
+
+        {isAdmin && (
+          <div className="space-y-4 border-t border-gray-200 pt-4 mt-4">
+            <h3 className="text-sm font-semibold text-gray-800">Manager / Supervisor Fields</h3>
+
+            <div>
+              <label htmlFor="plannedStartDate" className="block text-sm font-medium text-gray-700 mb-1">
+                Planned Start Date
+              </label>
+              <input
+                id="plannedStartDate"
+                name="plannedStartDate"
+                type="date"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="managerNotes" className="block text-sm font-medium text-gray-700 mb-1">
+                Manager Notes
+              </label>
+              <textarea
+                id="managerNotes"
+                name="managerNotes"
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Supervisor/Manager notes and comments"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="estimatedBudget" className="block text-sm font-medium text-gray-700 mb-1">
+                  Estimated Budget
+                </label>
+                <input
+                  id="estimatedBudget"
+                  name="estimatedBudget"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., $5,000"
+                />
+              </div>
+              <div>
+                <label htmlFor="estimatedLeadTime" className="block text-sm font-medium text-gray-700 mb-1">
+                  Estimated Lead Time
+                </label>
+                <input
+                  id="estimatedLeadTime"
+                  name="estimatedLeadTime"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., 2 weeks"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200">

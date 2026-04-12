@@ -41,7 +41,13 @@ export async function PUT(
 
     const { id } = await params;
     const body = await req.json();
-    const { title, description, status, priority, budget, dueDate } = body;
+    const {
+      title, description, status, priority, budget, dueDate,
+      phase, projectJustification, designObjectives, designRequirements,
+      potentialVendors, salesMarketingActions, engineeringActions,
+      releaseChecklist, actualBudget, plannedSchedule, actualSchedule,
+      isComplete, contingentDetails,
+    } = body;
 
     if (!title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -70,6 +76,19 @@ export async function PUT(
         budget: budget || null,
         dueDate: dueDate ? new Date(dueDate) : null,
         completedAt,
+        phase: phase || existing.phase,
+        projectJustification: projectJustification !== undefined ? (projectJustification || null) : existing.projectJustification,
+        designObjectives: designObjectives !== undefined ? (designObjectives || null) : existing.designObjectives,
+        designRequirements: designRequirements !== undefined ? (designRequirements || null) : existing.designRequirements,
+        potentialVendors: potentialVendors !== undefined ? (potentialVendors || null) : existing.potentialVendors,
+        salesMarketingActions: salesMarketingActions !== undefined ? (salesMarketingActions || null) : existing.salesMarketingActions,
+        engineeringActions: engineeringActions !== undefined ? (engineeringActions || null) : existing.engineeringActions,
+        releaseChecklist: releaseChecklist !== undefined ? (releaseChecklist || null) : existing.releaseChecklist,
+        actualBudget: actualBudget !== undefined ? (actualBudget || null) : existing.actualBudget,
+        plannedSchedule: plannedSchedule !== undefined ? (plannedSchedule || null) : existing.plannedSchedule,
+        actualSchedule: actualSchedule !== undefined ? (actualSchedule || null) : existing.actualSchedule,
+        isComplete: isComplete !== undefined ? (isComplete || null) : existing.isComplete,
+        contingentDetails: contingentDetails !== undefined ? (contingentDetails || null) : existing.contingentDetails,
       },
     });
 

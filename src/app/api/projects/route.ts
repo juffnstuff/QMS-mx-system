@@ -45,7 +45,13 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { title, description, status, priority, budget, dueDate } = body;
+    const {
+      title, description, status, priority, budget, dueDate,
+      phase, projectJustification, designObjectives, designRequirements,
+      potentialVendors, salesMarketingActions, engineeringActions,
+      releaseChecklist, actualBudget, plannedSchedule, actualSchedule,
+      isComplete, contingentDetails,
+    } = body;
 
     if (!title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -60,6 +66,19 @@ export async function POST(req: NextRequest) {
         budget: budget || null,
         dueDate: dueDate ? new Date(dueDate) : null,
         createdById: session.user.id,
+        phase: phase || "concept",
+        projectJustification: projectJustification || null,
+        designObjectives: designObjectives || null,
+        designRequirements: designRequirements || null,
+        potentialVendors: potentialVendors || null,
+        salesMarketingActions: salesMarketingActions || null,
+        engineeringActions: engineeringActions || null,
+        releaseChecklist: releaseChecklist || null,
+        actualBudget: actualBudget || null,
+        plannedSchedule: plannedSchedule || null,
+        actualSchedule: actualSchedule || null,
+        isComplete: isComplete || null,
+        contingentDetails: contingentDetails || null,
       },
     });
 
