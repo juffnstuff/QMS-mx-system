@@ -84,12 +84,16 @@ export function ProjectForm({ project }: { project?: ProjectData }) {
       checklist[item] = (formData.get(`checklist_${item}`) as string) || "pending";
     }
 
+    // plannedBudget in Phase 3 overrides top-level budget if provided
+    const plannedBudget = formData.get("plannedBudget") as string;
+    const topBudget = formData.get("budget") as string;
+
     const data = {
       title: formData.get("title") as string,
       description: (formData.get("description") as string) || null,
       status: formData.get("status") as string,
       priority: formData.get("priority") as string,
-      budget: (formData.get("budget") as string) || null,
+      budget: plannedBudget || topBudget || null,
       dueDate: (formData.get("dueDate") as string) || null,
       phase: (formData.get("phase") as string) || "concept",
       projectJustification: (formData.get("projectJustification") as string) || null,
@@ -396,12 +400,12 @@ export function ProjectForm({ project }: { project?: ProjectData }) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="budget_planned" className={labelClass}>
+                  <label htmlFor="plannedBudget" className={labelClass}>
                     Planned Budget
                   </label>
                   <input
-                    id="budget_planned"
-                    name="budget"
+                    id="plannedBudget"
+                    name="plannedBudget"
                     defaultValue={project?.budget || ""}
                     className={inputClass}
                     placeholder="e.g., $50,000"

@@ -25,6 +25,10 @@ const statusStyles: Record<string, string> = {
   packaging: "bg-teal-100 text-teal-800",
   shipping_damage: "bg-red-100 text-red-800",
   other: "bg-gray-100 text-gray-600",
+  pending_verification: "bg-purple-100 text-purple-800",
+  planned: "bg-gray-100 text-gray-800",
+  complete: "bg-green-100 text-green-800",
+  verified: "bg-green-100 text-green-800",
 };
 
 const statusLabels: Record<string, string> = {
@@ -54,6 +58,10 @@ const statusLabels: Record<string, string> = {
   packaging: "Packaging",
   shipping_damage: "Shipping Damage",
   other: "Other",
+  pending_verification: "Pending Verification",
+  planned: "Planned",
+  complete: "Complete",
+  verified: "Verified",
 };
 
 export function StatusBadge({ status }: { status: string }) {
