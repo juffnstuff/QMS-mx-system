@@ -34,13 +34,18 @@ export async function pollMailbox(
 
     const response = await graphClient.api(url).get();
 
+    // Batch-check which messages are already processed (avoids N+1 queries)
+    const messageIds = (response.value || []).map((msg: any) => msg.id);
+    const existingMessages = await prisma.processedMessage.findMany({
+      where: { externalId: { in: messageIds } },
+      select: { externalId: true },
+    });
+    const existingIds = new Set(existingMessages.map((m: any) => m.externalId));
+
     // Process messages
     for (const msg of response.value || []) {
       // Skip if already processed
-      const existing = await prisma.processedMessage.findUnique({
-        where: { externalId: msg.id },
-      });
-      if (existing) continue;
+      if (existingIds.has(msg.id)) continue;
 
       messages.push({
         externalId: msg.id,

@@ -26,6 +26,14 @@ model User {
   reviewedSuggestions AISuggestion[] @relation("SuggestionReviewer")
   notifications   Notification[]
   createdProjects Project[]        @relation("ProjectCreator")
+  scannedMessages ProcessedMessage[] @relation("ScannedMessages")
+  submittedNCRs      NonConformance[]   @relation("SubmittedNCRs")
+  approvedNCRs       NonConformance[]   @relation("ApprovedNCRs")
+  originatedCAPAs    CAPA[]             @relation("OriginatedCAPAs")
+  assignedCAPAs      CAPA[]             @relation("AssignedCAPAs")
+  verifiedCAPAs      CAPA[]             @relation("VerifiedCAPAs")
+  submittedComplaints CustomerComplaint[] @relation("SubmittedComplaints")
+  approvedWorkOrders WorkOrder[]        @relation("ApprovedWorkOrders")
 }
 
 model Equipment {
@@ -42,6 +50,8 @@ model Equipment {
   schedules       MaintenanceSchedule[]
   maintenanceLogs MaintenanceLog[]
   workOrders      WorkOrder[]
+
+  @@index([status])
 }
 
 model MaintenanceSchedule {
@@ -58,6 +68,8 @@ model MaintenanceSchedule {
 
   equipment       Equipment  @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   sourceWorkOrder WorkOrder? @relation("SourceWorkOrder", fields: [sourceWorkOrderId], references: [id])
+
+  @@index([nextDue])
 }
 
 model MaintenanceLog {
@@ -84,13 +96,25 @@ model WorkOrder {
   status       String    @default("open")   // "open" | "in_progress" | "completed" | "cancelled"
   dueDate      DateTime?
   completedAt  DateTime?
+  workOrderType   String    @default("corrective") // "routine" | "preventive" | "corrective" | "emergency"
+  requirements    String?   // F-16: end goal, specific requirements, detailed expectations
+  managerNotes    String?   // F-16: supervisor/manager notes
+  estimatedBudget String?   // F-16: estimated budget
+  estimatedLeadTime String? // F-16: estimated lead time
+  plannedStartDate DateTime? // F-16: planned start date
+  approvedById    String?
+  approvedAt      DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   equipment  Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   assignedTo User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
   createdBy  User      @relation("CreatedBy", fields: [createdById], references: [id])
+  approvedBy User?     @relation("ApprovedWorkOrders", fields: [approvedById], references: [id])
   createdSchedules MaintenanceSchedule[] @relation("SourceWorkOrder")
+
+  @@index([status])
+  @@index([priority])
 }
 
 model M365Connection {
@@ -109,6 +133,8 @@ model M365Connection {
   updatedAt       DateTime  @updatedAt
 
   connectedByUser User @relation(fields: [connectedBy], references: [id])
+
+  @@index([connectedBy])
 }
 
 model M365MonitorConfig {
@@ -139,7 +165,10 @@ model ProcessedMessage {
   actionTaken     String   // "work_order" | "maintenance_log" | "status_update" | "ignored" | "pre_filtered" | "flag_for_review"
   confidence      Float?
 
-  suggestions  AISuggestion[]
+  scannedByUser User? @relation("ScannedMessages", fields: [scannedByUserId], references: [id])
+  suggestions   AISuggestion[]
+
+  @@index([scannedByUserId])
 }
 
 model AISuggestion {
@@ -158,6 +187,8 @@ model AISuggestion {
 
   processedMessage ProcessedMessage @relation(fields: [processedMessageId], references: [id], onDelete: Cascade)
   reviewer         User?            @relation("SuggestionReviewer", fields: [reviewedBy], references: [id])
+
+  @@index([status])
 }
 
 model M365SharePointSite {
@@ -193,6 +224,19 @@ model Project {
   budget      String?
   dueDate     DateTime?
   completedAt DateTime?
+  phase              String    @default("concept") // "concept" | "design" | "production_release" | "complete"
+  projectJustification String? // F-17 Phase 1
+  designObjectives   String?   // F-17 Phase 1
+  designRequirements String?   // F-17 Phase 1
+  potentialVendors   String?   // F-17 Phase 1
+  salesMarketingActions String? // F-17 Phase 2
+  engineeringActions String?   // F-17 Phase 2 (JSON array of {task, who, when})
+  releaseChecklist   String?   // F-17 Phase 3 (JSON object of checklist items)
+  actualBudget       String?   // F-17 Phase 3
+  plannedSchedule    String?   // F-17 Phase 3
+  actualSchedule     String?   // F-17 Phase 3
+  isComplete         String?   // "yes" | "no" | "contingent"
+  contingentDetails  String?
   createdById String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -212,4 +256,147 @@ model Notification {
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NonConformance {
+  id                  String    @id @default(cuid())
+  ncrNumber           String    @unique // Auto-generated: NCR-YYYY-001
+  submittedById       String
+  date                DateTime  @default(now())
+  partNumber          String?   // Part # or Process Description
+  drawingNumber       String?
+  drawingRevision     String?
+  quantityAffected    String?
+  vendor              String?
+  otherInfo           String?
+  ncrType             String    // "aesthetic" | "dimensional" | "function" | "quality" | "safety" | "compliance"
+  requirementDescription String // Describe the requirement or specification
+  nonConformanceDescription String // Describe the Non-Conformance
+  disposition         String?   // "rework" | "return_to_vendor" | "scrap" | "use_as_is"
+  immediateAction     String?
+  approvedById        String?
+  approvedAt          DateTime?
+  ncrTagNumber        String?
+  plantLocation       String?
+  status              String    @default("open") // "open" | "under_review" | "dispositioned" | "closed"
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  submittedBy  User  @relation("SubmittedNCRs", fields: [submittedById], references: [id])
+  approvedBy   User? @relation("ApprovedNCRs", fields: [approvedById], references: [id])
+  capas        CAPA[] @relation("NCRToCapa")
+
+  @@index([status])
+  @@index([ncrType])
+}
+
+model CAPA {
+  id                    String    @id @default(cuid())
+  capaNumber            String    @unique // Auto-generated: CAPA-YYYY-001
+  originatorId          String
+  department            String?
+  referenceNcrId        String?   // Link to NonConformance
+  targetCloseDate       DateTime?
+  assignedToId          String?
+  source                String    // "internal_audit" | "customer_complaint" | "supplier_issue" | "process_failure" | "product_defect" | "management_review" | "regulatory_finding" | "other"
+  sourceOther           String?
+  severityLevel         String    // "low" | "medium" | "high" | "critical"
+  // Section 2 - Problem Description
+  nonconformanceDescription String // What, Where, When, Extent
+  productProcessAffected String?
+  quantityScopeAffected  String?
+  containmentActions     String?
+  // Section 3 - Root Cause Analysis
+  rcaMethod             String?   // "5_whys" | "fishbone" | "8d" | "fault_tree" | "pareto" | "fmea" | "other"
+  rcaMethodOther        String?
+  whyMan                String?   // Human factors
+  whyMachine            String?   // Equipment
+  whyMethod             String?   // Process
+  whyMaterial           String?
+  rootCauseStatement    String?
+  // Section 4 - Corrective Actions stored in CAPAAction model
+  // Section 5 - Effectiveness Verification
+  verificationMethod    String?
+  verifiedById          String?
+  verificationDate      DateTime?
+  effectivenessOutcome  String?   // "effective" | "partially_effective" | "ineffective"
+  objectiveEvidence     String?
+  lessonsLearned        String?
+  preventiveActions     String?
+  // Section 6 - Approvals & Final
+  finalDisposition      String?   // "closed_effective" | "closed_partial_monitor" | "reopened" | "escalated"
+  status                String    @default("open") // "open" | "in_progress" | "pending_verification" | "closed"
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  originator    User            @relation("OriginatedCAPAs", fields: [originatorId], references: [id])
+  assignedTo    User?           @relation("AssignedCAPAs", fields: [assignedToId], references: [id])
+  verifiedBy    User?           @relation("VerifiedCAPAs", fields: [verifiedById], references: [id])
+  referenceNcr  NonConformance? @relation("NCRToCapa", fields: [referenceNcrId], references: [id])
+  actions       CAPAAction[]
+
+  @@index([status])
+  @@index([severityLevel])
+}
+
+model CAPAAction {
+  id              String    @id @default(cuid())
+  capaId          String
+  actionNumber    Int
+  description     String
+  responsibleParty String?
+  dueDate         DateTime?
+  status          String    @default("planned") // "planned" | "in_progress" | "complete" | "verified"
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  capa CAPA @relation(fields: [capaId], references: [id], onDelete: Cascade)
+
+  @@index([capaId])
+}
+
+model CustomerComplaint {
+  id                  String    @id @default(cuid())
+  complaintNumber     String    @unique // Auto-generated: CC-YYYY-001
+  submittedById       String
+  date                DateTime  @default(now())
+  // Customer info
+  customerName        String
+  customerAddress     String?
+  customerContact     String?
+  contactPhone        String?
+  contactEmail        String?
+  // Order info
+  partNumber          String?
+  salesOrderNumber    String?
+  invoiced            String?   // "yes" | "no" | "partial"
+  invoiceNumber       String?
+  invoiceValue        String?
+  drawingNumber       String?
+  drawingRevision     String?
+  quantityAffected    String?
+  otherInfo           String?
+  // Complaint details
+  complaintType       String    // "aesthetic" | "dimensional" | "function" | "quality" | "safety" | "compliance" | "packaging" | "shipping_damage" | "other"
+  complaintDescription String
+  // Management disposition
+  disposition         String?   // "return_rework" | "return_credit" | "return_refund" | "replace_no_charge" | "other"
+  rmaNumber           String?
+  customerFacingAction String?
+  internalAction      String?
+  ncrRequired         Boolean   @default(false)
+  capaRequired        Boolean   @default(false)
+  affectsOtherOrders  Boolean   @default(false)
+  rootCauseRequired   Boolean   @default(false)
+  // Linked records
+  linkedNcrId         String?
+  linkedCapaId        String?
+  status              String    @default("open") // "open" | "investigating" | "dispositioned" | "closed"
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  submittedBy  User  @relation("SubmittedComplaints", fields: [submittedById], references: [id])
+
+  @@index([status])
+  @@index([complaintType])
 }

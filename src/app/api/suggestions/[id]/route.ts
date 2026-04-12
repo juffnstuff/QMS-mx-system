@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
 
 export async function PUT(
   req: NextRequest,
@@ -71,7 +72,7 @@ export async function PUT(
         inferredType = "Facility";
       }
 
-      const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
       const tempSerial = `AUTO-${Date.now()}-${rand}`;
       const newEquipment = await prisma.equipment.create({
         data: {

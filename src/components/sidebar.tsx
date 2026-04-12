@@ -16,6 +16,9 @@ import {
   X,
   FolderKanban,
   Bell,
+  AlertTriangle,
+  Shield,
+  MessageSquareWarning,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -25,6 +28,9 @@ const navItems = [
   { href: "/schedules", label: "Schedules", icon: Calendar },
   { href: "/maintenance", label: "Maintenance Log", icon: FileText },
   { href: "/work-orders", label: "Work Orders", icon: ClipboardList },
+  { href: "/ncrs", label: "NCRs", icon: AlertTriangle },
+  { href: "/capas", label: "CAPAs", icon: Shield },
+  { href: "/complaints", label: "Complaints", icon: MessageSquareWarning },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/notifications", label: "Notifications", icon: Bell, showBadge: true },
   { href: "/settings/m365", label: "My Email Scanner", icon: Mail },
