@@ -57,6 +57,38 @@ export function suggestionsNeedReview(count: number) {
   };
 }
 
+export function workOrdersDue(orders: { title: string; equipmentName: string; dueDate: string }[]) {
+  const link = `${BASE_URL}/work-orders`;
+  const list = orders
+    .map((o) => `<li><strong>${o.title}</strong> — ${o.equipmentName} (due ${o.dueDate})</li>`)
+    .join("");
+  return {
+    subject: `${orders.length} Work Order${orders.length !== 1 ? "s" : ""} Due/Overdue`,
+    html: wrap(
+      `Work Orders Due`,
+      `<p>${orders.length} work order${orders.length !== 1 ? "s are" : " is"} due or overdue:</p><ul>${list}</ul>`,
+      link
+    ),
+    plain: `${orders.length} work orders due/overdue: ${orders.map((o) => o.title).join(", ")}. View at ${link}`,
+  };
+}
+
+export function projectsDue(projects: { title: string; dueDate: string }[]) {
+  const link = `${BASE_URL}/projects`;
+  const list = projects
+    .map((p) => `<li><strong>${p.title}</strong> (due ${p.dueDate})</li>`)
+    .join("");
+  return {
+    subject: `${projects.length} Project${projects.length !== 1 ? "s" : ""} Due/Overdue`,
+    html: wrap(
+      `Projects Due`,
+      `<p>${projects.length} project${projects.length !== 1 ? "s are" : " is"} due or overdue:</p><ul>${list}</ul>`,
+      link
+    ),
+    plain: `${projects.length} projects due/overdue: ${projects.map((p) => p.title).join(", ")}. View at ${link}`,
+  };
+}
+
 export function maintenanceDue(schedules: { title: string; equipmentName: string }[]) {
   const link = `${BASE_URL}/schedules`;
   const list = schedules
