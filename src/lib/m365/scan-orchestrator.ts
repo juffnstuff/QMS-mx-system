@@ -15,59 +15,82 @@ const PRIORITY_SENDERS = [
   "jesse@inquip",           // partial match for jesse@inquip.com or similar
   "bill@rubberform.com",
   "aaron@rubberform.com",
-  "penske",                 // Penske truck rental/leasing emails
   "noreply@",               // Automated form submissions
   "forms@",                 // MS Forms notifications
 ];
 
+// Senders/domains to ALWAYS ignore — never analyze these
+const BLOCKED_SENDERS = [
+  "ticketmaster", "stubhub", "seatgeek", "vivid seats",
+  "sabres", "bills", "nhl.com", "nfl.com", "mlb.com", "nba.com",
+  "linkedin", "facebook", "twitter", "instagram", "tiktok",
+  "newsletter", "unsubscribe", "marketing", "promo",
+  "donotreply@", "no-reply@",
+  "indeed.com", "glassdoor", "ziprecruiter",
+  "grubhub", "doordash", "ubereats",
+  "amazon.com", "ebay.com", "walmart.com",
+  "docusign", "adobe", "dropbox",
+  "zoom.us", "calendly", "doodle",
+  "slack.com", "teams@email",
+  "bankofamerica", "chase.com", "paypal",
+  "xerox", "pitneybowes",
+];
+
+// Subject keywords that indicate irrelevant emails
+const BLOCKED_SUBJECTS = [
+  "box seats", "suite tickets", "game tickets", "season tickets",
+  "happy hour", "team outing", "birthday", "potluck", "lunch order",
+  "out of office", "ooo", "vacation",
+  "newsletter", "digest", "weekly update from linkedin",
+  "your receipt", "order confirmation", "shipping confirmation",
+  "password reset", "verify your email", "two-factor",
+  "webinar", "register now", "sign up today",
+  "ltl", "freight quote", "freight rate", "trucking rate",
+  "bill of lading", "bol", "tracking number",
+];
+
 // Maintenance-related keywords for pre-filtering messages before AI analysis
 const MAINTENANCE_KEYWORDS = [
-  // RubberForm specific vehicles
-  "penske", "f250", "f-250", "ford", "pickup", "box truck", "rental truck",
-  // Vehicles general
-  "vehicle", "forklift", "truck", "loader", "bobcat", "plow", "trailer", "fleet",
-  "van", "flatbed", "dump truck", "company truck",
-  // Pumps
-  "pump", "hydraulic", "sump", "vacuum", "coolant pump", "transfer pump",
+  // RubberForm specific equipment
+  "dake", "9-ram", "5-ram", "bollard cutting", "cst drill",
+  "atlas copco", "emcor", "heatec", "jit toyota",
   // Rubber processing equipment
   "extruder", "grinder", "baler", "conveyor", "shredder", "granulator", "mixer",
   "press", "mold", "vulcanizer", "crusher", "roller", "hopper", "feeder",
-  "separator", "screen", "classifier",
+  "separator", "classifier",
+  // Forklifts & plant vehicles
+  "forklift", "reach truck", "pallet jack", "scissor lift",
+  "f250", "f-250", "penske", "box truck",
   // Motors & power
-  "motor", "compressor", "generator", "engine", "drive", "gearbox", "vfd",
-  "starter", "transformer", "breaker", "battery", "charger",
-  // Parts
-  "belt", "bearing", "filter", "gasket", "seal", "valve", "wiring", "rotor",
-  "impeller", "coupling", "sprocket", "chain", "blade", "screen", "die", "shaft",
-  "bushing", "bracket", "wheel", "tire", "brake", "cylinder", "piston",
-  // Hoses & cables
-  "hose", "cable", "pipe", "tubing", "fitting", "connector", "manifold", "regulator",
+  "motor", "compressor", "generator", "gearbox", "vfd",
+  "transformer", "breaker", "charger",
+  // Parts & components
+  "bearing", "belt", "filter", "gasket", "seal", "valve", "rotor",
+  "impeller", "coupling", "sprocket", "chain", "blade", "die", "shaft",
+  "bushing", "cylinder", "piston", "nozzle",
+  // Hoses & plumbing
+  "hydraulic hose", "air hose", "pipe", "tubing", "fitting", "manifold", "regulator",
   // Oils & fluids
-  "oil", "grease", "coolant", "lubricant", "fluid", "hydraulic fluid", "diesel",
-  "propane", "antifreeze", "fuel",
-  // Maintenance actions
-  "leak", "broken", "repair", "fix", "maintenance", "service", "replace",
-  "install", "inspect", "calibrate", "overhaul", "rebuild", "order", "ordered",
+  "hydraulic oil", "gear oil", "coolant", "lubricant", "grease",
+  "hydraulic fluid", "propane",
+  // Maintenance actions (specific phrases to avoid false positives)
+  "needs repair", "broken", "leak", "maintenance", "preventive maintenance",
+  "work order", "repair", "calibrate", "overhaul", "rebuild",
   // Problem indicators
-  "down", "malfunction", "noise", "vibration", "overheating", "pressure",
-  "stuck", "jam", "fail", "crack", "wear", "corroded", "damaged", "broke",
-  "not working", "won't start", "won't run", "acting up",
-  // Safety
-  "osha", "ppe", "lockout", "tagout", "loto", "fire extinguisher", "guard",
-  "safety", "incident", "injury", "near miss",
-  // General equipment
-  "machine", "equipment", "tool", "part", "parts", "spare",
-  // Projects & vendors
-  "quote", "vendor", "supplier", "inquip", "contractor", "project", "upgrade",
-  "purchase", "po ", "p.o.", "invoice",
+  "malfunction", "vibration", "overheating", "pressure drop",
+  "stuck", "jammed", "won't start", "not working", "acting up", "broke down",
+  // Safety & compliance
+  "osha", "lockout", "tagout", "loto", "fire extinguisher",
+  "safety incident", "near miss", "injury",
   // Facility
-  "hvac", "roof", "dock", "door", "plumbing", "lighting", "electrical", "floor",
-  "concrete", "fencing", "gate", "parking", "yard",
-  // Shop-specific
-  "shop", "plant", "factory", "production", "line", "bay", "warehouse",
-  // Documents & forms
-  "sop", "work instruction", "checklist", "form", "procedure", "inspection",
-  "maintenance needed", "work request", "service request",
+  "hvac", "dock leveler", "overhead door", "loading dock", "plumbing",
+  // Vendor/supplier (specific to equipment)
+  "inquip", "parts order", "spare parts", "replacement part",
+  "service call", "service tech", "field service",
+  "pm agreement", "maintenance contract",
+  // PM specific
+  "pm schedule", "preventive", "inspection due", "calibration due",
+  "maintenance due", "service due", "overdue",
 ];
 
 export interface ScanResult {
@@ -90,10 +113,23 @@ function isPrioritySender(senderEmail: string): boolean {
 }
 
 /**
+ * Check if a sender/subject should be blocked entirely.
+ */
+function isBlocked(message: RawMessage): boolean {
+  const email = message.senderEmail.toLowerCase();
+  const subject = message.subject.toLowerCase();
+  if (BLOCKED_SENDERS.some((b) => email.includes(b))) return true;
+  if (BLOCKED_SUBJECTS.some((b) => subject.includes(b))) return true;
+  return false;
+}
+
+/**
  * Pre-filter: check if a message likely contains maintenance-related content.
+ * Blocked senders/subjects are always rejected.
  * Priority senders always pass the filter.
  */
 function shouldAnalyze(message: RawMessage): boolean {
+  if (isBlocked(message)) return false;
   if (isPrioritySender(message.senderEmail)) return true;
   const text = `${message.subject} ${message.bodyContent}`.toLowerCase();
   return MAINTENANCE_KEYWORDS.some((keyword) => text.includes(keyword));

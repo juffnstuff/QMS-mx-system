@@ -91,7 +91,20 @@ ${message.body.slice(0, 4000)}
 If the message subject starts with "Form:" it's an MS Forms response from SharePoint. These are structured submissions (like maintenance requests, inspection checklists, or work requests). Treat ALL form fields as relevant data — extract equipment references, issues described, and actions needed.
 
 ## Instructions
-1. Determine if this message relates to: equipment maintenance, repairs, breakdowns, parts ordering, service requests, safety issues, facility maintenance, fleet/vehicle issues, vendor/supplier communications about equipment, operational projects, or MS Forms submissions about any of the above.
+1. Determine if this message relates to: equipment maintenance, repairs, breakdowns, parts ordering from equipment/parts suppliers, service requests for plant equipment, safety issues, facility maintenance, fleet/vehicle issues, vendor/supplier communications about equipment or parts, operational projects, or MS Forms submissions about any of the above.
+
+   **REJECT as NOT RELEVANT — these are never maintenance-related:**
+   - Sports tickets, box seats, suite invitations, game schedules (Sabres, Bills, etc.)
+   - Social events, happy hours, birthdays, team outings, lunch orders
+   - Marketing emails, newsletters, promotions, webinars
+   - Job postings, recruiting, HR benefits
+   - LTL freight/trucking quotes and shipping rates (unless about plant vehicle repair)
+   - Bill of lading, tracking numbers, delivery confirmations (unless about parts delivery TO the plant)
+   - Personal emails, banking, subscriptions
+   - Software/IT notifications (password resets, license renewals)
+   - General office supplies (paper, toner — unless it's plant/shop consumables)
+
+   **"Service" means equipment/maintenance service, NOT trucking service or customer service.**
 
 2. **Be smart about informal language.** RubberForm people write casually:
    - "the big green one is making that noise again" → equipment issue
