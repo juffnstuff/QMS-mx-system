@@ -54,6 +54,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 COPY --from=builder --chown=nextjs:nodejs /app/start.sh ./start.sh
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed.ts ./prisma/seed.ts
+COPY --from=builder --chown=nextjs:nodejs /app/src/data ./src/data
 
 USER nextjs
 
