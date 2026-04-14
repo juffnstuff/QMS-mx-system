@@ -51,9 +51,10 @@ export async function PUT(
   let createdRecordId: string | null = null;
 
   try {
-    // Auto-create equipment if unknown and isNewEquipment
+    // Auto-create equipment if unknown and isNewEquipment (skip for projects)
     let equipmentId = payload.equipmentId;
-    if (equipmentId === "unknown" && payload.isNewEquipment !== false) {
+    const needsEquipment = suggestion.suggestionType !== "create_project";
+    if (needsEquipment && equipmentId === "unknown" && payload.isNewEquipment !== false) {
       const nameLC = (payload.equipmentName || "").toLowerCase();
       let inferredType = "General";
       if (/truck|vehicle|forklift|loader|bobcat|van|pickup|trailer|f[- ]?250|penske/i.test(nameLC)) {
