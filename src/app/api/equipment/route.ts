@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, type, location, serialNumber, status, notes } = body;
+    const { name, type, location, serialNumber, status, criticality, groupName, parentId, notes } = body;
 
     if (!name || !type || !location || !serialNumber) {
       return NextResponse.json(
@@ -30,7 +30,14 @@ export async function POST(req: NextRequest) {
     }
 
     const equipment = await prisma.equipment.create({
-      data: { name, type, location, serialNumber, status: status || "operational", notes },
+      data: {
+        name, type, location, serialNumber,
+        status: status || "operational",
+        criticality: criticality || "C",
+        groupName: groupName || null,
+        parentId: parentId || null,
+        notes,
+      },
     });
 
     return NextResponse.json(equipment, { status: 201 });

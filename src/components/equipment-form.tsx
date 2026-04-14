@@ -4,6 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+interface EquipmentOption {
+  id: string;
+  name: string;
+  serialNumber: string;
+}
+
 interface EquipmentData {
   id?: string;
   name: string;
@@ -11,10 +17,13 @@ interface EquipmentData {
   location: string;
   serialNumber: string;
   status: string;
+  criticality: string;
+  groupName: string | null;
+  parentId: string | null;
   notes: string | null;
 }
 
-export function EquipmentForm({ equipment }: { equipment?: EquipmentData }) {
+export function EquipmentForm({ equipment, allEquipment }: { equipment?: EquipmentData; allEquipment?: EquipmentOption[] }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,6 +41,9 @@ export function EquipmentForm({ equipment }: { equipment?: EquipmentData }) {
       location: formData.get("location") as string,
       serialNumber: formData.get("serialNumber") as string,
       status: formData.get("status") as string,
+      criticality: formData.get("criticality") as string,
+      groupName: (formData.get("groupName") as string) || null,
+      parentId: (formData.get("parentId") as string) || null,
       notes: (formData.get("notes") as string) || null,
     };
 
@@ -142,6 +154,62 @@ export function EquipmentForm({ equipment }: { equipment?: EquipmentData }) {
             </select>
           </div>
         </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="criticality" className="block text-sm font-medium text-gray-700 mb-1">
+              Criticality *
+            </label>
+            <select
+              id="criticality"
+              name="criticality"
+              defaultValue={equipment?.criticality || "C"}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="A">Class A — Production Critical</option>
+              <option value="B">Class B — Important</option>
+              <option value="C">Class C — General</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="groupName" className="block text-sm font-medium text-gray-700 mb-1">
+              Equipment Group
+            </label>
+            <input
+              id="groupName"
+              name="groupName"
+              defaultValue={equipment?.groupName || ""}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder='e.g., "Dake Press System"'
+            />
+          </div>
+        </div>
+
+        {allEquipment && allEquipment.length > 0 && (
+          <div>
+            <label htmlFor="parentId" className="block text-sm font-medium text-gray-700 mb-1">
+              Parent Equipment
+            </label>
+            <select
+              id="parentId"
+              name="parentId"
+              defaultValue={equipment?.parentId || ""}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">None (top-level equipment)</option>
+              {allEquipment
+                .filter((e) => e.id !== equipment?.id)
+                .map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name} ({e.serialNumber})
+                  </option>
+                ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">
+              Select if this is a sub-component of another piece of equipment
+            </p>
+          </div>
+        )}
 
         <div>
           <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">

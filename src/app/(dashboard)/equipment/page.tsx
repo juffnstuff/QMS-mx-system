@@ -2,7 +2,23 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { StatusBadge } from "@/components/status-badge";
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, ShieldAlert, Shield, ShieldCheck } from "lucide-react";
+
+function CriticalityBadge({ criticality }: { criticality: string }) {
+  const config: Record<string, { label: string; bg: string; text: string; icon: typeof ShieldAlert }> = {
+    A: { label: "Class A", bg: "bg-red-100", text: "text-red-800", icon: ShieldAlert },
+    B: { label: "Class B", bg: "bg-amber-100", text: "text-amber-800", icon: Shield },
+    C: { label: "Class C", bg: "bg-green-100", text: "text-green-800", icon: ShieldCheck },
+  };
+  const c = config[criticality] || config.C;
+  const Icon = c.icon;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${c.bg} ${c.text}`}>
+      <Icon size={12} />
+      {c.label}
+    </span>
+  );
+}
 
 export default async function EquipmentPage({
   searchParams,
@@ -20,10 +36,12 @@ export default async function EquipmentPage({
   }
   if (searchQuery) {
     where.OR = [
-      { name: { contains: searchQuery } },
-      { type: { contains: searchQuery } },
-      { location: { contains: searchQuery } },
-      { serialNumber: { contains: searchQuery } },
+      { name: { contains: searchQuery, mode: "insensitive" } },
+      { type: { contains: searchQuery, mode: "insensitive" } },
+      { location: { contains: searchQuery, mode: "insensitive" } },
+      { serialNumber: { contains: searchQuery, mode: "insensitive" } },
+      { groupName: { contains: searchQuery, mode: "insensitive" } },
+      { notes: { contains: searchQuery, mode: "insensitive" } },
     ];
   }
 
@@ -109,6 +127,9 @@ export default async function EquipmentPage({
                   Serial #
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Criticality
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -138,6 +159,9 @@ export default async function EquipmentPage({
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500 font-mono">
                     {item.serialNumber}
+                  </td>
+                  <td className="px-4 py-3">
+                    <CriticalityBadge criticality={item.criticality} />
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={item.status} />
@@ -178,7 +202,10 @@ export default async function EquipmentPage({
                     {item.serialNumber}
                   </p>
                 </div>
-                <StatusBadge status={item.status} />
+                <div className="flex flex-col items-end gap-1">
+                  <CriticalityBadge criticality={item.criticality} />
+                  <StatusBadge status={item.status} />
+                </div>
               </div>
             </Link>
           ))}
