@@ -19,6 +19,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (criticality && !["A", "B", "C"].includes(criticality)) {
+      return NextResponse.json(
+        { error: "Criticality must be A, B, or C" },
+        { status: 400 }
+      );
+    }
+
     const existing = await prisma.equipment.findUnique({
       where: { serialNumber },
     });

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { StatusBadge } from "@/components/status-badge";
 import Link from "next/link";
 import { Plus, Search, ShieldAlert, Shield, ShieldCheck } from "lucide-react";
+import { CriticalityMigrateButton } from "@/components/criticality-migrate-button";
 
 function CriticalityBadge({ criticality }: { criticality: string }) {
   const config: Record<string, { label: string; bg: string; text: string; icon: typeof ShieldAlert }> = {
@@ -72,6 +73,13 @@ export default async function EquipmentPage({
           </Link>
         )}
       </div>
+
+      {/* Admin: Criticality Migration Tool */}
+      {session?.user.role === "admin" && (
+        <div className="mb-6">
+          <CriticalityMigrateButton />
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">

@@ -171,6 +171,27 @@ async function main() {
   });
   console.log(`Created ${createdEquipment.count} equipment records`);
 
+  // Auto-populate criticality from notes field
+  const allEquipmentForCrit = await prisma.equipment.findMany({
+    where: { notes: { not: null } },
+    select: { id: true, notes: true },
+  });
+  let critUpdated = 0;
+  for (const item of allEquipmentForCrit) {
+    if (!item.notes) continue;
+    const critMatch = item.notes.match(/Criticality\s+([ABC])/i);
+    const classMatch = item.notes.match(/Class\s+([ABC])\b/i);
+    const parsed = (critMatch?.[1] || classMatch?.[1])?.toUpperCase();
+    if (parsed && ["A", "B", "C"].includes(parsed)) {
+      await prisma.equipment.update({
+        where: { id: item.id },
+        data: { criticality: parsed },
+      });
+      critUpdated++;
+    }
+  }
+  console.log(`Updated criticality for ${critUpdated} equipment from notes`);
+
   // Fetch all equipment keyed by serialNumber for schedule references
   const allEquipment = await prisma.equipment.findMany();
   const eqMap = new Map(allEquipment.map((e) => [e.serialNumber, e.id]));

@@ -174,12 +174,14 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
             <select
               id="criticality"
               name="criticality"
-              defaultValue={equipment?.criticality || "C"}
+              required
+              defaultValue={equipment?.criticality || ""}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="A">Class A — Production Critical</option>
-              <option value="B">Class B — Important</option>
-              <option value="C">Class C — General</option>
+              <option value="" disabled>Select criticality...</option>
+              <option value="A">Class A — Critical (production stoppage if down)</option>
+              <option value="B">Class B — Important (degrades output, workaround possible)</option>
+              <option value="C">Class C — General (non-critical, minimal impact)</option>
             </select>
           </div>
           <div>
