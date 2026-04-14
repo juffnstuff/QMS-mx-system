@@ -34,6 +34,11 @@ model User {
   verifiedCAPAs      CAPA[]             @relation("VerifiedCAPAs")
   submittedComplaints CustomerComplaint[] @relation("SubmittedComplaints")
   approvedWorkOrders WorkOrder[]        @relation("ApprovedWorkOrders")
+  assignedEquipment  Equipment[]        @relation("EquipmentTechnician")
+  assignedSchedules  MaintenanceSchedule[] @relation("ScheduleAssignee")
+  investigatedNCRs   NonConformance[]   @relation("NCRInvestigator")
+  assignedComplaints CustomerComplaint[] @relation("ComplaintAssignee")
+  ledProjects        Project[]          @relation("ProjectLead")
 }
 
 model Equipment {
@@ -46,38 +51,46 @@ model Equipment {
   criticality  String    @default("C") // "A" | "B" | "C" — A=production-critical, B=important, C=general
   groupName    String?   // Equipment group label, e.g. "Dake Press System", "6in Extrusion Line"
   parentId     String?   // Parent equipment ID for sub-components (e.g. pump → press)
+  assignedTechnicianId String? // User responsible for this equipment
   notes        String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  parent          Equipment?  @relation("EquipmentHierarchy", fields: [parentId], references: [id])
-  children        Equipment[] @relation("EquipmentHierarchy")
-  schedules       MaintenanceSchedule[]
-  maintenanceLogs MaintenanceLog[]
-  workOrders      WorkOrder[]
+  parent             Equipment?  @relation("EquipmentHierarchy", fields: [parentId], references: [id])
+  children           Equipment[] @relation("EquipmentHierarchy")
+  assignedTechnician User?       @relation("EquipmentTechnician", fields: [assignedTechnicianId], references: [id])
+  schedules          MaintenanceSchedule[]
+  maintenanceLogs    MaintenanceLog[]
+  workOrders         WorkOrder[]
 
   @@index([status])
   @@index([criticality])
   @@index([groupName])
   @@index([parentId])
+  @@index([assignedTechnicianId])
 }
 
 model MaintenanceSchedule {
   id                String   @id @default(cuid())
   equipmentId       String
+  assignedToId      String?  // User responsible for this schedule
   title             String
   description       String?
   frequency         String   // "daily" | "weekly" | "monthly" | "quarterly" | "annual"
   lastDone          DateTime?
   nextDue           DateTime
+  boardStatus       String   @default("backlog") // "backlog" | "in_progress" | "needs_parts" | "scheduled" | "done"
   sourceWorkOrderId String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   equipment       Equipment  @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  assignedTo      User?      @relation("ScheduleAssignee", fields: [assignedToId], references: [id])
   sourceWorkOrder WorkOrder? @relation("SourceWorkOrder", fields: [sourceWorkOrderId], references: [id])
 
   @@index([nextDue])
+  @@index([boardStatus])
+  @@index([assignedToId])
 }
 
 model MaintenanceLog {
@@ -102,6 +115,7 @@ model WorkOrder {
   description  String
   priority     String    @default("medium") // "low" | "medium" | "high" | "critical"
   status       String    @default("open")   // "open" | "in_progress" | "completed" | "cancelled"
+  boardStatus  String    @default("backlog") // "backlog" | "in_progress" | "needs_parts" | "scheduled" | "done"
   dueDate      DateTime?
   completedAt  DateTime?
   workOrderType   String    @default("corrective") // "routine" | "preventive" | "corrective" | "emergency"
@@ -123,6 +137,7 @@ model WorkOrder {
 
   @@index([status])
   @@index([priority])
+  @@index([boardStatus])
 }
 
 model M365Connection {
@@ -229,9 +244,11 @@ model Project {
   description String?
   status      String    @default("planning") // "planning" | "in_progress" | "completed" | "on_hold"
   priority    String    @default("medium")   // "low" | "medium" | "high" | "critical"
+  boardStatus String    @default("backlog") // "backlog" | "in_progress" | "needs_parts" | "scheduled" | "done"
   budget      String?
   dueDate     DateTime?
   completedAt DateTime?
+  projectLeadId String? // User leading this project
   phase              String    @default("concept") // "concept" | "design" | "production_release" | "complete"
   projectJustification String? // F-17 Phase 1
   designObjectives   String?   // F-17 Phase 1
@@ -249,7 +266,11 @@ model Project {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  createdBy User @relation("ProjectCreator", fields: [createdById], references: [id])
+  createdBy   User  @relation("ProjectCreator", fields: [createdById], references: [id])
+  projectLead User? @relation("ProjectLead", fields: [projectLeadId], references: [id])
+
+  @@index([boardStatus])
+  @@index([projectLeadId])
 }
 
 model Notification {
@@ -270,6 +291,7 @@ model NonConformance {
   id                  String    @id @default(cuid())
   ncrNumber           String    @unique // Auto-generated: NCR-YYYY-001
   submittedById       String
+  assignedInvestigatorId String? // User assigned to investigate this NCR
   date                DateTime  @default(now())
   partNumber          String?   // Part # or Process Description
   drawingNumber       String?
@@ -287,16 +309,20 @@ model NonConformance {
   ncrTagNumber        String?
   plantLocation       String?
   status              String    @default("open") // "open" | "under_review" | "dispositioned" | "closed"
+  boardStatus         String    @default("backlog") // "backlog" | "in_progress" | "needs_parts" | "scheduled" | "done"
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  submittedBy  User  @relation("SubmittedNCRs", fields: [submittedById], references: [id])
-  approvedBy   User? @relation("ApprovedNCRs", fields: [approvedById], references: [id])
-  capas        CAPA[] @relation("NCRToCapa")
-  linkedComplaints CustomerComplaint[] @relation("ComplaintNCR")
+  submittedBy           User  @relation("SubmittedNCRs", fields: [submittedById], references: [id])
+  approvedBy            User? @relation("ApprovedNCRs", fields: [approvedById], references: [id])
+  assignedInvestigator  User? @relation("NCRInvestigator", fields: [assignedInvestigatorId], references: [id])
+  capas                 CAPA[] @relation("NCRToCapa")
+  linkedComplaints      CustomerComplaint[] @relation("ComplaintNCR")
 
   @@index([status])
   @@index([ncrType])
+  @@index([boardStatus])
+  @@index([assignedInvestigatorId])
 }
 
 model CAPA {
@@ -335,6 +361,7 @@ model CAPA {
   // Section 6 - Approvals & Final
   finalDisposition      String?   // "closed_effective" | "closed_partial_monitor" | "reopened" | "escalated"
   status                String    @default("open") // "open" | "in_progress" | "pending_verification" | "closed"
+  boardStatus           String    @default("backlog") // "backlog" | "in_progress" | "needs_parts" | "scheduled" | "done"
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -347,6 +374,7 @@ model CAPA {
 
   @@index([status])
   @@index([severityLevel])
+  @@index([boardStatus])
 }
 
 model CAPAAction {
@@ -369,6 +397,7 @@ model CustomerComplaint {
   id                  String    @id @default(cuid())
   complaintNumber     String    @unique // Auto-generated: CC-YYYY-001
   submittedById       String
+  assignedToId        String?   // User assigned to handle this complaint
   date                DateTime  @default(now())
   // Customer info
   customerName        String
@@ -406,9 +435,11 @@ model CustomerComplaint {
   updatedAt           DateTime  @updatedAt
 
   submittedBy  User            @relation("SubmittedComplaints", fields: [submittedById], references: [id])
+  assignedTo   User?           @relation("ComplaintAssignee", fields: [assignedToId], references: [id])
   linkedNcr    NonConformance? @relation("ComplaintNCR", fields: [linkedNcrId], references: [id])
   linkedCapa   CAPA?           @relation("ComplaintCAPA", fields: [linkedCapaId], references: [id])
 
   @@index([status])
   @@index([complaintType])
+  @@index([assignedToId])
 }
