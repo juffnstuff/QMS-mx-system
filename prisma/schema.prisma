@@ -44,6 +44,8 @@ model Equipment {
   serialNumber String    @unique
   status       String    @default("operational") // "operational" | "needs_service" | "down"
   notes        String?
+  criticality  String?   // "A" | "B" | "C" — from PM system
+  groupName    String?   // Functional group: "Compression Molding", "Extrusion", etc.
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
