@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 
@@ -26,6 +26,12 @@ interface Suggestion {
   reviewer: { name: string } | null;
 }
 
+interface EquipmentOption {
+  id: string;
+  name: string;
+  serialNumber: string;
+}
+
 const typeLabels: Record<string, string> = {
   create_work_order: "Create Work Order",
   create_maintenance_log: "Log Maintenance",
@@ -49,11 +55,43 @@ const statusBadgeColors: Record<string, string> = {
   auto_applied: "bg-purple-100 text-purple-700",
 };
 
+// Context-aware label for the first field in Proposed Action
+const typeFieldLabels: Record<string, string> = {
+  create_work_order: "Work Order",
+  create_maintenance_log: "Maintenance Log",
+  update_equipment_status: "Equipment",
+  create_project: "Project",
+  flag_for_review: "Item",
+};
+
 export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [parentEquipmentId, setParentEquipmentId] = useState<string>("");
+  const [equipmentList, setEquipmentList] = useState<EquipmentOption[]>([]);
   const payload = JSON.parse(suggestion.payload);
+
+  const isNewEquipment = payload.isNewEquipment && payload.equipmentId === "unknown";
+  const showParentPicker = isNewEquipment && suggestion.status === "pending";
+
+  // Fetch equipment list when parent picker is needed
+  useEffect(() => {
+    if (showParentPicker && expanded && equipmentList.length === 0) {
+      fetch("/api/equipment")
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setEquipmentList(data.map((e: EquipmentOption) => ({
+              id: e.id,
+              name: e.name,
+              serialNumber: e.serialNumber,
+            })));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [showParentPicker, expanded, equipmentList.length]);
 
   async function handleAction(action: "approve" | "reject") {
     setLoading(true);
@@ -61,7 +99,10 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
       const res = await fetch(`/api/suggestions/${suggestion.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          parentEquipmentId: parentEquipmentId || undefined,
+        }),
       });
       if (!res.ok) throw new Error("Failed");
       router.refresh();
@@ -71,6 +112,9 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
       setLoading(false);
     }
   }
+
+  const fieldLabel = typeFieldLabels[suggestion.suggestionType] || "Item";
+  const isProject = suggestion.suggestionType === "create_project";
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -130,14 +174,21 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
             <h4 className="text-sm font-medium text-gray-700 mb-1">Proposed Action</h4>
             <div className="bg-white p-3 rounded border border-gray-200 text-sm space-y-1">
               <p>
-                <span className="text-gray-500">Equipment:</span>{" "}
-                <span className="text-gray-900">{payload.equipmentName}</span>
-                {payload.isNewEquipment && payload.equipmentId === "unknown" && (
+                <span className="text-gray-500">{fieldLabel}:</span>{" "}
+                <span className="text-gray-900 font-medium">{payload.title || payload.equipmentName}</span>
+                {isNewEquipment && (
                   <span className="ml-2 px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
                     New Equipment — will be registered on approval
                   </span>
                 )}
               </p>
+              {/* Show equipment context for work orders / maintenance logs */}
+              {!isProject && payload.equipmentName && (
+                <p>
+                  <span className="text-gray-500">Equipment:</span>{" "}
+                  <span className="text-gray-900">{payload.equipmentName}</span>
+                </p>
+              )}
               <p>
                 <span className="text-gray-500">Description:</span>{" "}
                 <span className="text-gray-900">{payload.description}</span>
@@ -168,6 +219,30 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
               )}
             </div>
           </div>
+
+          {/* Parent Equipment Picker — for new sub-components */}
+          {showParentPicker && (
+            <div className="mb-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-1">
+                Link as child component?
+              </h4>
+              <p className="text-xs text-gray-500 mb-2">
+                If this is a sub-component of existing equipment (e.g. a pump for a press), select the parent below.
+              </p>
+              <select
+                value={parentEquipmentId}
+                onChange={(e) => setParentEquipmentId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">No parent — register as standalone</option>
+                {equipmentList.map((eq) => (
+                  <option key={eq.id} value={eq.id}>
+                    {eq.name} ({eq.serialNumber})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Review Info */}
           {suggestion.reviewer && (

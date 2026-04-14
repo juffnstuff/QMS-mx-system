@@ -14,7 +14,7 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { action, reviewNote } = body; // action: "approve" | "reject"
+  const { action, reviewNote, parentEquipmentId } = body; // action: "approve" | "reject"
 
   if (!["approve", "reject"].includes(action)) {
     return NextResponse.json({ error: "Action must be 'approve' or 'reject'" }, { status: 400 });
@@ -81,7 +81,10 @@ export async function PUT(
           location: "TBD",
           serialNumber: tempSerial,
           status: "needs_service",
-          notes: "Auto-created from AI suggestion approval. Please update serial number, location, and type.",
+          parentId: parentEquipmentId || null,
+          notes: parentEquipmentId
+            ? "Auto-created as child component from AI suggestion. Please update serial number, location, and type."
+            : "Auto-created from AI suggestion approval. Please update serial number, location, and type.",
         },
       });
       equipmentId = newEquipment.id;
