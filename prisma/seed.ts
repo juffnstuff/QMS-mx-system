@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import "dotenv/config";
+import { accessNCRs } from "../src/data/access-import/ncrs";
 
 const adapter = new PrismaPg(process.env.DATABASE_URL!);
 const prisma = new PrismaClient({ adapter });
@@ -340,6 +341,48 @@ async function main() {
     data: scheduleData,
   });
   console.log(`Created ${createdSchedules.count} maintenance schedules`);
+
+  // ==========================================================================
+  // NCRs — 29 records from RF-OMS-2.0 Access DB
+  // ==========================================================================
+
+  await prisma.nonConformance.deleteMany();
+
+  const ncrTypeMap: Record<string, string> = {
+    Dimensional: "dimensional", Quality: "quality", Function: "function",
+    Aesthetic: "aesthetic", Asthetic: "aesthetic", Safety: "safety", Compliance: "compliance",
+  };
+  const dispositionMap: Record<string, string> = {
+    "Use as is": "use_as_is", "In-House Rework": "rework",
+    Scrap: "scrap", "Return to Vendor": "return_to_vendor",
+  };
+
+  let ncrCount = 0;
+  for (const ncr of accessNCRs) {
+    await prisma.nonConformance.create({
+      data: {
+        ncrNumber: ncr.ncrNumber,
+        submittedById: admin.id,
+        date: ncr.initiatedDate ? new Date(ncr.initiatedDate) : new Date(),
+        partNumber: ncr.partNumber || null,
+        drawingNumber: ncr.drawingNumber || null,
+        drawingRevision: ncr.drawingRevision || null,
+        quantityAffected: ncr.quantityAffected || null,
+        vendor: ncr.vendor || null,
+        otherInfo: ncr.description || null,
+        ncrType: ncrTypeMap[ncr.ncrType] || "quality",
+        requirementDescription: ncr.requirements || "(imported — no description)",
+        nonConformanceDescription: ncr.actual || ncr.description || "(imported)",
+        disposition: dispositionMap[ncr.disposition] || null,
+        immediateAction: ncr.immediateAction || null,
+        ncrTagNumber: ncr.ncrTagNumber || null,
+        plantLocation: ncr.department || null,
+        status: ncr.status === "Open" ? "open" : "closed",
+      },
+    });
+    ncrCount++;
+  }
+  console.log(`Created ${ncrCount} NCR records`);
 
   console.log("Database seeded successfully!");
 }

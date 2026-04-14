@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { accessNCRs } from "@/data/access-import/ncrs";
-import { currentProjects, futureProjects, worthNotingProjects } from "@/data/access-import/projects";
-import type { AccessProject } from "@/data/access-import/projects";
 
 // ── Equipment enrichment: criticality + groupName by serialNumber ──────────
 
@@ -100,22 +98,6 @@ const equipmentEnrichments: Record<string, { criticality: string; groupName: str
   "RF-EQ-069": { criticality: "B", groupName: "Other" },
 };
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function mapPriority(p: string): string {
-  if (p.startsWith("1")) return "critical";
-  if (p.startsWith("2")) return "high";
-  if (p.startsWith("3")) return "medium";
-  if (p.startsWith("4")) return "medium";
-  return "low"; // 5 Discovery, 7 Idea
-}
-
-function mapStatus(s: string): string {
-  if (s === "Completed") return "completed";
-  if (s === "Not Started") return "planning";
-  return "in_progress";
-}
-
 // ── POST handler ───────────────────────────────────────────────────────────
 
 export async function POST() {
@@ -126,7 +108,7 @@ export async function POST() {
     }
 
     const adminId = session.user.id;
-    const results = { equipment: 0, ncrs: 0, projects: 0 };
+    const results = { equipment: 0, ncrs: 0 };
 
     // 1) Equipment enrichments
     for (const [serial, data] of Object.entries(equipmentEnrichments)) {
@@ -179,41 +161,10 @@ export async function POST() {
       results.ncrs++;
     }
 
-    // 3) Projects — skip duplicates by title
-    const existingProjects = await prisma.project.findMany({
-      select: { title: true },
-    });
-    const existingTitles = new Set(existingProjects.map((p: { title: string }) => p.title));
-    const allProjects: AccessProject[] = [
-      ...currentProjects,
-      ...futureProjects,
-      ...worthNotingProjects,
-    ];
-
-    for (const proj of allProjects) {
-      if (existingTitles.has(proj.title)) continue;
-
-      await prisma.project.create({
-        data: {
-          title: proj.title,
-          description: proj.notes,
-          status: mapStatus(proj.status),
-          priority: mapPriority(proj.priority),
-          budget: proj.budget > 0 ? `$${proj.budget.toLocaleString()}` : null,
-          dueDate: proj.endDate ? new Date(proj.endDate) : null,
-          createdById: adminId,
-          phase: "concept",
-          designRequirements: proj.department ? `Dept: ${proj.department}` : null,
-          plannedSchedule: proj.budgetHrs > 0 ? `${proj.budgetHrs} hrs budgeted` : null,
-        },
-      });
-      results.projects++;
-    }
-
     return NextResponse.json({
       ok: true,
       imported: results,
-      message: `Enriched ${results.equipment} equipment, created ${results.ncrs} NCRs, ${results.projects} projects`,
+      message: `Enriched ${results.equipment} equipment, created ${results.ncrs} NCRs`,
     });
   } catch (error) {
     console.error("[import-access]", error);
