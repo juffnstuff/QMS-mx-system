@@ -81,6 +81,9 @@ export default async function NCRsPage({
           <div className="p-8 text-center text-gray-500">
             <AlertTriangle size={40} className="mx-auto mb-3 text-gray-300" />
             <p>No non-conformance reports found.</p>
+            <Link href="/ncrs/new" className="inline-flex items-center gap-1 mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium">
+              <Plus size={14} /> Create your first NCR
+            </Link>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">

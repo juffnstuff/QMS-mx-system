@@ -2,8 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
-import { Pencil, ArrowLeft } from "lucide-react";
+import { Pencil } from "lucide-react";
 
 export default async function ProjectDetailPage({
   params,
@@ -22,13 +23,11 @@ export default async function ProjectDetailPage({
 
   return (
     <div>
+      <Breadcrumbs items={[
+        { label: "Projects", href: "/projects" },
+        { label: project.title },
+      ]} />
       <div className="flex items-center gap-4 mb-6">
-        <Link
-          href="/projects"
-          className="text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <ArrowLeft size={20} />
-        </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
@@ -37,7 +36,7 @@ export default async function ProjectDetailPage({
             <StatusBadge status={project.status} />
           </div>
           <p className="text-gray-500 text-sm mt-0.5">
-            Created by {project.createdBy.name} • {new Date(project.createdAt).toLocaleDateString()}
+            Created by <Link href={`/users?highlight=${project.createdBy.id}`} className="text-blue-600 hover:text-blue-800">{project.createdBy.name}</Link> • {new Date(project.createdAt).toLocaleDateString()}
           </p>
         </div>
         {session?.user.role === "admin" && (

@@ -2,8 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
-import { Pencil, ArrowLeft, ShieldAlert, Shield, ShieldCheck, Link2 } from "lucide-react";
+import { Pencil, ShieldAlert, Shield, ShieldCheck, Link2 } from "lucide-react";
 
 function CriticalityBadge({ criticality }: { criticality: string }) {
   const config: Record<string, { label: string; desc: string; bg: string; text: string; border: string; icon: typeof ShieldAlert }> = {
@@ -63,13 +64,11 @@ export default async function EquipmentDetailPage({
 
   return (
     <div>
+      <Breadcrumbs items={[
+        { label: "Equipment", href: "/equipment" },
+        { label: equipment.name },
+      ]} />
       <div className="flex items-center gap-4 mb-6">
-        <Link
-          href="/equipment"
-          className="text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <ArrowLeft size={20} />
-        </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
@@ -283,7 +282,7 @@ export default async function EquipmentDetailPage({
                   </p>
                 )}
                 <p className="text-xs text-gray-400 mt-1">
-                  {log.user.name} • {new Date(log.performedAt).toLocaleDateString()}
+                  <Link href={`/users?highlight=${log.user.id}`} className="text-blue-500 hover:text-blue-700">{log.user.name}</Link> • {new Date(log.performedAt).toLocaleDateString()}
                 </p>
               </div>
             ))

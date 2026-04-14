@@ -2,8 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 const dispositionLabels: Record<string, string> = {
   return_rework: "Return & Rework",
@@ -46,13 +46,11 @@ export default async function ComplaintDetailPage({
 
   return (
     <div>
+      <Breadcrumbs items={[
+        { label: "Complaints", href: "/complaints" },
+        { label: complaint.complaintNumber },
+      ]} />
       <div className="flex items-center gap-4 mb-6">
-        <Link
-          href="/complaints"
-          className="text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <ArrowLeft size={20} />
-        </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
@@ -152,7 +150,7 @@ export default async function ComplaintDetailPage({
           )}
           <div>
             <dt className="text-sm text-gray-500">Submitted By</dt>
-            <dd className="text-gray-900">{complaint.submittedBy.name}</dd>
+            <dd className="text-gray-900"><Link href={`/users?highlight=${complaint.submittedBy.id}`} className="text-blue-600 hover:text-blue-800">{complaint.submittedBy.name}</Link></dd>
           </div>
           <div>
             <dt className="text-sm text-gray-500">Date</dt>
