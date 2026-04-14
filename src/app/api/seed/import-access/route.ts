@@ -1,0 +1,215 @@
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { accessNCRs } from "@/data/access-import/ncrs";
+import { currentProjects, futureProjects, worthNotingProjects } from "@/data/access-import/projects";
+import type { AccessProject } from "@/data/access-import/projects";
+
+// ── Equipment enrichment: criticality + groupName by serialNumber ──────────
+
+const equipmentEnrichments: Record<string, { criticality: string; groupName: string }> = {
+  // Presses
+  "RF-EQ-001": { criticality: "A", groupName: "Compression Molding" },
+  "RF-EQ-002": { criticality: "A", groupName: "Compression Molding" },
+  "RF-EQ-003": { criticality: "A", groupName: "Compression Molding" },
+  "RF-EQ-004": { criticality: "A", groupName: "Compression Molding" },
+  "RF-EQ-005": { criticality: "A", groupName: "Compression Molding" },
+  "RF-EQ-046": { criticality: "A", groupName: "Compression Molding" },
+  // Boilers
+  "RF-EQ-006": { criticality: "A", groupName: "Utilities" },
+  "RF-EQ-021": { criticality: "A", groupName: "Utilities" },
+  // Furnace
+  "RF-EQ-007": { criticality: "A", groupName: "Compression Molding" },
+  // Forklifts
+  "RF-EQ-008": { criticality: "B", groupName: "Material Handling" },
+  "RF-EQ-009": { criticality: "B", groupName: "Material Handling" },
+  "RF-EQ-010": { criticality: "B", groupName: "Material Handling" },
+  "RF-EQ-011": { criticality: "B", groupName: "Material Handling" },
+  "RF-EQ-012": { criticality: "B", groupName: "Material Handling" },
+  // Compressors
+  "RF-EQ-013": { criticality: "A", groupName: "Utilities" },
+  "RF-EQ-014": { criticality: "A", groupName: "Utilities" },
+  // HVAC / Heating
+  "RF-EQ-015": { criticality: "B", groupName: "HVAC" },
+  "RF-EQ-016": { criticality: "B", groupName: "HVAC" },
+  "RF-EQ-017": { criticality: "B", groupName: "HVAC" },
+  "RF-EQ-018": { criticality: "B", groupName: "HVAC" },
+  "RF-EQ-019": { criticality: "B", groupName: "HVAC" },
+  "RF-EQ-020": { criticality: "B", groupName: "HVAC" },
+  "RF-EQ-022": { criticality: "C", groupName: "HVAC" },
+  "RF-EQ-023": { criticality: "C", groupName: "HVAC" },
+  "RF-EQ-024": { criticality: "C", groupName: "HVAC" },
+  // Power Tools
+  "RF-EQ-025": { criticality: "C", groupName: "Fabrication" },
+  "RF-EQ-026": { criticality: "C", groupName: "Fabrication" },
+  "RF-EQ-027": { criticality: "C", groupName: "Fabrication" },
+  "RF-EQ-053": { criticality: "C", groupName: "Fabrication" },
+  "RF-EQ-054": { criticality: "C", groupName: "Fabrication" },
+  "RF-EQ-055": { criticality: "C", groupName: "Fabrication" },
+  "RF-EQ-056": { criticality: "C", groupName: "Fabrication" },
+  "RF-EQ-057": { criticality: "C", groupName: "Fabrication" },
+  "RF-EQ-058": { criticality: "C", groupName: "Fabrication" },
+  "RF-EQ-059": { criticality: "C", groupName: "Fabrication" },
+  "RF-EQ-060": { criticality: "C", groupName: "Fabrication" },
+  // Welders
+  "RF-EQ-028": { criticality: "C", groupName: "Fabrication" },
+  "RF-EQ-061": { criticality: "C", groupName: "Fabrication" },
+  // Material Handling
+  "RF-EQ-029": { criticality: "C", groupName: "Material Handling" },
+  "RF-EQ-063": { criticality: "B", groupName: "Material Handling" },
+  // Reserved
+  "RF-EQ-030": { criticality: "C", groupName: "Other" },
+  // Extruders
+  "RF-EQ-031": { criticality: "A", groupName: "Extrusion" },
+  "RF-EQ-035": { criticality: "A", groupName: "Extrusion" },
+  // Extrusion Aux
+  "RF-EQ-032": { criticality: "A", groupName: "Extrusion" },
+  "RF-EQ-033": { criticality: "B", groupName: "Extrusion" },
+  "RF-EQ-034": { criticality: "B", groupName: "Extrusion" },
+  "RF-EQ-036": { criticality: "A", groupName: "Extrusion" },
+  "RF-EQ-037": { criticality: "B", groupName: "Extrusion" },
+  "RF-EQ-038": { criticality: "B", groupName: "Extrusion" },
+  "RF-EQ-048": { criticality: "B", groupName: "Extrusion" },
+  "RF-EQ-049": { criticality: "B", groupName: "Extrusion" },
+  // Mixers
+  "RF-EQ-039": { criticality: "A", groupName: "Mixing" },
+  "RF-EQ-040": { criticality: "A", groupName: "Mixing" },
+  "RF-EQ-041": { criticality: "A", groupName: "Mixing" },
+  // Feed Systems
+  "RF-EQ-042": { criticality: "A", groupName: "Mixing" },
+  "RF-EQ-043": { criticality: "A", groupName: "Mixing" },
+  "RF-EQ-044": { criticality: "A", groupName: "Mixing" },
+  "RF-EQ-045": { criticality: "A", groupName: "Mixing" },
+  // Specialty Machines
+  "RF-EQ-047": { criticality: "A", groupName: "Specialty" },
+  "RF-EQ-050": { criticality: "B", groupName: "Specialty" },
+  "RF-EQ-051": { criticality: "B", groupName: "Specialty" },
+  "RF-EQ-052": { criticality: "B", groupName: "Specialty" },
+  // Machine Tool
+  "RF-EQ-062": { criticality: "C", groupName: "Fabrication" },
+  // Packaging
+  "RF-EQ-064": { criticality: "C", groupName: "Shipping" },
+  "RF-EQ-066": { criticality: "C", groupName: "Shipping" },
+  // Measurement
+  "RF-EQ-065": { criticality: "C", groupName: "Shipping" },
+  // Peripheral
+  "RF-EQ-067": { criticality: "C", groupName: "Fabrication" },
+  // Facility
+  "RF-EQ-068": { criticality: "B", groupName: "Shipping" },
+  // Vehicle
+  "RF-EQ-069": { criticality: "B", groupName: "Other" },
+};
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function mapPriority(p: string): string {
+  if (p.startsWith("1")) return "critical";
+  if (p.startsWith("2")) return "high";
+  if (p.startsWith("3")) return "medium";
+  if (p.startsWith("4")) return "medium";
+  return "low"; // 5 Discovery, 7 Idea
+}
+
+function mapStatus(s: string): string {
+  if (s === "Completed") return "completed";
+  if (s === "Not Started") return "planning";
+  return "in_progress";
+}
+
+// ── POST handler ───────────────────────────────────────────────────────────
+
+export async function POST() {
+  try {
+    const session = await auth();
+    if (!session || session.user.role !== "admin") {
+      return NextResponse.json({ error: "Admin only" }, { status: 403 });
+    }
+
+    const adminId = session.user.id;
+    const results = { equipment: 0, ncrs: 0, projects: 0 };
+
+    // 1) Equipment enrichments
+    for (const [serial, data] of Object.entries(equipmentEnrichments)) {
+      const updated = await prisma.equipment.updateMany({
+        where: { serialNumber: serial },
+        data: { criticality: data.criticality, groupName: data.groupName },
+      });
+      results.equipment += updated.count;
+    }
+
+    // 2) NCRs — skip duplicates by ncrNumber
+    const existingNCRs = await prisma.nonConformance.findMany({
+      select: { ncrNumber: true },
+    });
+    const existingNumbers = new Set(existingNCRs.map((n) => n.ncrNumber));
+
+    for (const ncr of accessNCRs) {
+      const ncrNum = `NCR-${ncr.ncrNumber.slice(0, 2) === "26" ? "2026" : "2025"}-${ncr.ncrNumber.slice(2)}`;
+      if (existingNumbers.has(ncrNum)) continue;
+
+      await prisma.nonConformance.create({
+        data: {
+          ncrNumber: ncrNum,
+          submittedById: adminId,
+          date: ncr.date ? new Date(ncr.date) : new Date(),
+          partNumber: ncr.partNumber,
+          drawingNumber: ncr.drawingNumber,
+          quantityAffected: ncr.quantityAffected,
+          vendor: ncr.vendor,
+          otherInfo: ncr.description,
+          ncrType: ncr.ncrType,
+          requirementDescription: ncr.requirementDescription || "(imported — no description)",
+          nonConformanceDescription: ncr.nonConformanceDescription,
+          disposition: ncr.disposition,
+          immediateAction: ncr.immediateAction,
+          ncrTagNumber: ncr.ncrTagNumber,
+          status: ncr.status,
+        },
+      });
+      results.ncrs++;
+    }
+
+    // 3) Projects — skip duplicates by title
+    const existingProjects = await prisma.project.findMany({
+      select: { title: true },
+    });
+    const existingTitles = new Set(existingProjects.map((p) => p.title));
+    const allProjects: AccessProject[] = [
+      ...currentProjects,
+      ...futureProjects,
+      ...worthNotingProjects,
+    ];
+
+    for (const proj of allProjects) {
+      if (existingTitles.has(proj.title)) continue;
+
+      await prisma.project.create({
+        data: {
+          title: proj.title,
+          description: proj.notes,
+          status: mapStatus(proj.status),
+          priority: mapPriority(proj.priority),
+          budget: proj.budget > 0 ? `$${proj.budget.toLocaleString()}` : null,
+          dueDate: proj.endDate ? new Date(proj.endDate) : null,
+          createdById: adminId,
+          phase: "concept",
+          designRequirements: proj.department ? `Dept: ${proj.department}` : null,
+          plannedSchedule: proj.budgetHrs > 0 ? `${proj.budgetHrs} hrs budgeted` : null,
+        },
+      });
+      results.projects++;
+    }
+
+    return NextResponse.json({
+      ok: true,
+      imported: results,
+      message: `Enriched ${results.equipment} equipment, created ${results.ncrs} NCRs, ${results.projects} projects`,
+    });
+  } catch (error) {
+    console.error("[import-access]", error);
+    return NextResponse.json(
+      { error: "Import failed", details: String(error) },
+      { status: 500 }
+    );
+  }
+}
