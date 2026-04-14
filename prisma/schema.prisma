@@ -43,15 +43,23 @@ model Equipment {
   location     String
   serialNumber String    @unique
   status       String    @default("operational") // "operational" | "needs_service" | "down"
+  criticality  String    @default("C") // "A" | "B" | "C" — A=production-critical, B=important, C=general
+  groupName    String?   // Equipment group label, e.g. "Dake Press System", "6in Extrusion Line"
+  parentId     String?   // Parent equipment ID for sub-components (e.g. pump → press)
   notes        String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  parent          Equipment?  @relation("EquipmentHierarchy", fields: [parentId], references: [id])
+  children        Equipment[] @relation("EquipmentHierarchy")
   schedules       MaintenanceSchedule[]
   maintenanceLogs MaintenanceLog[]
   workOrders      WorkOrder[]
 
   @@index([status])
+  @@index([criticality])
+  @@index([groupName])
+  @@index([parentId])
 }
 
 model MaintenanceSchedule {

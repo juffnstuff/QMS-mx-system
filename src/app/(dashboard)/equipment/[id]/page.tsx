@@ -3,7 +3,23 @@ import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
 import Link from "next/link";
-import { Pencil, ArrowLeft } from "lucide-react";
+import { Pencil, ArrowLeft, ShieldAlert, Shield, ShieldCheck, Link2 } from "lucide-react";
+
+function CriticalityBadge({ criticality }: { criticality: string }) {
+  const config: Record<string, { label: string; desc: string; bg: string; text: string; border: string; icon: typeof ShieldAlert }> = {
+    A: { label: "Class A — Production Critical", desc: "Downtime directly stops production", bg: "bg-red-50", text: "text-red-800", border: "border-red-200", icon: ShieldAlert },
+    B: { label: "Class B — Important", desc: "Affects efficiency; workarounds exist", bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-200", icon: Shield },
+    C: { label: "Class C — General", desc: "Low impact; easily replaceable", bg: "bg-green-50", text: "text-green-800", border: "border-green-200", icon: ShieldCheck },
+  };
+  const c = config[criticality] || config.C;
+  const Icon = c.icon;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${c.bg} ${c.text} border ${c.border}`}>
+      <Icon size={14} />
+      {c.label}
+    </span>
+  );
+}
 
 export default async function EquipmentDetailPage({
   params,
@@ -16,6 +32,8 @@ export default async function EquipmentDetailPage({
   const equipment = await prisma.equipment.findUnique({
     where: { id },
     include: {
+      parent: true,
+      children: { orderBy: { name: "asc" } },
       maintenanceLogs: {
         take: 10,
         orderBy: { performedAt: "desc" },
@@ -31,6 +49,15 @@ export default async function EquipmentDetailPage({
       },
     },
   });
+
+  // Fetch siblings in the same equipment group
+  const groupMembers = equipment?.groupName
+    ? await prisma.equipment.findMany({
+        where: { groupName: equipment.groupName, NOT: { id } },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, serialNumber: true, criticality: true },
+      })
+    : [];
 
   if (!equipment) notFound();
 
@@ -48,10 +75,16 @@ export default async function EquipmentDetailPage({
             <h1 className="text-2xl font-bold text-gray-900">
               {equipment.name}
             </h1>
+            <CriticalityBadge criticality={equipment.criticality} />
             <StatusBadge status={equipment.status} />
           </div>
           <p className="text-gray-500 text-sm mt-0.5">
             {equipment.type} • {equipment.location}
+            {equipment.groupName && (
+              <span className="ml-2 text-blue-600 font-medium">
+                [{equipment.groupName}]
+              </span>
+            )}
           </p>
         </div>
         {session?.user.role === "admin" && (
@@ -85,6 +118,10 @@ export default async function EquipmentDetailPage({
             <dt className="text-sm text-gray-500">Status</dt>
             <dd><StatusBadge status={equipment.status} /></dd>
           </div>
+          <div>
+            <dt className="text-sm text-gray-500">Criticality</dt>
+            <dd className="mt-1"><CriticalityBadge criticality={equipment.criticality} /></dd>
+          </div>
           {equipment.notes && (
             <div className="sm:col-span-2">
               <dt className="text-sm text-gray-500">Notes</dt>
@@ -93,6 +130,67 @@ export default async function EquipmentDetailPage({
           )}
         </dl>
       </div>
+
+      {/* Equipment Relationships */}
+      {(equipment.parent || equipment.children.length > 0 || groupMembers.length > 0) && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Link2 size={16} />
+            Related Equipment
+          </h2>
+
+          {equipment.parent && (
+            <div className="mb-4">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Parent Equipment</p>
+              <Link
+                href={`/equipment/${equipment.parent.id}`}
+                className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-sm bg-blue-50 px-3 py-1.5 rounded-md"
+              >
+                {equipment.parent.name}
+                <span className="text-gray-400 font-mono text-xs">{equipment.parent.serialNumber}</span>
+              </Link>
+            </div>
+          )}
+
+          {equipment.children.length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Sub-Components</p>
+              <div className="flex flex-wrap gap-2">
+                {equipment.children.map((child) => (
+                  <Link
+                    key={child.id}
+                    href={`/equipment/${child.id}`}
+                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm bg-blue-50 px-3 py-1.5 rounded-md"
+                  >
+                    {child.name}
+                    <span className="text-gray-400 font-mono text-xs">{child.serialNumber}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {groupMembers.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                Equipment Group: <span className="text-blue-600 normal-case">{equipment.groupName}</span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {groupMembers.map((member) => (
+                  <Link
+                    key={member.id}
+                    href={`/equipment/${member.id}`}
+                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm bg-gray-50 px-3 py-1.5 rounded-md border border-gray-200"
+                  >
+                    {member.name}
+                    <span className="text-gray-400 font-mono text-xs">{member.serialNumber}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Maintenance Schedules */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
