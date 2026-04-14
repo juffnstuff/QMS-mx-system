@@ -3,15 +3,25 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { UserPicker } from "./user-picker";
+
+interface UserOption {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
 interface Props {
   equipment: { id: string; name: string }[];
+  users?: UserOption[];
 }
 
-export function ScheduleForm({ equipment }: Props) {
+export function ScheduleForm({ equipment, users }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [assignedToId, setAssignedToId] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -25,6 +35,7 @@ export function ScheduleForm({ equipment }: Props) {
       description: formData.get("description") || null,
       frequency: formData.get("frequency"),
       nextDue: formData.get("nextDue"),
+      assignedToId: assignedToId || null,
     };
 
     const res = await fetch("/api/schedules", {
@@ -133,6 +144,16 @@ export function ScheduleForm({ equipment }: Props) {
             placeholder="Optional details about this maintenance task..."
           />
         </div>
+
+        {users && users.length > 0 && (
+          <UserPicker
+            users={users}
+            value={assignedToId}
+            onChange={setAssignedToId}
+            label="Assigned To"
+            placeholder="Select responsible person..."
+          />
+        )}
       </div>
 
       <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200">

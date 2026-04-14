@@ -102,6 +102,7 @@ export default async function CAPAsPage({
                       {sourceLabels[capa.source] || capa.source}
                       {" • "}
                       {capa.originator?.name || "Unknown"}
+                      {capa.assignedTo && ` • Assigned: ${capa.assignedTo.name}`}
                     </p>
                     {capa.targetCloseDate && (
                       <p className={`text-xs mt-0.5 ${new Date(capa.targetCloseDate) < new Date() && capa.status !== "closed" ? "text-red-500" : "text-gray-400"}`}>

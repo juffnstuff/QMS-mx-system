@@ -3,11 +3,19 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { UserPicker } from "./user-picker";
 
 interface EquipmentOption {
   id: string;
   name: string;
   serialNumber: string;
+}
+
+interface UserOption {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
 }
 
 interface EquipmentData {
@@ -20,13 +28,15 @@ interface EquipmentData {
   criticality: string;
   groupName: string | null;
   parentId: string | null;
+  assignedTechnicianId: string | null;
   notes: string | null;
 }
 
-export function EquipmentForm({ equipment, allEquipment }: { equipment?: EquipmentData; allEquipment?: EquipmentOption[] }) {
+export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: EquipmentData; allEquipment?: EquipmentOption[]; users?: UserOption[] }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [assignedTechnicianId, setAssignedTechnicianId] = useState(equipment?.assignedTechnicianId || "");
   const isEdit = !!equipment;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -44,6 +54,7 @@ export function EquipmentForm({ equipment, allEquipment }: { equipment?: Equipme
       criticality: formData.get("criticality") as string,
       groupName: (formData.get("groupName") as string) || null,
       parentId: (formData.get("parentId") as string) || null,
+      assignedTechnicianId: assignedTechnicianId || null,
       notes: (formData.get("notes") as string) || null,
     };
 
@@ -209,6 +220,16 @@ export function EquipmentForm({ equipment, allEquipment }: { equipment?: Equipme
               Select if this is a sub-component of another piece of equipment
             </p>
           </div>
+        )}
+
+        {users && users.length > 0 && (
+          <UserPicker
+            users={users}
+            value={assignedTechnicianId}
+            onChange={setAssignedTechnicianId}
+            label="Assigned Technician"
+            placeholder="Select technician..."
+          />
         )}
 
         <div>

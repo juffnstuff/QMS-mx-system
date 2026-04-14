@@ -23,7 +23,7 @@ export default async function ComplaintsPage({
   const complaints = await prisma.customerComplaint.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: { submittedBy: true },
+    include: { submittedBy: true, assignedTo: true },
     take: 50,
   });
 
@@ -98,6 +98,7 @@ export default async function ComplaintsPage({
                       {complaint.customerName}
                       {" \u2022 "}
                       Submitted by {complaint.submittedBy.name}
+                      {complaint.assignedTo && ` \u2022 Assigned: ${complaint.assignedTo.name}`}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {new Date(complaint.date).toLocaleDateString()}

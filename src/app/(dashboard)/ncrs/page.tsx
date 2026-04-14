@@ -23,7 +23,7 @@ export default async function NCRsPage({
   const ncrs = await prisma.nonConformance.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: { submittedBy: true, approvedBy: true },
+    include: { submittedBy: true, approvedBy: true, assignedInvestigator: true },
     take: 50,
   });
 
@@ -95,6 +95,7 @@ export default async function NCRsPage({
                       {ncr.partNumber || "No part number"}
                       {" \u2022 "}
                       Submitted by {ncr.submittedBy.name}
+                      {ncr.assignedInvestigator && ` \u2022 Investigator: ${ncr.assignedInvestigator.name}`}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {new Date(ncr.date).toLocaleDateString()}

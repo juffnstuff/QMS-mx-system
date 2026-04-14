@@ -7,12 +7,18 @@ export default async function NewSchedulePage() {
   const session = await auth();
   if (session?.user.role !== "admin") redirect("/schedules");
 
-  const equipment = await prisma.equipment.findMany({ orderBy: { name: "asc" } });
+  const [equipment, users] = await Promise.all([
+    prisma.equipment.findMany({ orderBy: { name: "asc" } }),
+    prisma.user.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, email: true, role: true },
+    }),
+  ]);
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Add Maintenance Schedule</h1>
-      <ScheduleForm equipment={equipment} />
+      <ScheduleForm equipment={equipment} users={users} />
     </div>
   );
 }

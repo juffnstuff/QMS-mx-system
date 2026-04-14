@@ -49,6 +49,7 @@ export default async function EquipmentPage({
     where,
     orderBy: { name: "asc" },
     include: {
+      assignedTechnician: { select: { id: true, name: true } },
       _count: {
         select: {
           workOrders: { where: { status: { in: ["open", "in_progress"] } } },
@@ -130,6 +131,9 @@ export default async function EquipmentPage({
                   Criticality
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Technician
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -162,6 +166,9 @@ export default async function EquipmentPage({
                   </td>
                   <td className="px-4 py-3">
                     <CriticalityBadge criticality={item.criticality} />
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {item.assignedTechnician?.name || <span className="text-gray-300">—</span>}
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={item.status} />

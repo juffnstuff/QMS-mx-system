@@ -7,15 +7,21 @@ export default async function NewEquipmentPage() {
   const session = await auth();
   if (session?.user.role !== "admin") redirect("/equipment");
 
-  const allEquipment = await prisma.equipment.findMany({
-    orderBy: { name: "asc" },
-    select: { id: true, name: true, serialNumber: true },
-  });
+  const [allEquipment, users] = await Promise.all([
+    prisma.equipment.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, serialNumber: true },
+    }),
+    prisma.user.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, email: true, role: true },
+    }),
+  ]);
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Add Equipment</h1>
-      <EquipmentForm allEquipment={allEquipment} />
+      <EquipmentForm allEquipment={allEquipment} users={users} />
     </div>
   );
 }

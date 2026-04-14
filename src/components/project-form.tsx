@@ -3,6 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { UserPicker } from "./user-picker";
+
+interface UserOption {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
 const RELEASE_CHECKLIST_ITEMS = [
   "manufacturingDrawings",
@@ -34,6 +42,7 @@ interface ProjectData {
   priority: string;
   budget: string | null;
   dueDate: string | null;
+  projectLeadId?: string | null;
   phase?: string;
   projectJustification?: string | null;
   designObjectives?: string | null;
@@ -58,10 +67,11 @@ function parseChecklist(json: string | null | undefined): Record<string, string>
   }
 }
 
-export function ProjectForm({ project }: { project?: ProjectData }) {
+export function ProjectForm({ project, users }: { project?: ProjectData; users?: UserOption[] }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [projectLeadId, setProjectLeadId] = useState(project?.projectLeadId || "");
   const isEdit = !!project;
 
   const [phase1Open, setPhase1Open] = useState(true);
@@ -95,6 +105,7 @@ export function ProjectForm({ project }: { project?: ProjectData }) {
       priority: formData.get("priority") as string,
       budget: plannedBudget || topBudget || null,
       dueDate: (formData.get("dueDate") as string) || null,
+      projectLeadId: projectLeadId || null,
       phase: (formData.get("phase") as string) || "concept",
       projectJustification: (formData.get("projectJustification") as string) || null,
       designObjectives: (formData.get("designObjectives") as string) || null,
@@ -173,6 +184,16 @@ export function ProjectForm({ project }: { project?: ProjectData }) {
             placeholder="Project details, scope, goals..."
           />
         </div>
+
+        {users && users.length > 0 && (
+          <UserPicker
+            users={users}
+            value={projectLeadId}
+            onChange={setProjectLeadId}
+            label="Project Lead"
+            placeholder="Select project lead..."
+          />
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>

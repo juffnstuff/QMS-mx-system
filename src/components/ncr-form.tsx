@@ -3,15 +3,25 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { UserPicker } from "./user-picker";
+
+interface UserOption {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
 interface Props {
   isAdmin: boolean;
+  users?: UserOption[];
 }
 
-export function NCRForm({ isAdmin }: Props) {
+export function NCRForm({ isAdmin, users }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [assignedInvestigatorId, setAssignedInvestigatorId] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -33,6 +43,7 @@ export function NCRForm({ isAdmin }: Props) {
       immediateAction: formData.get("immediateAction") || null,
       ncrTagNumber: formData.get("ncrTagNumber") || null,
       plantLocation: formData.get("plantLocation") || null,
+      assignedInvestigatorId: assignedInvestigatorId || null,
     };
 
     const res = await fetch("/api/ncrs", {
@@ -155,6 +166,16 @@ export function NCRForm({ isAdmin }: Props) {
             <option value="compliance">Compliance</option>
           </select>
         </div>
+
+        {users && users.length > 0 && (
+          <UserPicker
+            users={users}
+            value={assignedInvestigatorId}
+            onChange={setAssignedInvestigatorId}
+            label="Assigned Investigator"
+            placeholder="Select investigator..."
+          />
+        )}
 
         <div>
           <label htmlFor="requirementDescription" className="block text-sm font-medium text-gray-700 mb-1">

@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
       capaRequired,
       affectsOtherOrders,
       rootCauseRequired,
+      assignedToId,
     } = body;
 
     if (!customerName || !complaintType || !complaintDescription) {
@@ -120,6 +121,7 @@ export async function POST(req: NextRequest) {
         capaRequired: capaRequired || false,
         affectsOtherOrders: affectsOtherOrders || false,
         rootCauseRequired: rootCauseRequired || false,
+        assignedToId: assignedToId || null,
         status: "open",
       },
     });

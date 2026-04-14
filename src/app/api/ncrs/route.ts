@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
       immediateAction,
       ncrTagNumber,
       plantLocation,
+      assignedInvestigatorId,
     } = body;
 
     if (!ncrType || !requirementDescription || !nonConformanceDescription) {
@@ -98,6 +99,7 @@ export async function POST(req: NextRequest) {
         immediateAction: immediateAction || null,
         ncrTagNumber: ncrTagNumber || null,
         plantLocation: plantLocation || null,
+        assignedInvestigatorId: assignedInvestigatorId || null,
         status: "open",
       },
     });

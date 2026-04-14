@@ -3,15 +3,25 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { UserPicker } from "./user-picker";
+
+interface UserOption {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
 interface Props {
   isAdmin: boolean;
+  users?: UserOption[];
 }
 
-export function ComplaintForm({ isAdmin }: Props) {
+export function ComplaintForm({ isAdmin, users }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [assignedToId, setAssignedToId] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -21,6 +31,7 @@ export function ComplaintForm({ isAdmin }: Props) {
     const formData = new FormData(e.currentTarget);
     const data = {
       customerName: formData.get("customerName"),
+      assignedToId: assignedToId || null,
       customerAddress: formData.get("customerAddress") || null,
       customerContact: formData.get("customerContact") || null,
       contactPhone: formData.get("contactPhone") || null,
@@ -296,6 +307,16 @@ export function ComplaintForm({ isAdmin }: Props) {
             placeholder="Any additional information..."
           />
         </div>
+
+        {users && users.length > 0 && (
+          <UserPicker
+            users={users}
+            value={assignedToId}
+            onChange={setAssignedToId}
+            label="Assigned To"
+            placeholder="Select person to handle this complaint..."
+          />
+        )}
       </div>
 
       {/* Section: Management Disposition (admin-only) */}

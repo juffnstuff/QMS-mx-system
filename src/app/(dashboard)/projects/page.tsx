@@ -28,7 +28,10 @@ export default async function ProjectsPage({
 
   const projects = await prisma.project.findMany({
     where,
-    include: { createdBy: { select: { id: true, name: true } } },
+    include: {
+      createdBy: { select: { id: true, name: true } },
+      projectLead: { select: { id: true, name: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -117,7 +120,7 @@ export default async function ProjectsPage({
                   Due Date
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created By
+                  Project Lead
                 </th>
               </tr>
             </thead>
@@ -147,7 +150,7 @@ export default async function ProjectsPage({
                       : "—"}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
-                    {project.createdBy.name}
+                    {project.projectLead?.name || project.createdBy.name}
                   </td>
                 </tr>
               ))}

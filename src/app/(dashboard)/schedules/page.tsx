@@ -8,7 +8,7 @@ export default async function SchedulesPage() {
 
   const schedules = await prisma.maintenanceSchedule.findMany({
     orderBy: { nextDue: "asc" },
-    include: { equipment: true },
+    include: { equipment: true, assignedTo: true },
   });
 
   const now = new Date();
@@ -59,6 +59,7 @@ export default async function SchedulesPage() {
                             {schedule.equipment.name}
                           </Link>
                           {" "}&bull; <span className="capitalize">{schedule.frequency}</span>
+                          {schedule.assignedTo && <>{" "}&bull; {schedule.assignedTo.name}</>}
                         </p>
                         {schedule.description && (
                           <p className="text-sm text-gray-400 mt-0.5">{schedule.description}</p>
