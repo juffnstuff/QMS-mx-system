@@ -4,6 +4,7 @@ import { StatusBadge } from "@/components/status-badge";
 import Link from "next/link";
 import { Plus, Search, ShieldAlert, Shield, ShieldCheck } from "lucide-react";
 import { CriticalityMigrateButton } from "@/components/criticality-migrate-button";
+import { MobileCategorySelect } from "@/components/mobile-category-select";
 
 function CriticalityBadge({ criticality }: { criticality: string }) {
   const config: Record<string, { label: string; bg: string; text: string; icon: typeof ShieldAlert }> = {
@@ -191,25 +192,16 @@ export default async function EquipmentPage({
 
       {/* Category Tabs — Mobile dropdown */}
       <div className="sm:hidden mb-4">
-        <form>
-          {searchQuery && <input type="hidden" name="search" value={searchQuery} />}
-          {statusFilter && statusFilter !== "all" && <input type="hidden" name="status" value={statusFilter} />}
-          <select
-            name="category"
-            defaultValue={activeCategory}
-            onChange={(e) => {
-              const form = e.target.closest("form");
-              if (form) form.submit();
-            }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {CATEGORIES.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.label} ({categoryCounts[cat.id] || 0})
-              </option>
-            ))}
-          </select>
-        </form>
+        <MobileCategorySelect
+          categories={CATEGORIES.map((cat) => ({
+            id: cat.id,
+            label: cat.label,
+            count: categoryCounts[cat.id] || 0,
+          }))}
+          activeCategory={activeCategory}
+          searchQuery={searchQuery}
+          statusFilter={statusFilter}
+        />
       </div>
 
       {/* Equipment Table */}
