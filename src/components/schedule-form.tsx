@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserPicker } from "./user-picker";
 import { FormActions } from "./form-actions";
+import { DeleteRecordButton } from "./delete-record-button";
 
 interface UserOption {
   id: string;
@@ -12,17 +13,30 @@ interface UserOption {
   role: string;
 }
 
+interface ScheduleData {
+  id?: string;
+  equipmentId: string;
+  title: string;
+  description: string | null;
+  frequency: string;
+  nextDue: string;
+  assignedToId: string | null;
+  secondaryAssignedToId: string | null;
+}
+
 interface Props {
   equipment: { id: string; name: string }[];
   users?: UserOption[];
+  schedule?: ScheduleData;
 }
 
-export function ScheduleForm({ equipment, users }: Props) {
+export function ScheduleForm({ equipment, users, schedule }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [assignedToId, setAssignedToId] = useState("");
-  const [secondaryAssignedToId, setSecondaryAssignedToId] = useState("");
+  const [assignedToId, setAssignedToId] = useState(schedule?.assignedToId || "");
+  const [secondaryAssignedToId, setSecondaryAssignedToId] = useState(schedule?.secondaryAssignedToId || "");
+  const isEdit = !!schedule;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -40,8 +54,10 @@ export function ScheduleForm({ equipment, users }: Props) {
       secondaryAssignedToId: secondaryAssignedToId || null,
     };
 
-    const res = await fetch("/api/schedules", {
-      method: "POST",
+    const url = isEdit ? `/api/schedules/${schedule.id}` : "/api/schedules";
+
+    const res = await fetch(url, {
+      method: isEdit ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
@@ -53,9 +69,17 @@ export function ScheduleForm({ equipment, users }: Props) {
       return;
     }
 
-    router.push("/schedules");
+    if (isEdit) {
+      router.push(`/schedules/${schedule.id}`);
+    } else {
+      router.push("/schedules");
+    }
     router.refresh();
   }
+
+  const cancelHref = isEdit ? `/schedules/${schedule?.id}` : "/schedules";
+  const submitLabel = isEdit ? "Save Changes" : "Add Schedule";
+  const loadingLabel = isEdit ? "Saving..." : "Creating...";
 
   return (
     <form
@@ -70,9 +94,12 @@ export function ScheduleForm({ equipment, users }: Props) {
 
       <FormActions
         loading={loading}
-        submitLabel="Add Schedule"
-        loadingLabel="Creating..."
-        cancelHref="/schedules"
+        submitLabel={submitLabel}
+        loadingLabel={loadingLabel}
+        cancelHref={cancelHref}
+        deleteButton={isEdit ? (
+          <DeleteRecordButton recordId={schedule!.id!} recordType="schedules" recordLabel={schedule!.title} redirectTo="/schedules" />
+        ) : undefined}
       />
 
       <div className="space-y-4">
@@ -84,6 +111,7 @@ export function ScheduleForm({ equipment, users }: Props) {
             id="title"
             name="title"
             required
+            defaultValue={schedule?.title}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., Blade inspection and sharpening"
           />
@@ -98,6 +126,7 @@ export function ScheduleForm({ equipment, users }: Props) {
               id="equipmentId"
               name="equipmentId"
               required
+              defaultValue={schedule?.equipmentId}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select equipment...</option>
@@ -116,6 +145,7 @@ export function ScheduleForm({ equipment, users }: Props) {
               id="frequency"
               name="frequency"
               required
+              defaultValue={schedule?.frequency}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select frequency...</option>
@@ -137,6 +167,7 @@ export function ScheduleForm({ equipment, users }: Props) {
             name="nextDue"
             type="date"
             required
+            defaultValue={schedule?.nextDue ? new Date(schedule.nextDue).toISOString().split("T")[0] : ""}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-xs"
           />
         </div>
@@ -149,6 +180,7 @@ export function ScheduleForm({ equipment, users }: Props) {
             id="description"
             name="description"
             rows={3}
+            defaultValue={schedule?.description || ""}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Optional details about this maintenance task..."
           />
@@ -176,9 +208,12 @@ export function ScheduleForm({ equipment, users }: Props) {
 
       <FormActions
         loading={loading}
-        submitLabel="Add Schedule"
-        loadingLabel="Creating..."
-        cancelHref="/schedules"
+        submitLabel={submitLabel}
+        loadingLabel={loadingLabel}
+        cancelHref={cancelHref}
+        deleteButton={isEdit ? (
+          <DeleteRecordButton recordId={schedule!.id!} recordType="schedules" recordLabel={schedule!.title} redirectTo="/schedules" />
+        ) : undefined}
       />
     </form>
   );
