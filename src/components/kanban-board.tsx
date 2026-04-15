@@ -7,7 +7,7 @@ import {
   DragStartEvent,
   DragOverEvent,
   DragEndEvent,
-  closestCorners,
+  rectIntersection,
   PointerSensor,
   TouchSensor,
   useSensor,
@@ -228,7 +228,7 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
       <div className="hidden sm:block">
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
+          collisionDetection={rectIntersection}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}

@@ -3,7 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Calendar, User, ArrowRightLeft } from "lucide-react";
 
 export type EntityType = "workOrder" | "maintenanceSchedule" | "nonConformance" | "capa" | "project";
@@ -51,6 +51,7 @@ interface KanbanCardProps {
 export function KanbanCard({ card, currentColumn, onMoveCard }: KanbanCardProps) {
   const router = useRouter();
   const [showMoveMenu, setShowMoveMenu] = useState(false);
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const {
     attributes,
     listeners,
@@ -70,13 +71,33 @@ export function KanbanCard({ card, currentColumn, onMoveCard }: KanbanCardProps)
 
   const typeStyle = TYPE_STYLES[card.entityType];
 
+  // Track pointer start so we can distinguish click from drag
+  const handlePointerDown = (e: React.PointerEvent) => {
+    pointerStart.current = { x: e.clientX, y: e.clientY };
+  };
+
+  // Navigate only if pointer didn't move (was a click, not a drag)
+  const handleClick = (e: React.MouseEvent) => {
+    if (isDragging) return;
+    const start = pointerStart.current;
+    if (start) {
+      const dx = Math.abs(e.clientX - start.x);
+      const dy = Math.abs(e.clientY - start.y);
+      if (dx > 5 || dy > 5) return; // was a drag attempt
+    }
+    e.stopPropagation();
+    router.push(card.href);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className={`bg-white rounded-lg border border-gray-200 p-3 shadow-sm cursor-grab active:cursor-grabbing hover:border-blue-300 hover:shadow-md transition-all touch-none sm:touch-auto ${
+      onPointerDown={handlePointerDown}
+      onClick={handleClick}
+      className={`bg-white rounded-lg border border-gray-200 p-3 shadow-sm cursor-grab active:cursor-grabbing hover:border-blue-300 hover:shadow-md transition-all select-none ${
         isDragging ? "opacity-50 shadow-lg ring-2 ring-blue-400" : ""
       }`}
     >
@@ -95,7 +116,6 @@ export function KanbanCard({ card, currentColumn, onMoveCard }: KanbanCardProps)
           <button
             onClick={(e) => {
               e.stopPropagation();
-              e.preventDefault();
               setShowMoveMenu(!showMoveMenu);
             }}
             onPointerDown={(e) => e.stopPropagation()}
@@ -116,7 +136,6 @@ export function KanbanCard({ card, currentColumn, onMoveCard }: KanbanCardProps)
               disabled={col.id === currentColumn}
               onClick={(e) => {
                 e.stopPropagation();
-                e.preventDefault();
                 onMoveCard(`${card.entityType}::${card.id}`, col.id);
                 setShowMoveMenu(false);
               }}
@@ -133,17 +152,8 @@ export function KanbanCard({ card, currentColumn, onMoveCard }: KanbanCardProps)
         </div>
       )}
 
-      {/* Title — tappable to navigate */}
-      <p
-        onClick={(e) => {
-          if (!isDragging) {
-            e.stopPropagation();
-            router.push(card.href);
-          }
-        }}
-        onPointerDown={(e) => e.stopPropagation()}
-        className="text-sm font-medium text-gray-900 line-clamp-2 mb-1 cursor-pointer hover:text-blue-600 active:text-blue-700"
-      >
+      {/* Title */}
+      <p className="text-sm font-medium text-gray-900 line-clamp-2 mb-1">
         {card.title}
       </p>
 
