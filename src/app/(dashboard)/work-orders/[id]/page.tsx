@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { WorkOrderStatusUpdate } from "@/components/work-order-status-update";
 import { MakeRecurringButton } from "@/components/make-recurring-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { DeleteRecordButton } from "@/components/delete-record-button";
 import Link from "next/link";
 
 export default async function WorkOrderDetailPage({
@@ -43,9 +44,18 @@ export default async function WorkOrderDetailPage({
             </Link>
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <StatusBadge status={order.priority} />
           <StatusBadge status={order.status} />
+          {session?.user.role === "admin" && (
+            <DeleteRecordButton
+              recordId={id}
+              recordType="work-orders"
+              recordLabel={order.title}
+              redirectTo="/work-orders"
+              compact
+            />
+          )}
         </div>
       </div>
 

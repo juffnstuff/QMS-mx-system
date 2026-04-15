@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { DeleteRecordButton } from "@/components/delete-record-button";
 import Link from "next/link";
 import { Pencil } from "lucide-react";
 
@@ -44,13 +45,21 @@ export default async function ProjectDetailPage({
           </p>
         </div>
         {session?.user.role === "admin" && (
-          <Link
-            href={`/projects/${id}/edit`}
-            className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
-          >
-            <Pencil size={14} />
-            Edit
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/projects/${id}/edit`}
+              className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
+            >
+              <Pencil size={14} />
+              Edit
+            </Link>
+            <DeleteRecordButton
+              recordId={id}
+              recordType="projects"
+              recordLabel={project.title}
+              redirectTo="/projects"
+            />
+          </div>
         )}
       </div>
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { FormActions } from "./form-actions";
 
 interface Props {
   equipment: { id: string; name: string }[];
@@ -64,6 +64,13 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
           {error}
         </div>
       )}
+
+      <FormActions
+        loading={loading}
+        submitLabel="Create Work Order"
+        loadingLabel="Creating..."
+        cancelHref="/work-orders"
+      />
 
       <div className="space-y-4">
         <div>
@@ -266,18 +273,12 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
         )}
       </div>
 
-      <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {loading ? "Creating..." : "Create Work Order"}
-        </button>
-        <Link href="/work-orders" className="text-gray-600 hover:text-gray-800 text-sm">
-          Cancel
-        </Link>
-      </div>
+      <FormActions
+        loading={loading}
+        submitLabel="Create Work Order"
+        loadingLabel="Creating..."
+        cancelHref="/work-orders"
+      />
     </form>
   );
 }

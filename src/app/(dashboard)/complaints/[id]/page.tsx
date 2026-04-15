@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { DeleteRecordButton } from "@/components/delete-record-button";
 import Link from "next/link";
 
 const dispositionLabels: Record<string, string> = {
@@ -64,6 +65,12 @@ export default async function ComplaintDetailPage({
             {complaint.customerName} {"\u2022"} {complaintTypeLabels[complaint.complaintType] || complaint.complaintType}
           </p>
         </div>
+        <DeleteRecordButton
+          recordId={id}
+          recordType="complaints"
+          recordLabel={complaint.complaintNumber}
+          redirectTo="/complaints"
+        />
       </div>
 
       {/* Complaint Details */}

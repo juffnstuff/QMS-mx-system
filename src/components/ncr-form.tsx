@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { UserPicker } from "./user-picker";
+import { FormActions } from "./form-actions";
 
 interface UserOption {
   id: string;
@@ -75,6 +75,13 @@ export function NCRForm({ isAdmin, users }: Props) {
           {error}
         </div>
       )}
+
+      <FormActions
+        loading={loading}
+        submitLabel="Create NCR"
+        loadingLabel="Creating..."
+        cancelHref="/ncrs"
+      />
 
       <div className="space-y-4">
         <div>
@@ -272,18 +279,12 @@ export function NCRForm({ isAdmin, users }: Props) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {loading ? "Creating..." : "Create NCR"}
-        </button>
-        <Link href="/ncrs" className="text-gray-600 hover:text-gray-800 text-sm">
-          Cancel
-        </Link>
-      </div>
+      <FormActions
+        loading={loading}
+        submitLabel="Create NCR"
+        loadingLabel="Creating..."
+        cancelHref="/ncrs"
+      />
     </form>
   );
 }

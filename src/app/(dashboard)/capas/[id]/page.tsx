@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { DeleteRecordButton } from "@/components/delete-record-button";
 import Link from "next/link";
 
 const sourceLabels: Record<string, string> = {
@@ -85,6 +86,12 @@ export default async function CAPADetailPage({
             ) : "Unknown"} • {new Date(capa.createdAt).toLocaleDateString()}
           </p>
         </div>
+        <DeleteRecordButton
+          recordId={id}
+          recordType="capas"
+          recordLabel={capa.capaNumber}
+          redirectTo="/capas"
+        />
       </div>
 
       <div className="space-y-6">

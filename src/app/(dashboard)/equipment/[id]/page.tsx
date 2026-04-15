@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { DeleteRecordButton } from "@/components/delete-record-button";
 import Link from "next/link";
 import { Pencil, ShieldAlert, Shield, ShieldCheck, Link2 } from "lucide-react";
 
@@ -89,13 +90,21 @@ export default async function EquipmentDetailPage({
           </p>
         </div>
         {session?.user.role === "admin" && (
-          <Link
-            href={`/equipment/${id}/edit`}
-            className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
-          >
-            <Pencil size={14} />
-            Edit
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/equipment/${id}/edit`}
+              className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
+            >
+              <Pencil size={14} />
+              Edit
+            </Link>
+            <DeleteRecordButton
+              recordId={id}
+              recordType="equipment"
+              recordLabel={equipment.name}
+              redirectTo="/equipment"
+            />
+          </div>
         )}
       </div>
 

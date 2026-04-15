@@ -84,3 +84,22 @@ export async function PUT(
 
   return NextResponse.json(workOrder);
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session || session.user.role !== "admin") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  try {
+    await prisma.workOrder.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Failed to delete work order:", error);
+    return NextResponse.json({ error: "Failed to delete work order" }, { status: 500 });
+  }
+}

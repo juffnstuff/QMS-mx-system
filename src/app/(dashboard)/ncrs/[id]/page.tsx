@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
 import { NCRStatusUpdate } from "@/components/ncr-status-update";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { DeleteRecordButton } from "@/components/delete-record-button";
 import Link from "next/link";
 
 const dispositionLabels: Record<string, string> = {
@@ -55,9 +56,18 @@ export default async function NCRDetailPage({
           <h1 className="text-2xl font-bold text-gray-900">{ncr.ncrNumber}</h1>
           <p className="text-gray-500 text-sm mt-0.5">Non-Conformance Report</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <StatusBadge status={ncr.ncrType} />
           <StatusBadge status={ncr.status} />
+          {isAdmin && (
+            <DeleteRecordButton
+              recordId={id}
+              recordType="ncrs"
+              recordLabel={ncr.ncrNumber}
+              redirectTo="/ncrs"
+              compact
+            />
+          )}
         </div>
       </div>
 

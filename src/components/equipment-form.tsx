@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UserPicker } from "./user-picker";
+import { FormActions } from "./form-actions";
+import { DeleteRecordButton } from "./delete-record-button";
 
 interface EquipmentOption {
   id: string;
@@ -93,6 +95,16 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
           {error}
         </div>
       )}
+
+      <FormActions
+        loading={loading}
+        submitLabel={isEdit ? "Save Changes" : "Add Equipment"}
+        loadingLabel={isEdit ? "Saving..." : "Adding..."}
+        cancelHref={isEdit ? `/equipment/${equipment?.id}` : "/equipment"}
+        deleteButton={isEdit ? (
+          <DeleteRecordButton recordId={equipment!.id!} recordType="equipment" recordLabel={equipment!.name} redirectTo="/equipment" />
+        ) : undefined}
+      />
 
       <div className="space-y-4">
         <div>
@@ -261,27 +273,15 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {loading
-            ? isEdit
-              ? "Saving..."
-              : "Adding..."
-            : isEdit
-            ? "Save Changes"
-            : "Add Equipment"}
-        </button>
-        <Link
-          href={isEdit ? `/equipment/${equipment.id}` : "/equipment"}
-          className="text-gray-600 hover:text-gray-800 text-sm"
-        >
-          Cancel
-        </Link>
-      </div>
+      <FormActions
+        loading={loading}
+        submitLabel={isEdit ? "Save Changes" : "Add Equipment"}
+        loadingLabel={isEdit ? "Saving..." : "Adding..."}
+        cancelHref={isEdit ? `/equipment/${equipment?.id}` : "/equipment"}
+        deleteButton={isEdit ? (
+          <DeleteRecordButton recordId={equipment!.id!} recordType="equipment" recordLabel={equipment!.name} redirectTo="/equipment" />
+        ) : undefined}
+      />
     </form>
   );
 }
