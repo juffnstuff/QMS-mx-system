@@ -161,7 +161,7 @@ Respond with ONLY valid JSON, no markdown:
 If not relevant: {"relevant": false, "confidence": 0.9, "reasoning": "Not relevant: ...", "suggestedActions": []}`;
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-6",
     max_tokens: 2048,
     messages: [{ role: "user", content: prompt }],
   });

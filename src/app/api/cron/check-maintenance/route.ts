@@ -7,11 +7,9 @@ import { sendDigestNotificationToAdmins } from "@/lib/notifications/send-notific
  * Notifications will be included in the next status digest email (5am, 12pm, or 5pm).
  */
 export async function GET(req: NextRequest) {
-  // Verify authorization
-  const authHeader = req.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  // Verify cron secret (supports x-cron-secret header or Authorization: Bearer)
+  const cronSecret = req.headers.get("x-cron-secret") || req.headers.get("authorization")?.replace("Bearer ", "");
+  if (cronSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
