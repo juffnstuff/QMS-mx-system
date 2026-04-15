@@ -230,9 +230,13 @@ export default async function EquipmentDetailPage({
             equipment.schedules.map((schedule) => {
               const isOverdue = new Date(schedule.nextDue) < new Date();
               return (
-                <div key={schedule.id} className="p-4 flex items-center justify-between">
+                <Link
+                  key={schedule.id}
+                  href={`/schedules/${schedule.id}`}
+                  className="block p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
                   <div>
-                    <p className="font-medium text-gray-900">{schedule.title}</p>
+                    <p className="font-medium text-blue-600 hover:text-blue-800">{schedule.title}</p>
                     <p className="text-sm text-gray-500 capitalize">{schedule.frequency}</p>
                   </div>
                   <div className="text-right">
@@ -240,7 +244,7 @@ export default async function EquipmentDetailPage({
                       {isOverdue ? "OVERDUE" : "Due"}: {new Date(schedule.nextDue).toLocaleDateString()}
                     </p>
                   </div>
-                </div>
+                </Link>
               );
             })
           )}

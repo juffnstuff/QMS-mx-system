@@ -105,7 +105,7 @@ export default async function DashboardPage() {
       subtitle: ms.equipment.name,
       assigneeName: ms.assignedTo?.name || null,
       dueDate: ms.nextDue?.toISOString() || null,
-      href: `/schedules`,
+      href: `/schedules/${ms.id}`,
       priority: null,
     });
     if (columnMap[col]) columnMap[col].push(key);
