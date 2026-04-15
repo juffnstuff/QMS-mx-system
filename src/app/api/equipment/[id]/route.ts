@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendImmediateNotificationToAll, sendDigestToAdminsAndUsers } from "@/lib/notifications/send-notification";
+import { equipmentDown, equipmentStatusChanged } from "@/lib/notifications/email-templates";
 
 export async function PUT(
   req: NextRequest,
@@ -34,10 +36,41 @@ export async function PUT(
       );
     }
 
+    // Fetch current state to detect status change
+    const current = await prisma.equipment.findUnique({ where: { id } });
+
     const equipment = await prisma.equipment.update({
       where: { id },
       data: { name, type, location, serialNumber, status, notes },
     });
+
+    // Notify on status change
+    if (current && status && status !== current.status) {
+      if (status === "down") {
+        // IMMEDIATE alert to everyone — machine down
+        const email = equipmentDown(equipment.name, equipment.id);
+        sendImmediateNotificationToAll({
+          type: "equipment_down",
+          title: email.subject,
+          message: `${equipment.name} has been marked as DOWN.`,
+          relatedType: "Equipment",
+          relatedId: equipment.id,
+          emailSubject: email.subject,
+          emailHtml: email.html,
+          smsText: email.plain,
+        }).catch((e) => console.error("[Notification] Equipment down alert failed:", e));
+      } else {
+        // Digest notification for other status changes
+        const email = equipmentStatusChanged(equipment.name, status, equipment.id);
+        sendDigestToAdminsAndUsers([], {
+          type: "equipment_status",
+          title: email.subject,
+          message: `${equipment.name} status changed to ${status}.`,
+          relatedType: "Equipment",
+          relatedId: equipment.id,
+        }).catch((e) => console.error("[Notification] Equipment status failed:", e));
+      }
+    }
 
     return NextResponse.json(equipment);
   } catch (error) {

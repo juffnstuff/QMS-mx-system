@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
+import {
+  sendImmediateNotificationToAll,
+  sendDigestToAdminsAndUsers,
+} from "@/lib/notifications/send-notification";
+import {
+  equipmentDown,
+  workOrderCreated,
+  projectCreated,
+  equipmentStatusChanged,
+  maintenanceLogged,
+} from "@/lib/notifications/email-templates";
 
 export async function PUT(
   req: NextRequest,
@@ -99,6 +110,16 @@ export async function PUT(
       });
       createdRecordType = "WorkOrder";
       createdRecordId = workOrder.id;
+
+      // Digest notification for new work order
+      const email = workOrderCreated(payload.title, payload.priority || "medium", workOrder.id);
+      sendDigestToAdminsAndUsers([], {
+        type: "work_order_created",
+        title: email.subject,
+        message: `New ${payload.priority || "medium"} priority work order: ${payload.title}`,
+        relatedType: "WorkOrder",
+        relatedId: workOrder.id,
+      }).catch((e) => console.error("[Notification] WO created failed:", e));
     } else if (suggestion.suggestionType === "create_maintenance_log") {
       const log = await prisma.maintenanceLog.create({
         data: {
@@ -110,6 +131,19 @@ export async function PUT(
       });
       createdRecordType = "MaintenanceLog";
       createdRecordId = log.id;
+
+      // Look up equipment name for notification
+      const equip = await prisma.equipment.findUnique({ where: { id: equipmentId } });
+      if (equip) {
+        const email = maintenanceLogged(equip.name, payload.description, equipmentId);
+        sendDigestToAdminsAndUsers([], {
+          type: "maintenance_logged",
+          title: email.subject,
+          message: `Maintenance logged for ${equip.name}.`,
+          relatedType: "MaintenanceLog",
+          relatedId: log.id,
+        }).catch((e) => console.error("[Notification] Maintenance log failed:", e));
+      }
     } else if (suggestion.suggestionType === "update_equipment_status") {
       await prisma.equipment.update({
         where: { id: equipmentId },
@@ -117,6 +151,34 @@ export async function PUT(
       });
       createdRecordType = "Equipment";
       createdRecordId = equipmentId;
+
+      const equip = await prisma.equipment.findUnique({ where: { id: equipmentId } });
+      const eqName = equip?.name || payload.equipmentName || "Equipment";
+
+      if (payload.newStatus === "down") {
+        // IMMEDIATE alert to everyone — machine down
+        const email = equipmentDown(eqName, equipmentId, payload.description);
+        sendImmediateNotificationToAll({
+          type: "equipment_down",
+          title: email.subject,
+          message: `${eqName} has been marked as DOWN.`,
+          relatedType: "Equipment",
+          relatedId: equipmentId,
+          emailSubject: email.subject,
+          emailHtml: email.html,
+          smsText: email.plain,
+        }).catch((e) => console.error("[Notification] Equipment down alert failed:", e));
+      } else {
+        // Digest for non-down status changes
+        const email = equipmentStatusChanged(eqName, payload.newStatus, equipmentId);
+        sendDigestToAdminsAndUsers([], {
+          type: "equipment_status",
+          title: email.subject,
+          message: `${eqName} status changed to ${payload.newStatus}.`,
+          relatedType: "Equipment",
+          relatedId: equipmentId,
+        }).catch((e) => console.error("[Notification] Equipment status failed:", e));
+      }
     } else if (suggestion.suggestionType === "create_project") {
       const project = await prisma.project.create({
         data: {
@@ -129,6 +191,16 @@ export async function PUT(
       });
       createdRecordType = "Project";
       createdRecordId = project.id;
+
+      // Digest notification for new project
+      const email = projectCreated(payload.title, project.id);
+      sendDigestToAdminsAndUsers([], {
+        type: "project_created",
+        title: email.subject,
+        message: `New project created: ${payload.title}`,
+        relatedType: "Project",
+        relatedId: project.id,
+      }).catch((e) => console.error("[Notification] Project created failed:", e));
     }
 
     const updated = await prisma.aISuggestion.update({
