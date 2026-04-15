@@ -16,7 +16,11 @@ export default async function ProjectDetailPage({
 
   const project = await prisma.project.findUnique({
     where: { id },
-    include: { createdBy: { select: { id: true, name: true } } },
+    include: {
+      createdBy: { select: { id: true, name: true } },
+      projectLead: { select: { id: true, name: true } },
+      secondaryLead: { select: { id: true, name: true } },
+    },
   });
 
   if (!project) notFound();
@@ -61,6 +65,22 @@ export default async function ProjectDetailPage({
           <div>
             <dt className="text-sm text-gray-500">Priority</dt>
             <dd><StatusBadge status={project.priority} /></dd>
+          </div>
+          <div>
+            <dt className="text-sm text-gray-500">Project Lead</dt>
+            <dd className="text-gray-900">
+              {project.projectLead ? (
+                <Link href={`/users?highlight=${project.projectLead.id}`} className="text-blue-600 hover:text-blue-800">{project.projectLead.name}</Link>
+              ) : <span className="text-gray-400">Unassigned</span>}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-sm text-gray-500">Secondary Lead</dt>
+            <dd className="text-gray-900">
+              {project.secondaryLead ? (
+                <Link href={`/users?highlight=${project.secondaryLead.id}`} className="text-blue-600 hover:text-blue-800">{project.secondaryLead.name}</Link>
+              ) : <span className="text-gray-400">None</span>}
+            </dd>
           </div>
           <div>
             <dt className="text-sm text-gray-500">Budget</dt>

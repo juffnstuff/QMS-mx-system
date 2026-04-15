@@ -37,6 +37,8 @@ export default async function ComplaintDetailPage({
     where: { id },
     include: {
       submittedBy: true,
+      assignedTo: true,
+      secondaryAssignedTo: true,
       linkedNcr: true,
       linkedCapa: true,
     },
@@ -151,6 +153,22 @@ export default async function ComplaintDetailPage({
           <div>
             <dt className="text-sm text-gray-500">Submitted By</dt>
             <dd className="text-gray-900"><Link href={`/users?highlight=${complaint.submittedBy.id}`} className="text-blue-600 hover:text-blue-800">{complaint.submittedBy.name}</Link></dd>
+          </div>
+          <div>
+            <dt className="text-sm text-gray-500">Assigned To</dt>
+            <dd className="text-gray-900">
+              {complaint.assignedTo ? (
+                <Link href={`/users?highlight=${complaint.assignedTo.id}`} className="text-blue-600 hover:text-blue-800">{complaint.assignedTo.name}</Link>
+              ) : <span className="text-gray-400">Unassigned</span>}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-sm text-gray-500">Secondary Assignee</dt>
+            <dd className="text-gray-900">
+              {complaint.secondaryAssignedTo ? (
+                <Link href={`/users?highlight=${complaint.secondaryAssignedTo.id}`} className="text-blue-600 hover:text-blue-800">{complaint.secondaryAssignedTo.name}</Link>
+              ) : <span className="text-gray-400">None</span>}
+            </dd>
           </div>
           <div>
             <dt className="text-sm text-gray-500">Date</dt>

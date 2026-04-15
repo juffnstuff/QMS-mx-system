@@ -57,6 +57,7 @@ export default async function CAPADetailPage({
     include: {
       originator: true,
       assignedTo: true,
+      secondaryAssignedTo: true,
       referenceNcr: true,
       verifiedBy: true,
       actions: { orderBy: { actionNumber: "asc" } },
@@ -123,6 +124,12 @@ export default async function CAPADetailPage({
               <dd className="text-gray-900">{capa.assignedTo ? (
                 <Link href={`/users?highlight=${capa.assignedTo.id}`} className="text-blue-600 hover:text-blue-800">{capa.assignedTo.name}</Link>
               ) : "Unassigned"}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-gray-500">Secondary Responsible</dt>
+              <dd className="text-gray-900">{capa.secondaryAssignedTo ? (
+                <Link href={`/users?highlight=${capa.secondaryAssignedTo.id}`} className="text-blue-600 hover:text-blue-800">{capa.secondaryAssignedTo.name}</Link>
+              ) : <span className="text-gray-400">None</span>}</dd>
             </div>
             <div>
               <dt className="text-sm text-gray-500">Target Close Date</dt>

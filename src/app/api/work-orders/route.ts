@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const {
-    equipmentId, title, description, priority, assignedToId, dueDate,
+    equipmentId, title, description, priority, assignedToId, secondaryAssignedToId, dueDate,
     workOrderType, requirements, managerNotes, estimatedBudget, estimatedLeadTime, plannedStartDate,
   } = body;
 
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       description,
       priority: priority || "medium",
       assignedToId: assignedToId || null,
+      secondaryAssignedToId: secondaryAssignedToId || null,
       createdById: session.user.id,
       dueDate: dueDate ? new Date(dueDate) : null,
       workOrderType: workOrderType || "corrective",

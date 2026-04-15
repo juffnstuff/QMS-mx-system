@@ -46,7 +46,7 @@ export async function PUT(
       phase, projectJustification, designObjectives, designRequirements,
       potentialVendors, salesMarketingActions, engineeringActions,
       releaseChecklist, actualBudget, plannedSchedule, actualSchedule,
-      isComplete, contingentDetails, projectLeadId,
+      isComplete, contingentDetails, projectLeadId, secondaryLeadId,
     } = body;
 
     if (!title) {
@@ -77,6 +77,7 @@ export async function PUT(
         dueDate: dueDate ? new Date(dueDate) : null,
         completedAt,
         projectLeadId: projectLeadId !== undefined ? (projectLeadId || null) : existing.projectLeadId,
+        secondaryLeadId: secondaryLeadId !== undefined ? (secondaryLeadId || null) : existing.secondaryLeadId,
         phase: phase || existing.phase,
         projectJustification: projectJustification !== undefined ? (projectJustification || null) : existing.projectJustification,
         designObjectives: designObjectives !== undefined ? (designObjectives || null) : existing.designObjectives,

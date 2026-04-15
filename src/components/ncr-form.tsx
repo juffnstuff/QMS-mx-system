@@ -22,6 +22,7 @@ export function NCRForm({ isAdmin, users }: Props) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [assignedInvestigatorId, setAssignedInvestigatorId] = useState("");
+  const [secondaryInvestigatorId, setSecondaryInvestigatorId] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -44,6 +45,7 @@ export function NCRForm({ isAdmin, users }: Props) {
       ncrTagNumber: formData.get("ncrTagNumber") || null,
       plantLocation: formData.get("plantLocation") || null,
       assignedInvestigatorId: assignedInvestigatorId || null,
+      secondaryInvestigatorId: secondaryInvestigatorId || null,
     };
 
     const res = await fetch("/api/ncrs", {
@@ -168,13 +170,22 @@ export function NCRForm({ isAdmin, users }: Props) {
         </div>
 
         {users && users.length > 0 && (
-          <UserPicker
-            users={users}
-            value={assignedInvestigatorId}
-            onChange={setAssignedInvestigatorId}
-            label="Assigned Investigator"
-            placeholder="Select investigator..."
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <UserPicker
+              users={users}
+              value={assignedInvestigatorId}
+              onChange={setAssignedInvestigatorId}
+              label="Assigned Investigator"
+              placeholder="Select investigator..."
+            />
+            <UserPicker
+              users={users}
+              value={secondaryInvestigatorId}
+              onChange={setSecondaryInvestigatorId}
+              label="Secondary Investigator"
+              placeholder="Select secondary investigator..."
+            />
+          </div>
         )}
 
         <div>

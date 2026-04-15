@@ -20,6 +20,7 @@ export default async function WorkOrderDetailPage({
     include: {
       equipment: true,
       assignedTo: true,
+      secondaryAssignedTo: true,
       createdBy: true,
       createdSchedules: true,
     },
@@ -124,6 +125,14 @@ export default async function WorkOrderDetailPage({
                   {order.assignedTo ? (
                     <Link href={`/users?highlight=${order.assignedTo.id}`} className="text-blue-600 hover:text-blue-800">{order.assignedTo.name}</Link>
                   ) : "Unassigned"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-gray-500 uppercase">Secondary Assignee</dt>
+                <dd className="text-sm">
+                  {order.secondaryAssignedTo ? (
+                    <Link href={`/users?highlight=${order.secondaryAssignedTo.id}`} className="text-blue-600 hover:text-blue-800">{order.secondaryAssignedTo.name}</Link>
+                  ) : <span className="text-gray-400">None</span>}
                 </dd>
               </div>
               <div>

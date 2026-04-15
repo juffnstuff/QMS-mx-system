@@ -22,6 +22,7 @@ export function ComplaintForm({ isAdmin, users }: Props) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [assignedToId, setAssignedToId] = useState("");
+  const [secondaryAssignedToId, setSecondaryAssignedToId] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -32,6 +33,7 @@ export function ComplaintForm({ isAdmin, users }: Props) {
     const data = {
       customerName: formData.get("customerName"),
       assignedToId: assignedToId || null,
+      secondaryAssignedToId: secondaryAssignedToId || null,
       customerAddress: formData.get("customerAddress") || null,
       customerContact: formData.get("customerContact") || null,
       contactPhone: formData.get("contactPhone") || null,
@@ -309,13 +311,22 @@ export function ComplaintForm({ isAdmin, users }: Props) {
         </div>
 
         {users && users.length > 0 && (
-          <UserPicker
-            users={users}
-            value={assignedToId}
-            onChange={setAssignedToId}
-            label="Assigned To"
-            placeholder="Select person to handle this complaint..."
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <UserPicker
+              users={users}
+              value={assignedToId}
+              onChange={setAssignedToId}
+              label="Assigned To"
+              placeholder="Select person to handle this complaint..."
+            />
+            <UserPicker
+              users={users}
+              value={secondaryAssignedToId}
+              onChange={setSecondaryAssignedToId}
+              label="Secondary Assignee"
+              placeholder="Select secondary assignee..."
+            />
+          </div>
         )}
       </div>
 

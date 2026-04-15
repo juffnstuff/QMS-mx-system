@@ -43,6 +43,7 @@ interface ProjectData {
   budget: string | null;
   dueDate: string | null;
   projectLeadId?: string | null;
+  secondaryLeadId?: string | null;
   phase?: string;
   projectJustification?: string | null;
   designObjectives?: string | null;
@@ -72,6 +73,7 @@ export function ProjectForm({ project, users }: { project?: ProjectData; users?:
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [projectLeadId, setProjectLeadId] = useState(project?.projectLeadId || "");
+  const [secondaryLeadId, setSecondaryLeadId] = useState(project?.secondaryLeadId || "");
   const isEdit = !!project;
 
   const [phase1Open, setPhase1Open] = useState(true);
@@ -106,6 +108,7 @@ export function ProjectForm({ project, users }: { project?: ProjectData; users?:
       budget: plannedBudget || topBudget || null,
       dueDate: (formData.get("dueDate") as string) || null,
       projectLeadId: projectLeadId || null,
+      secondaryLeadId: secondaryLeadId || null,
       phase: (formData.get("phase") as string) || "concept",
       projectJustification: (formData.get("projectJustification") as string) || null,
       designObjectives: (formData.get("designObjectives") as string) || null,
@@ -186,13 +189,22 @@ export function ProjectForm({ project, users }: { project?: ProjectData; users?:
         </div>
 
         {users && users.length > 0 && (
-          <UserPicker
-            users={users}
-            value={projectLeadId}
-            onChange={setProjectLeadId}
-            label="Project Lead"
-            placeholder="Select project lead..."
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <UserPicker
+              users={users}
+              value={projectLeadId}
+              onChange={setProjectLeadId}
+              label="Project Lead"
+              placeholder="Select project lead..."
+            />
+            <UserPicker
+              users={users}
+              value={secondaryLeadId}
+              onChange={setSecondaryLeadId}
+              label="Secondary Lead"
+              placeholder="Select secondary lead..."
+            />
+          </div>
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

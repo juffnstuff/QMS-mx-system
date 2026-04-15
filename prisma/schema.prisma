@@ -35,10 +35,17 @@ model User {
   submittedComplaints CustomerComplaint[] @relation("SubmittedComplaints")
   approvedWorkOrders WorkOrder[]        @relation("ApprovedWorkOrders")
   assignedEquipment  Equipment[]        @relation("EquipmentTechnician")
+  secondaryEquipment Equipment[]        @relation("EquipmentSecondaryTech")
   assignedSchedules  MaintenanceSchedule[] @relation("ScheduleAssignee")
+  secondarySchedules MaintenanceSchedule[] @relation("ScheduleSecondary")
   investigatedNCRs   NonConformance[]   @relation("NCRInvestigator")
+  secondaryNCRs      NonConformance[]   @relation("NCRSecondary")
   assignedComplaints CustomerComplaint[] @relation("ComplaintAssignee")
+  secondaryComplaints CustomerComplaint[] @relation("ComplaintSecondary")
   ledProjects        Project[]          @relation("ProjectLead")
+  secondaryProjects  Project[]          @relation("ProjectSecondary")
+  secondaryOrders    WorkOrder[]        @relation("SecondaryAssignee")
+  secondaryCAPAs     CAPA[]             @relation("CAPASecondary")
 }
 
 model Equipment {
@@ -52,16 +59,18 @@ model Equipment {
   groupName    String?   // Equipment group label, e.g. "Dake Press System", "6in Extrusion Line"
   parentId     String?   // Parent equipment ID for sub-components (e.g. pump → press)
   assignedTechnicianId String? // User responsible for this equipment
+  secondaryTechnicianId String? // Secondary technician for accountability
   notes        String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  parent             Equipment?  @relation("EquipmentHierarchy", fields: [parentId], references: [id])
-  children           Equipment[] @relation("EquipmentHierarchy")
-  assignedTechnician User?       @relation("EquipmentTechnician", fields: [assignedTechnicianId], references: [id])
-  schedules          MaintenanceSchedule[]
-  maintenanceLogs    MaintenanceLog[]
-  workOrders         WorkOrder[]
+  parent              Equipment?  @relation("EquipmentHierarchy", fields: [parentId], references: [id])
+  children            Equipment[] @relation("EquipmentHierarchy")
+  assignedTechnician  User?       @relation("EquipmentTechnician", fields: [assignedTechnicianId], references: [id])
+  secondaryTechnician User?       @relation("EquipmentSecondaryTech", fields: [secondaryTechnicianId], references: [id])
+  schedules           MaintenanceSchedule[]
+  maintenanceLogs     MaintenanceLog[]
+  workOrders          WorkOrder[]
 
   @@index([status])
   @@index([criticality])
@@ -74,6 +83,7 @@ model MaintenanceSchedule {
   id                String   @id @default(cuid())
   equipmentId       String
   assignedToId      String?  // User responsible for this schedule
+  secondaryAssignedToId String? // Secondary assignee for accountability
   title             String
   description       String?
   frequency         String   // "daily" | "weekly" | "monthly" | "quarterly" | "annual"
@@ -84,9 +94,10 @@ model MaintenanceSchedule {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  equipment       Equipment  @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
-  assignedTo      User?      @relation("ScheduleAssignee", fields: [assignedToId], references: [id])
-  sourceWorkOrder WorkOrder? @relation("SourceWorkOrder", fields: [sourceWorkOrderId], references: [id])
+  equipment            Equipment  @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  assignedTo           User?      @relation("ScheduleAssignee", fields: [assignedToId], references: [id])
+  secondaryAssignedTo  User?      @relation("ScheduleSecondary", fields: [secondaryAssignedToId], references: [id])
+  sourceWorkOrder      WorkOrder? @relation("SourceWorkOrder", fields: [sourceWorkOrderId], references: [id])
 
   @@index([nextDue])
   @@index([boardStatus])
@@ -108,10 +119,11 @@ model MaintenanceLog {
 
 model WorkOrder {
   id           String    @id @default(cuid())
-  equipmentId  String
-  assignedToId String?
-  createdById  String
-  title        String
+  equipmentId           String
+  assignedToId          String?
+  secondaryAssignedToId String? // Secondary assignee for accountability
+  createdById           String
+  title                 String
   description  String
   priority     String    @default("medium") // "low" | "medium" | "high" | "critical"
   status       String    @default("open")   // "open" | "in_progress" | "completed" | "cancelled"
@@ -129,11 +141,12 @@ model WorkOrder {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  equipment  Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
-  assignedTo User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
-  createdBy  User      @relation("CreatedBy", fields: [createdById], references: [id])
-  approvedBy User?     @relation("ApprovedWorkOrders", fields: [approvedById], references: [id])
-  createdSchedules MaintenanceSchedule[] @relation("SourceWorkOrder")
+  equipment           Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  assignedTo          User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
+  secondaryAssignedTo User?     @relation("SecondaryAssignee", fields: [secondaryAssignedToId], references: [id])
+  createdBy           User      @relation("CreatedBy", fields: [createdById], references: [id])
+  approvedBy          User?     @relation("ApprovedWorkOrders", fields: [approvedById], references: [id])
+  createdSchedules    MaintenanceSchedule[] @relation("SourceWorkOrder")
 
   @@index([status])
   @@index([priority])
@@ -248,7 +261,8 @@ model Project {
   budget      String?
   dueDate     DateTime?
   completedAt DateTime?
-  projectLeadId String? // User leading this project
+  projectLeadId      String? // User leading this project
+  secondaryLeadId    String? // Secondary lead for accountability
   phase              String    @default("concept") // "concept" | "design" | "production_release" | "complete"
   projectJustification String? // F-17 Phase 1
   designObjectives   String?   // F-17 Phase 1
@@ -267,7 +281,8 @@ model Project {
   updatedAt   DateTime  @updatedAt
 
   createdBy   User  @relation("ProjectCreator", fields: [createdById], references: [id])
-  projectLead User? @relation("ProjectLead", fields: [projectLeadId], references: [id])
+  projectLead   User? @relation("ProjectLead", fields: [projectLeadId], references: [id])
+  secondaryLead User? @relation("ProjectSecondary", fields: [secondaryLeadId], references: [id])
 
   @@index([boardStatus])
   @@index([projectLeadId])
@@ -292,6 +307,7 @@ model NonConformance {
   ncrNumber           String    @unique // Auto-generated: NCR-YYYY-001
   submittedById       String
   assignedInvestigatorId String? // User assigned to investigate this NCR
+  secondaryInvestigatorId String? // Secondary investigator for accountability
   date                DateTime  @default(now())
   partNumber          String?   // Part # or Process Description
   drawingNumber       String?
@@ -315,8 +331,9 @@ model NonConformance {
 
   submittedBy           User  @relation("SubmittedNCRs", fields: [submittedById], references: [id])
   approvedBy            User? @relation("ApprovedNCRs", fields: [approvedById], references: [id])
-  assignedInvestigator  User? @relation("NCRInvestigator", fields: [assignedInvestigatorId], references: [id])
-  capas                 CAPA[] @relation("NCRToCapa")
+  assignedInvestigator    User? @relation("NCRInvestigator", fields: [assignedInvestigatorId], references: [id])
+  secondaryInvestigator   User? @relation("NCRSecondary", fields: [secondaryInvestigatorId], references: [id])
+  capas                   CAPA[] @relation("NCRToCapa")
   linkedComplaints      CustomerComplaint[] @relation("ComplaintNCR")
 
   @@index([status])
@@ -333,6 +350,7 @@ model CAPA {
   referenceNcrId        String?   // Link to NonConformance
   targetCloseDate       DateTime?
   assignedToId          String?
+  secondaryAssignedToId String? // Secondary responsible party for accountability
   source                String    // "internal_audit" | "customer_complaint" | "supplier_issue" | "process_failure" | "product_defect" | "management_review" | "regulatory_finding" | "other"
   sourceOther           String?
   severityLevel         String    // "low" | "medium" | "high" | "critical"
@@ -365,9 +383,10 @@ model CAPA {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  originator    User            @relation("OriginatedCAPAs", fields: [originatorId], references: [id])
-  assignedTo    User?           @relation("AssignedCAPAs", fields: [assignedToId], references: [id])
-  verifiedBy    User?           @relation("VerifiedCAPAs", fields: [verifiedById], references: [id])
+  originator           User            @relation("OriginatedCAPAs", fields: [originatorId], references: [id])
+  assignedTo           User?           @relation("AssignedCAPAs", fields: [assignedToId], references: [id])
+  secondaryAssignedTo  User?           @relation("CAPASecondary", fields: [secondaryAssignedToId], references: [id])
+  verifiedBy           User?           @relation("VerifiedCAPAs", fields: [verifiedById], references: [id])
   referenceNcr  NonConformance? @relation("NCRToCapa", fields: [referenceNcrId], references: [id])
   actions       CAPAAction[]
   linkedComplaints CustomerComplaint[] @relation("ComplaintCAPA")
@@ -398,6 +417,7 @@ model CustomerComplaint {
   complaintNumber     String    @unique // Auto-generated: CC-YYYY-001
   submittedById       String
   assignedToId        String?   // User assigned to handle this complaint
+  secondaryAssignedToId String? // Secondary assignee for accountability
   date                DateTime  @default(now())
   // Customer info
   customerName        String
@@ -434,9 +454,10 @@ model CustomerComplaint {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  submittedBy  User            @relation("SubmittedComplaints", fields: [submittedById], references: [id])
-  assignedTo   User?           @relation("ComplaintAssignee", fields: [assignedToId], references: [id])
-  linkedNcr    NonConformance? @relation("ComplaintNCR", fields: [linkedNcrId], references: [id])
+  submittedBy           User            @relation("SubmittedComplaints", fields: [submittedById], references: [id])
+  assignedTo            User?           @relation("ComplaintAssignee", fields: [assignedToId], references: [id])
+  secondaryAssignedTo   User?           @relation("ComplaintSecondary", fields: [secondaryAssignedToId], references: [id])
+  linkedNcr             NonConformance? @relation("ComplaintNCR", fields: [linkedNcrId], references: [id])
   linkedCapa   CAPA?           @relation("ComplaintCAPA", fields: [linkedCapaId], references: [id])
 
   @@index([status])

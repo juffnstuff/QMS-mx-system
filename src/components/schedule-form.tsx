@@ -22,6 +22,7 @@ export function ScheduleForm({ equipment, users }: Props) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [assignedToId, setAssignedToId] = useState("");
+  const [secondaryAssignedToId, setSecondaryAssignedToId] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -36,6 +37,7 @@ export function ScheduleForm({ equipment, users }: Props) {
       frequency: formData.get("frequency"),
       nextDue: formData.get("nextDue"),
       assignedToId: assignedToId || null,
+      secondaryAssignedToId: secondaryAssignedToId || null,
     };
 
     const res = await fetch("/api/schedules", {
@@ -146,13 +148,22 @@ export function ScheduleForm({ equipment, users }: Props) {
         </div>
 
         {users && users.length > 0 && (
-          <UserPicker
-            users={users}
-            value={assignedToId}
-            onChange={setAssignedToId}
-            label="Assigned To"
-            placeholder="Select responsible person..."
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <UserPicker
+              users={users}
+              value={assignedToId}
+              onChange={setAssignedToId}
+              label="Assigned To"
+              placeholder="Select responsible person..."
+            />
+            <UserPicker
+              users={users}
+              value={secondaryAssignedToId}
+              onChange={setSecondaryAssignedToId}
+              label="Secondary Assignee"
+              placeholder="Select secondary assignee..."
+            />
+          </div>
         )}
       </div>
 

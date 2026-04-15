@@ -35,6 +35,8 @@ export default async function EquipmentDetailPage({
     include: {
       parent: true,
       children: { orderBy: { name: "asc" } },
+      assignedTechnician: { select: { id: true, name: true } },
+      secondaryTechnician: { select: { id: true, name: true } },
       maintenanceLogs: {
         take: 10,
         orderBy: { performedAt: "desc" },
@@ -120,6 +122,22 @@ export default async function EquipmentDetailPage({
           <div>
             <dt className="text-sm text-gray-500">Criticality</dt>
             <dd className="mt-1"><CriticalityBadge criticality={equipment.criticality} /></dd>
+          </div>
+          <div>
+            <dt className="text-sm text-gray-500">Assigned Technician</dt>
+            <dd className="text-gray-900">
+              {equipment.assignedTechnician ? (
+                <Link href={`/users?highlight=${equipment.assignedTechnician.id}`} className="text-blue-600 hover:text-blue-800">{equipment.assignedTechnician.name}</Link>
+              ) : <span className="text-gray-400">Unassigned</span>}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-sm text-gray-500">Secondary Technician</dt>
+            <dd className="text-gray-900">
+              {equipment.secondaryTechnician ? (
+                <Link href={`/users?highlight=${equipment.secondaryTechnician.id}`} className="text-blue-600 hover:text-blue-800">{equipment.secondaryTechnician.name}</Link>
+              ) : <span className="text-gray-400">Unassigned</span>}
+            </dd>
           </div>
           {equipment.notes && (
             <div className="sm:col-span-2">

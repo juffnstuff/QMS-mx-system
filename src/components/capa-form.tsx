@@ -52,6 +52,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
       referenceNcrId: formData.get("referenceNcrId") || null,
       targetCloseDate: formData.get("targetCloseDate") || null,
       assignedToId: formData.get("assignedToId") || null,
+      secondaryAssignedToId: formData.get("secondaryAssignedToId") || null,
       source: formData.get("source"),
       sourceOther: formData.get("sourceOther") || null,
       severityLevel: formData.get("severityLevel"),
@@ -158,6 +159,26 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
               <select
                 id="assignedToId"
                 name="assignedToId"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Unassigned</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="secondaryAssignedToId" className="block text-sm font-medium text-gray-700 mb-1">
+                Secondary Responsible
+              </label>
+              <select
+                id="secondaryAssignedToId"
+                name="secondaryAssignedToId"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Unassigned</option>

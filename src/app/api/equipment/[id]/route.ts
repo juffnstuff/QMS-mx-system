@@ -14,7 +14,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await req.json();
-    const { name, type, location, serialNumber, status, criticality, groupName, parentId, assignedTechnicianId, notes } = body;
+    const { name, type, location, serialNumber, status, criticality, groupName, parentId, assignedTechnicianId, secondaryTechnicianId, notes } = body;
 
     if (!name || !type || !location || !serialNumber) {
       return NextResponse.json(
@@ -42,6 +42,7 @@ export async function PUT(
         groupName: groupName || null,
         parentId: parentId || null,
         assignedTechnicianId: assignedTechnicianId || null,
+        secondaryTechnicianId: secondaryTechnicianId || null,
         notes,
       },
     });

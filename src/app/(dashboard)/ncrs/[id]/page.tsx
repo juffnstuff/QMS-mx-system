@@ -35,6 +35,8 @@ export default async function NCRDetailPage({
     include: {
       submittedBy: true,
       approvedBy: true,
+      assignedInvestigator: true,
+      secondaryInvestigator: true,
     },
   });
 
@@ -160,6 +162,22 @@ export default async function NCRDetailPage({
               <div>
                 <dt className="text-xs text-gray-500 uppercase">Submitted By</dt>
                 <dd className="text-sm"><Link href={`/users?highlight=${ncr.submittedBy.id}`} className="text-blue-600 hover:text-blue-800">{ncr.submittedBy.name}</Link></dd>
+              </div>
+              <div>
+                <dt className="text-xs text-gray-500 uppercase">Assigned Investigator</dt>
+                <dd className="text-sm">
+                  {ncr.assignedInvestigator ? (
+                    <Link href={`/users?highlight=${ncr.assignedInvestigator.id}`} className="text-blue-600 hover:text-blue-800">{ncr.assignedInvestigator.name}</Link>
+                  ) : <span className="text-gray-400">Unassigned</span>}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-gray-500 uppercase">Secondary Investigator</dt>
+                <dd className="text-sm">
+                  {ncr.secondaryInvestigator ? (
+                    <Link href={`/users?highlight=${ncr.secondaryInvestigator.id}`} className="text-blue-600 hover:text-blue-800">{ncr.secondaryInvestigator.name}</Link>
+                  ) : <span className="text-gray-400">None</span>}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs text-gray-500 uppercase">Date</dt>

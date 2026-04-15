@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       phase, projectJustification, designObjectives, designRequirements,
       potentialVendors, salesMarketingActions, engineeringActions,
       releaseChecklist, actualBudget, plannedSchedule, actualSchedule,
-      isComplete, contingentDetails, projectLeadId,
+      isComplete, contingentDetails, projectLeadId, secondaryLeadId,
     } = body;
 
     if (!title) {
@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
         dueDate: dueDate ? new Date(dueDate) : null,
         createdById: session.user.id,
         projectLeadId: projectLeadId || null,
+        secondaryLeadId: secondaryLeadId || null,
         phase: phase || "concept",
         projectJustification: projectJustification || null,
         designObjectives: designObjectives || null,

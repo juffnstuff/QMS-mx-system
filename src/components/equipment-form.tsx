@@ -29,6 +29,7 @@ interface EquipmentData {
   groupName: string | null;
   parentId: string | null;
   assignedTechnicianId: string | null;
+  secondaryTechnicianId: string | null;
   notes: string | null;
 }
 
@@ -37,6 +38,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [assignedTechnicianId, setAssignedTechnicianId] = useState(equipment?.assignedTechnicianId || "");
+  const [secondaryTechnicianId, setSecondaryTechnicianId] = useState(equipment?.secondaryTechnicianId || "");
   const isEdit = !!equipment;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -55,6 +57,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
       groupName: (formData.get("groupName") as string) || null,
       parentId: (formData.get("parentId") as string) || null,
       assignedTechnicianId: assignedTechnicianId || null,
+      secondaryTechnicianId: secondaryTechnicianId || null,
       notes: (formData.get("notes") as string) || null,
     };
 
@@ -225,13 +228,22 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
         )}
 
         {users && users.length > 0 && (
-          <UserPicker
-            users={users}
-            value={assignedTechnicianId}
-            onChange={setAssignedTechnicianId}
-            label="Assigned Technician"
-            placeholder="Select technician..."
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <UserPicker
+              users={users}
+              value={assignedTechnicianId}
+              onChange={setAssignedTechnicianId}
+              label="Assigned Technician"
+              placeholder="Select primary technician..."
+            />
+            <UserPicker
+              users={users}
+              value={secondaryTechnicianId}
+              onChange={setSecondaryTechnicianId}
+              label="Secondary Technician"
+              placeholder="Select backup technician..."
+            />
+          </div>
         )}
 
         <div>
