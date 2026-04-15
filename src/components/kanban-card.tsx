@@ -3,7 +3,8 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
-import { Calendar, User } from "lucide-react";
+import { useState } from "react";
+import { Calendar, User, ArrowRightLeft } from "lucide-react";
 
 export type EntityType = "workOrder" | "maintenanceSchedule" | "nonConformance" | "capa" | "project";
 
@@ -33,8 +34,23 @@ const PRIORITY_DOT: Record<string, string> = {
   low: "bg-gray-400",
 };
 
-export function KanbanCard({ card }: { card: KanbanCardData }) {
+const COLUMN_OPTIONS = [
+  { id: "backlog", label: "Backlog" },
+  { id: "in_progress", label: "In Progress" },
+  { id: "needs_parts", label: "Needs Parts" },
+  { id: "scheduled", label: "Scheduled" },
+  { id: "done", label: "Done" },
+];
+
+interface KanbanCardProps {
+  card: KanbanCardData;
+  currentColumn?: string;
+  onMoveCard?: (cardKey: string, targetColumn: string) => void;
+}
+
+export function KanbanCard({ card, currentColumn, onMoveCard }: KanbanCardProps) {
   const router = useRouter();
+  const [showMoveMenu, setShowMoveMenu] = useState(false);
   const {
     attributes,
     listeners,
@@ -58,56 +74,98 @@ export function KanbanCard({ card }: { card: KanbanCardData }) {
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      onClick={(e) => {
-        // Only navigate if not dragging
-        if (!isDragging) {
-          e.stopPropagation();
-          router.push(card.href);
-        }
-      }}
-      className={`bg-white rounded-lg border border-gray-200 p-3 shadow-sm cursor-grab active:cursor-grabbing hover:border-blue-300 hover:shadow-md transition-all ${
+      className={`bg-white rounded-lg border border-gray-200 p-3 shadow-sm transition-all ${
         isDragging ? "opacity-50 shadow-lg ring-2 ring-blue-400" : ""
       }`}
     >
-      {/* Type badge + priority dot */}
-      <div className="flex items-center gap-1.5 mb-2">
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${typeStyle.bg} ${typeStyle.text}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${typeStyle.dot}`} />
-          {typeStyle.label}
-        </span>
-        {card.priority && (
-          <span className={`w-2 h-2 rounded-full ${PRIORITY_DOT[card.priority] || "bg-gray-300"}`} title={`Priority: ${card.priority}`} />
-        )}
-      </div>
+      {/* Drag handle area — desktop only */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="hidden sm:block absolute inset-0 cursor-grab active:cursor-grabbing"
+        style={{ position: "absolute", inset: 0, zIndex: 1 }}
+      />
 
-      {/* Title */}
-      <p className="text-sm font-medium text-gray-900 line-clamp-2 mb-1">
-        {card.title}
-      </p>
-
-      {/* Subtitle (equipment, NCR number, etc.) */}
-      <p className="text-xs text-gray-500 truncate mb-2">
-        {card.subtitle}
-      </p>
-
-      {/* Footer: assignee + due date */}
-      <div className="flex items-center justify-between text-xs text-gray-400">
-        {card.assigneeName ? (
-          <span className="flex items-center gap-1 truncate">
-            <User size={12} />
-            <span className="truncate">{card.assigneeName}</span>
+      <div className="relative" style={{ zIndex: 2 }}>
+        {/* Type badge + priority dot + move button */}
+        <div className="flex items-center gap-1.5 mb-2">
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${typeStyle.bg} ${typeStyle.text}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${typeStyle.dot}`} />
+            {typeStyle.label}
           </span>
-        ) : (
-          <span className="text-gray-300 italic">Unassigned</span>
+          {card.priority && (
+            <span className={`w-2 h-2 rounded-full ${PRIORITY_DOT[card.priority] || "bg-gray-300"}`} title={`Priority: ${card.priority}`} />
+          )}
+
+          {/* Mobile move button */}
+          {onMoveCard && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMoveMenu(!showMoveMenu);
+              }}
+              className="ml-auto sm:hidden p-1 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors"
+              title="Move to..."
+            >
+              <ArrowRightLeft size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Mobile move menu */}
+        {showMoveMenu && onMoveCard && (
+          <div className="sm:hidden flex flex-wrap gap-1 mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+            {COLUMN_OPTIONS.map((col) => (
+              <button
+                key={col.id}
+                disabled={col.id === currentColumn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMoveCard(`${card.entityType}::${card.id}`, col.id);
+                  setShowMoveMenu(false);
+                }}
+                className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  col.id === currentColumn
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-700 border border-gray-200 hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100"
+                }`}
+              >
+                {col.label}
+              </button>
+            ))}
+          </div>
         )}
-        {card.dueDate && (
-          <span className="flex items-center gap-1 shrink-0">
-            <Calendar size={12} />
-            {new Date(card.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-          </span>
-        )}
+
+        {/* Title — tappable to navigate */}
+        <p
+          onClick={() => router.push(card.href)}
+          className="text-sm font-medium text-gray-900 line-clamp-2 mb-1 cursor-pointer hover:text-blue-600 active:text-blue-700"
+        >
+          {card.title}
+        </p>
+
+        {/* Subtitle (equipment, NCR number, etc.) */}
+        <p className="text-xs text-gray-500 truncate mb-2">
+          {card.subtitle}
+        </p>
+
+        {/* Footer: assignee + due date */}
+        <div className="flex items-center justify-between text-xs text-gray-400">
+          {card.assigneeName ? (
+            <span className="flex items-center gap-1 truncate">
+              <User size={12} />
+              <span className="truncate">{card.assigneeName}</span>
+            </span>
+          ) : (
+            <span className="text-gray-300 italic">Unassigned</span>
+          )}
+          {card.dueDate && (
+            <span className="flex items-center gap-1 shrink-0">
+              <Calendar size={12} />
+              {new Date(card.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
