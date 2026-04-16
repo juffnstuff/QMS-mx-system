@@ -291,15 +291,19 @@ model Project {
 model Notification {
   id          String   @id @default(cuid())
   userId      String
-  type        String   // "work_order_assigned" | "status_changed" | "suggestion_review" | "maintenance_due"
+  type        String   // "work_order_assigned" | "status_changed" | "maintenance_due" | "equipment_down" | ...
   title       String
   message     String
   read        Boolean  @default(false)
+  urgency     String   @default("digest") // "immediate" | "digest"
+  emailSent   Boolean  @default(false)    // true once delivered (immediate send or digest batch)
   relatedType String?  // "WorkOrder" | "Equipment" | "AISuggestion" | "MaintenanceSchedule" | "Project"
   relatedId   String?
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([urgency, emailSent])
 }
 
 model NonConformance {
