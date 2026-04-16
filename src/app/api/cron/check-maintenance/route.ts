@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendNotificationToAdmins } from "@/lib/notifications/send-notification";
+import { sendDigestNotificationToAdmins } from "@/lib/notifications/send-notification";
 import { maintenanceDue } from "@/lib/notifications/email-templates";
 
 /**
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
   }));
 
   const email = maintenanceDue(scheduleInfo);
-  await sendNotificationToAdmins({
+  await sendDigestNotificationToAdmins({
     type: "maintenance_due",
     title: email.subject,
     message: `${overdueSchedules.length} maintenance task${overdueSchedules.length !== 1 ? "s are" : " is"} overdue.`,

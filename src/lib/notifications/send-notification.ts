@@ -124,12 +124,6 @@ export async function sendImmediateNotificationToAll(input: BroadcastInput) {
 }
 
 /**
- * @deprecated Use sendDigestNotificationToAdmins. Retained temporarily so
- * existing callers keep compiling while they migrate.
- */
-export const sendNotificationToAdmins = sendDigestNotificationToAdmins;
-
-/**
  * Queue a digest notification for every admin PLUS additional specific users
  * (deduped). Used when an event has specific assignees/creators who should
  * also see it in their next digest.
