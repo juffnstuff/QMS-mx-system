@@ -274,7 +274,7 @@ async function processMessages(
       location: true,
       serialNumber: true,
       status: true,
-      parentEquipmentId: true,
+      parentId: true,
     },
   });
 

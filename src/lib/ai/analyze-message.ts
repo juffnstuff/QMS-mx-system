@@ -7,7 +7,7 @@ interface Equipment {
   location: string;
   serialNumber: string;
   status: string;
-  parentEquipmentId: string | null;
+  parentId: string | null;
 }
 
 interface OpenWorkOrder {
@@ -52,7 +52,7 @@ interface SuggestedAction {
   newStatus?: "operational" | "needs_service" | "down";
   partsUsed?: string;
   isNewEquipment?: boolean;
-  parentEquipmentId?: string;
+  parentId?: string;
   parentEquipmentName?: string;
   existingRecordType?: "WorkOrder" | "Project" | "MaintenanceSchedule";
   existingRecordId?: string;
@@ -82,7 +82,7 @@ export async function analyzeMessage(
   const equipmentContext = context.equipment
     .map(
       (e) =>
-        `- ID: ${e.id} | Name: "${e.name}" | Type: ${e.type} | Location: ${e.location} | Serial: ${e.serialNumber} | Status: ${e.status}${e.parentEquipmentId ? ` | Parent: ${e.parentEquipmentId}` : ""}`
+        `- ID: ${e.id} | Name: "${e.name}" | Type: ${e.type} | Location: ${e.location} | Serial: ${e.serialNumber} | Status: ${e.status}${e.parentId ? ` | Parent: ${e.parentId}` : ""}`
     )
     .join("\n");
 
@@ -186,7 +186,7 @@ Examples:
 ### 2. Auxiliary Equipment Detection
 When an email mentions a **component, part, or sub-system that should be tracked as its own equipment record** (e.g., a replacement pump for a press, a new motor for the grinder, a charger for a forklift), use \`create_auxiliary_equipment\`. This:
 - Creates a new equipment record for the auxiliary item
-- Links it to the parent equipment via \`parentEquipmentId\`
+- Links it to the parent equipment via \`parentId\`
 - Can also trigger a maintenance task or project
 
 Examples:
@@ -241,7 +241,7 @@ Respond with ONLY valid JSON, no markdown:
       "newStatus": "operational" | "needs_service" | "down",
       "partsUsed": "parts mentioned if any",
       "isNewEquipment": true/false,
-      "parentEquipmentId": "ID of parent equipment (for create_auxiliary_equipment)",
+      "parentId": "ID of parent equipment (for create_auxiliary_equipment)",
       "parentEquipmentName": "name of parent equipment (for create_auxiliary_equipment when parent is unknown)",
       "existingRecordType": "WorkOrder" | "Project" | "MaintenanceSchedule",
       "existingRecordId": "ID of the existing record (for progress_existing)",

@@ -46,18 +46,18 @@ model Equipment {
   notes             String?
   criticality       String?   // "A" | "B" | "C" — from PM system
   groupName         String?   // Functional group: "Compression Molding", "Extrusion", etc.
-  parentEquipmentId String?   // Link auxiliary/child equipment to parent (e.g., pump → press)
+  parentId          String?   // Parent equipment ID for sub-components (e.g., pump → press)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  parentEquipment Equipment?  @relation("EquipmentHierarchy", fields: [parentEquipmentId], references: [id])
-  childEquipment  Equipment[] @relation("EquipmentHierarchy")
+  parent          Equipment?  @relation("EquipmentHierarchy", fields: [parentId], references: [id])
+  children        Equipment[] @relation("EquipmentHierarchy")
   schedules       MaintenanceSchedule[]
   maintenanceLogs MaintenanceLog[]
   workOrders      WorkOrder[]
 
   @@index([status])
-  @@index([parentEquipmentId])
+  @@index([parentId])
 }
 
 model MaintenanceSchedule {

@@ -203,7 +203,7 @@ export async function PUT(
       }).catch((e) => console.error("[Notification] Project created failed:", e));
     } else if (suggestion.suggestionType === "create_auxiliary_equipment") {
       // Create a new equipment record linked to a parent
-      let parentId = payload.parentEquipmentId || null;
+      let parentId = payload.parentId || null;
 
       // If parent is "unknown" but name is given, try to find by name
       if (!parentId && payload.parentEquipmentName) {
@@ -232,7 +232,7 @@ export async function PUT(
           location: parentId ? "See parent equipment" : "TBD",
           serialNumber: tempSerial,
           status: "operational",
-          parentEquipmentId: parentId,
+          parentId: parentId,
           notes: `Auto-created as auxiliary equipment from AI scan.${parentId ? "" : " Please link to parent equipment manually."}${payload.description ? `\n${payload.description}` : ""}`,
         },
       });
