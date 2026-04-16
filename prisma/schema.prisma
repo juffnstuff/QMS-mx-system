@@ -210,7 +210,7 @@ model ProcessedMessage {
 model AISuggestion {
   id                 String    @id @default(cuid())
   processedMessageId String
-  suggestionType     String    // "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review"
+  suggestionType     String    // "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review" | "create_project" | "create_auxiliary_equipment" | "progress_existing"
   status             String    @default("pending") // "pending" | "approved" | "rejected" | "auto_applied"
   payload            String    // JSON with proposed action details
   createdRecordType  String?   // "WorkOrder" | "MaintenanceLog" | "Equipment"
@@ -291,15 +291,19 @@ model Project {
 model Notification {
   id          String   @id @default(cuid())
   userId      String
-  type        String   // "work_order_assigned" | "status_changed" | "suggestion_review" | "maintenance_due"
+  type        String   // "work_order_assigned" | "work_order_created" | "status_changed" | "equipment_down" | "equipment_status" | "project_created" | "maintenance_logged" | "maintenance_due"
   title       String
   message     String
   read        Boolean  @default(false)
-  relatedType String?  // "WorkOrder" | "Equipment" | "AISuggestion" | "MaintenanceSchedule" | "Project"
+  urgency     String   @default("digest")  // "immediate" | "digest"
+  emailSent   Boolean  @default(false)
+  relatedType String?  // "WorkOrder" | "Equipment" | "AISuggestion" | "MaintenanceSchedule" | "Project" | "MaintenanceLog"
   relatedId   String?
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([urgency, emailSent])
 }
 
 model NonConformance {

@@ -7,10 +7,43 @@ interface Equipment {
   location: string;
   serialNumber: string;
   status: string;
+  parentId: string | null;
+}
+
+interface OpenWorkOrder {
+  id: string;
+  title: string;
+  equipmentId: string;
+  equipmentName: string;
+  priority: string;
+  status: string;
+}
+
+interface ActiveProject {
+  id: string;
+  title: string;
+  status: string;
+  description: string | null;
+}
+
+interface ActiveSchedule {
+  id: string;
+  title: string;
+  equipmentId: string;
+  equipmentName: string;
+  frequency: string;
+  nextDue: string;
 }
 
 interface SuggestedAction {
-  type: "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review" | "create_project";
+  type:
+    | "create_work_order"
+    | "create_maintenance_log"
+    | "update_equipment_status"
+    | "flag_for_review"
+    | "create_project"
+    | "create_auxiliary_equipment"
+    | "progress_existing";
   equipmentId: string;
   equipmentName: string;
   title: string;
@@ -19,7 +52,11 @@ interface SuggestedAction {
   newStatus?: "operational" | "needs_service" | "down";
   partsUsed?: string;
   isNewEquipment?: boolean;
-  budget?: string;
+  parentId?: string;
+  parentEquipmentName?: string;
+  existingRecordType?: "WorkOrder" | "Project" | "MaintenanceSchedule";
+  existingRecordId?: string;
+  suggestedUpdate?: string;
 }
 
 export interface AIAnalysisResult {
@@ -29,52 +66,106 @@ export interface AIAnalysisResult {
   suggestedActions: SuggestedAction[];
 }
 
+export interface AnalysisContext {
+  equipment: Equipment[];
+  openWorkOrders: OpenWorkOrder[];
+  activeProjects: ActiveProject[];
+  activeSchedules: ActiveSchedule[];
+}
+
 const client = new Anthropic();
 
 export async function analyzeMessage(
   message: { subject?: string; body: string; senderName: string; senderEmail: string },
-  equipmentList: Equipment[]
+  context: AnalysisContext
 ): Promise<AIAnalysisResult> {
-  const equipmentContext = equipmentList
+  const equipmentContext = context.equipment
     .map(
       (e) =>
-        `- ID: ${e.id} | Name: "${e.name}" | Type: ${e.type} | Location: ${e.location} | Serial: ${e.serialNumber} | Status: ${e.status}`
+        `- ID: ${e.id} | Name: "${e.name}" | Type: ${e.type} | Location: ${e.location} | Serial: ${e.serialNumber} | Status: ${e.status}${e.parentId ? ` | Parent: ${e.parentId}` : ""}`
     )
     .join("\n");
 
-  const prompt = `You are an AI assistant for the QMS (Quality Management System) at **RubberForm Recycled Products LLC**, a rubber recycling manufacturer in Buffalo, NY. Your job is to analyze emails, Teams messages, and SharePoint documents to identify maintenance, equipment, project, and operational content, then suggest actions.
+  const workOrderContext = context.openWorkOrders.length > 0
+    ? context.openWorkOrders
+        .map(
+          (wo) =>
+            `- WO ID: ${wo.id} | "${wo.title}" | Equipment: "${wo.equipmentName}" (${wo.equipmentId}) | Priority: ${wo.priority} | Status: ${wo.status}`
+        )
+        .join("\n")
+    : "(No open work orders)";
+
+  const projectContext = context.activeProjects.length > 0
+    ? context.activeProjects
+        .map(
+          (p) =>
+            `- Project ID: ${p.id} | "${p.title}" | Status: ${p.status}${p.description ? ` | Desc: ${p.description.slice(0, 100)}` : ""}`
+        )
+        .join("\n")
+    : "(No active projects)";
+
+  const scheduleContext = context.activeSchedules.length > 0
+    ? context.activeSchedules
+        .map(
+          (s) =>
+            `- Schedule ID: ${s.id} | "${s.title}" | Equipment: "${s.equipmentName}" (${s.equipmentId}) | Frequency: ${s.frequency} | Next due: ${s.nextDue}`
+        )
+        .join("\n")
+    : "(No active maintenance schedules)";
+
+  const prompt = `You are an AI assistant for the QMS (Quality Management System) at **RubberForm Recycled Products LLC**, a rubber recycling manufacturer in Buffalo, NY. Your job is to analyze emails and Teams messages to identify maintenance, service, parts, equipment, and project-related content, then suggest actions.
+
+## WHAT TO LOOK FOR (RELEVANT)
+- Equipment service needs, breakdowns, repairs
+- Preventive/preventative maintenance tasks and scheduling
+- Parts shipped, parts received, parts needed, parts on backorder
+- Help needed on a piece of equipment
+- Progress updates on existing work orders, projects, or maintenance tasks
+- New auxiliary equipment or components that should be tracked (pumps for presses, attachments for vehicles, etc.)
+- Safety issues related to equipment
+
+## WHAT TO IGNORE (NOT RELEVANT)
+- Invoices, billing, payments, accounts payable/receivable
+- Price quotes, cost estimates, budgets, financial discussions
+- Purchase orders, POs — UNLESS they are specifically about parts arriving/shipping for maintenance
+- General business emails (HR, meetings, lunch orders, etc.)
+- Marketing, sales, customer communications unrelated to equipment
+- Any email primarily about money or financial transactions
+
+If an email mentions both maintenance AND money (like "the pump repair cost $500"), focus ONLY on the maintenance aspect and ignore the cost details.
 
 ## About RubberForm
 RubberForm recycles rubber (primarily tires) into manufactured products like mats, pavers, and custom molded goods. Operations include shredding, grinding/granulating, mixing, molding, pressing, and shipping. The facility has production lines, a shop/maintenance area, warehouse, loading docks, office, and yard.
 
 ## Key People at RubberForm
-These people are part of the RubberForm team. Emails from them about plant/factory operations are almost always relevant:
-- **shop@rubberform.com** — Shop/maintenance team shared mailbox. ALWAYS relevant — these are maintenance requests, parts orders, and equipment reports.
-- **Joe** (joe@rubberform.com) — Plant operations. Emails about equipment, production, and facility issues.
-- **Anthony** (anthony@rubberform.com) — Operations. Emails about equipment, maintenance, and projects.
-- **Jesse** (jesse@rubberform.com) — Operations/shop. Emails about equipment and maintenance.
-- **Jesse at InQuip** (jesse@inquip.com) — External equipment supplier/service partner. Emails about parts, equipment service, quotes, and repairs.
-- **Bill** (bill@rubberform.com) — Management. Emails about factory/plant operations, projects, and capital equipment.
-- **Aaron** (aaron@rubberform.com) — Operations. Emails about equipment, production, and shop matters.
-
-When you see emails from or mentioning these people discussing plant/shop/equipment/maintenance topics, they are highly likely to be relevant.
+- **shop@rubberform.com** — Shop/maintenance team shared mailbox. ALWAYS relevant.
+- **Joe** (joe@rubberform.com) — Plant operations.
+- **Anthony** (anthony@rubberform.com) — Operations.
+- **Jesse** (jesse@rubberform.com) — Operations/shop.
+- **Jesse at InQuip** (jesse@inquip.com) — External equipment supplier/service partner.
+- **Bill** (bill@rubberform.com) — Management.
+- **Aaron** (aaron@rubberform.com) — Operations.
 
 ## Equipment Registry
 ${equipmentContext || "(No equipment registered yet — suggest adding new equipment if mentioned)"}
 
-## Manufacturing Domain Knowledge
-RubberForm processes recycled rubber. Watch for mentions of:
+## Open Work Orders (in-progress or open)
+${workOrderContext}
 
-**Vehicles & Fleet:** forklift, truck, loader, bobcat, plow, trailer, fleet, van, pickup, delivery vehicle, company truck, dump truck, flatbed, **Penske truck** (rental box truck), **F250 / Ford F-250** (company pickup truck), box truck, rental truck
+## Active Projects
+${projectContext}
+
+## Active Maintenance Schedules
+${scheduleContext}
+
+## Manufacturing Domain Knowledge
+**Vehicles & Fleet:** forklift, truck, loader, bobcat, plow, trailer, van, pickup, Penske truck (rental box truck), F250/Ford F-250 (company pickup), box truck
 **Pumps:** hydraulic pump, water pump, sump pump, vacuum pump, transfer pump, fuel pump, coolant pump
-**Rubber Processing Equipment:** extruder, grinder, baler, conveyor, shredder, granulator, mixer, press, mold, vulcanizer, crusher, roller, cutter, dryer, hopper, feeder, separator, screen, classifier, magnetic separator, metal detector
-**Motors & Power:** motor, compressor, generator, engine, drive, gearbox, VFD, variable frequency drive, starter, transformer, panel, breaker, electrical, power supply, battery, charger
-**Hoses & Cables:** hydraulic hose, air hose, power cable, control cable, wiring, pipe, tubing, fitting, connector, coupling, manifold, regulator
-**Oils & Fluids:** hydraulic oil, gear oil, coolant, lubricant, grease, fluid, fuel, diesel, propane, antifreeze, cutting fluid
+**Rubber Processing Equipment:** extruder, grinder, baler, conveyor, shredder, granulator, mixer, press, mold, vulcanizer, crusher, roller, cutter, dryer, hopper, feeder, separator, screen, classifier
+**Motors & Power:** motor, compressor, generator, engine, drive, gearbox, VFD, starter, transformer, breaker, battery, charger
 **Parts & Components:** bearing, belt, filter, gasket, seal, valve, rotor, impeller, sprocket, chain, blade, screen, die, nozzle, cylinder, piston, shaft, bushing, bracket, roller, wheel, tire, brake
-**Safety & Compliance:** OSHA, PPE, lockout/tagout, LOTO, fire extinguisher, eye wash, guard, safety, inspection, compliance, audit, incident, injury, near-miss
-**Facility:** HVAC, roof, door, dock, dock leveler, overhead door, lighting, plumbing, drainage, floor, concrete, fencing, gate, parking lot, yard
-**Projects & Capital:** install, installation, upgrade, retrofit, new equipment, project, capital, budget, quote, proposal, vendor, supplier, contractor, construction
+**Hoses & Cables:** hydraulic hose, air hose, cable, pipe, tubing, fitting, connector, coupling, manifold, regulator
+**Fluids:** hydraulic oil, gear oil, coolant, lubricant, grease, fuel, diesel, propane, antifreeze
 
 ## Message to Analyze
 From: ${message.senderName} (${message.senderEmail})
@@ -82,22 +173,15 @@ Subject: ${message.subject || "(No subject)"}
 Body:
 ${message.body.slice(0, 4000)}
 
-## Known Company Assets
-- **Penske truck** — rental box truck used for deliveries/pickups. Any mention of "Penske", "box truck", or "rental truck" is vehicle-related.
-- **Ford F-250** — company pickup truck. Any mention of "F250", "F-250", "Ford", or "the pickup" likely refers to this.
-- **Hydraulic press pump** — the presses need pumps. Any email about "pump for the press", "press pump", "hydraulic pump" related to the press is maintenance-critical.
-
-## MS Forms Responses
-If the message subject starts with "Form:" it's an MS Forms response from SharePoint. These are structured submissions (like maintenance requests, inspection checklists, or work requests). Treat ALL form fields as relevant data — extract equipment references, issues described, and actions needed.
-
 ## Instructions
-1. Determine if this message relates to: equipment maintenance, repairs, breakdowns, parts ordering from equipment/parts suppliers, service requests for plant equipment, safety issues, facility maintenance, fleet/vehicle issues, vendor/supplier communications about equipment or parts, operational projects, or MS Forms submissions about any of the above.
+1. Determine if this message relates to: equipment maintenance, repairs, breakdowns, parts ordering from equipment/parts suppliers, service requests for plant equipment, safety issues, facility maintenance, fleet/vehicle issues, vendor/supplier communications about equipment or parts, or operational projects.
 
    **REJECT as NOT RELEVANT — these are never maintenance-related:**
    - Sports tickets, box seats, suite invitations, game schedules (Sabres, Bills, etc.)
    - Social events, happy hours, birthdays, team outings, lunch orders
    - Marketing emails, newsletters, promotions, webinars
    - Job postings, recruiting, HR benefits
+   - Invoices, billing, payments, accounts payable/receivable, price quotes, cost estimates, budgets
    - LTL freight/trucking quotes and shipping rates (unless about plant vehicle repair)
    - Bill of lading, tracking numbers, delivery confirmations (unless about parts delivery TO the plant)
    - Personal emails, banking, subscriptions
@@ -106,48 +190,54 @@ If the message subject starts with "Form:" it's an MS Forms response from ShareP
 
    **"Service" means equipment/maintenance service, NOT trucking service or customer service.**
 
-2. **Be smart about informal language.** RubberForm people write casually:
-   - "the big green one is making that noise again" → equipment issue
-   - "oil leaking near dock 3" → maintenance needed
-   - "need to order more filters" → parts/maintenance
-   - "truck won't start" → vehicle maintenance
-   - "line 2 is down" → production equipment
-   - "jesse from inquip called about the parts" → vendor follow-up on repairs
-   - "shop needs to look at the press" → maintenance request
-   - "got the quote from Bill" → could be project/equipment purchase
+### 1. Match Against Existing Records First
+Before suggesting new records, CHECK the existing work orders, projects, and maintenance schedules listed above. If this email is a **progress update, status update, parts shipment, or follow-up** for an existing record, use \`progress_existing\` instead of creating a duplicate.
 
-3. **Match equipment using fuzzy matching:**
-   - Match by nickname, partial name, type, color, size, or location
-   - Match by serial number (partial or full)
-   - If location + problem mentioned, match equipment at that location
-   - If no specific equipment matches but the issue is clearly relevant, use "unknown" and flag for review
+Examples:
+- Email says "pump shipped for the press" and there's an open WO about the press pump → \`progress_existing\` with a suggested note
+- Email says "the new grinder installation is moving forward" and there's an active project for grinder upgrade → \`progress_existing\`
+- Email says "filters arrived" and there's an open WO about filters → \`progress_existing\`
 
-4. **Suggest actions:**
-   - **create_work_order**: Something needs repair, attention, service, or investigation
-     - critical: safety hazard, equipment completely down, production stopped
-     - high: significant degradation, risk of failure, intermittent problems
-     - medium: scheduled maintenance, minor issues, parts to order
-     - low: cosmetic, nice-to-have, future improvements
-   - **create_maintenance_log**: Work was already performed — log what was done
-   - **update_equipment_status**: Equipment status should change (down/needs_service/operational)
-   - **create_project**: Large-scale items — equipment purchases, installations, upgrades, capital expenditures, major facility improvements. Use when email discusses budgets, quotes, installation planning, multi-step upgrades. Include budget info if mentioned.
-   - **flag_for_review**: Seems relevant but not confident — better to flag than miss it
+### 2. Auxiliary Equipment Detection
+When an email mentions a **component, part, or sub-system that should be tracked as its own equipment record** (e.g., a replacement pump for a press, a new motor for the grinder, a charger for a forklift), use \`create_auxiliary_equipment\`. This:
+- Creates a new equipment record for the auxiliary item
+- Links it to the parent equipment via \`parentId\`
+- Can also trigger a maintenance task or project
 
-5. **IMPORTANT: Parts vs Equipment distinction:**
-   - If the email mentions a PART or COMPONENT (pump, belt, filter, motor, hose, seal, bearing) that is FOR a piece of equipment, the \`equipmentName\` should be the PARENT EQUIPMENT (e.g. "Dake Press"), NOT the part itself. Put the part details in \`description\` and \`partsUsed\`.
-   - Set \`isNewEquipment: true\` ONLY when the item is a standalone piece of equipment that should be registered (vehicles, presses, grinders, conveyors, forklifts, etc.)
-   - Set \`isNewEquipment: false\` when the item is a part/component or when equipment already matches a registry entry.
-   - Examples:
-     - "Pump being shipped for the Dake press" → equipmentName: "Dake Press", isNewEquipment: true, partsUsed: "Hydraulic pump"
-     - "New belt for the grinder" → equipmentName: "Grinder", isNewEquipment: true, partsUsed: "Drive belt"
-     - "Penske truck needs oil change" → equipmentName: "Penske Truck", isNewEquipment: true (it's a vehicle)
-     - "Ordered new filters" → equipmentName: "unknown", isNewEquipment: false, flag_for_review
+Examples:
+- "New hydraulic pump arriving for the Dake press" → create_auxiliary_equipment: name "Hydraulic Pump (Dake Press)", parent = Dake Press
+- "Got the replacement motor for grinder #2" → create_auxiliary_equipment: name "Drive Motor (Grinder #2)", parent = Grinder #2
+- "Battery charger for the Yale forklift" → create_auxiliary_equipment: name "Battery Charger (Yale Forklift)", parent = Yale Forklift
 
-5. **For vendor emails (like from InQuip):** If discussing parts, repairs, or equipment service, create work orders or flag for review. Include quote/pricing info in the description if present.
+### 3. Standard Suggestions
+- **create_work_order**: Something needs repair, service, attention, or investigation. Assign priority:
+  - critical: safety hazard, equipment completely down, production stopped
+  - high: significant degradation, failure risk, intermittent problems
+  - medium: scheduled maintenance, minor issues, parts to order
+  - low: cosmetic, future improvements
+- **create_maintenance_log**: Work was already performed — log what was done
+- **update_equipment_status**: Equipment status should change (down/needs_service/operational)
+- **create_project**: Large-scale items — equipment installations, upgrades, major facility improvements. Do NOT include budget/cost info.
+- **flag_for_review**: Seems relevant but not confident enough to suggest a specific action
 
-6. **For SharePoint documents:** If analyzing a document (SOP, Work Instruction, form), suggest creating or updating the relevant equipment's maintenance schedule or logging it.
+### 4. Equipment Matching Rules
+- Match by nickname, partial name, type, color, size, or location
+- Match by serial number (partial or full)
+- If a PART is mentioned FOR a piece of equipment, the \`equipmentId\` should be the PARENT EQUIPMENT, with part details in \`description\` and \`partsUsed\`
+- Set \`isNewEquipment: true\` ONLY for standalone equipment (vehicles, presses, grinders, conveyors, forklifts)
+- Set \`isNewEquipment: false\` for parts/components or existing registry matches
+- For auxiliary equipment, use \`create_auxiliary_equipment\` instead of \`isNewEquipment: true\`
 
-7. Confidence score (0.0-1.0): Be generous — it's better to flag something (0.5+) than miss it (< 0.3).
+### 5. Be Smart About Informal Language
+- "the big green one is making that noise again" → equipment issue
+- "parts are on the way" → progress update on existing WO
+- "jesse said the pump shipped" → parts tracking, progress existing
+- "line 2 is down" → production equipment down
+- "need help with the press" → service needed
+- "the new pump for the press is here" → auxiliary equipment + progress existing
+
+### 6. Confidence Score
+Be generous — it's better to flag something (0.5+) than miss it (< 0.3).
 
 ## Response Format
 Respond with ONLY valid JSON, no markdown:
@@ -157,16 +247,20 @@ Respond with ONLY valid JSON, no markdown:
   "reasoning": "Brief explanation",
   "suggestedActions": [
     {
-      "type": "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review" | "create_project",
+      "type": "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review" | "create_project" | "create_auxiliary_equipment" | "progress_existing",
       "equipmentId": "equipment ID from registry or 'unknown'",
       "equipmentName": "equipment name or description",
       "title": "Short descriptive title",
-      "description": "Detailed description including any quotes, part numbers, vendor info",
+      "description": "Detailed description",
       "priority": "low" | "medium" | "high" | "critical",
       "newStatus": "operational" | "needs_service" | "down",
       "partsUsed": "parts mentioned if any",
       "isNewEquipment": true/false,
-      "budget": "budget amount if mentioned (for create_project)"
+      "parentId": "ID of parent equipment (for create_auxiliary_equipment)",
+      "parentEquipmentName": "name of parent equipment (for create_auxiliary_equipment when parent is unknown)",
+      "existingRecordType": "WorkOrder" | "Project" | "MaintenanceSchedule",
+      "existingRecordId": "ID of the existing record (for progress_existing)",
+      "suggestedUpdate": "what to add/update on the existing record (for progress_existing)"
     }
   ]
 }
@@ -174,7 +268,7 @@ Respond with ONLY valid JSON, no markdown:
 If not relevant: {"relevant": false, "confidence": 0.9, "reasoning": "Not relevant: ...", "suggestedActions": []}`;
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-6",
     max_tokens: 2048,
     messages: [{ role: "user", content: prompt }],
   });
@@ -186,7 +280,7 @@ If not relevant: {"relevant": false, "confidence": 0.9, "reasoning": "Not releva
     const result = JSON.parse(text) as AIAnalysisResult;
 
     // Validate equipment IDs against actual registry (allow "unknown" for flag_for_review)
-    const validIds = new Set(equipmentList.map((e) => e.id));
+    const validIds = new Set(context.equipment.map((e) => e.id));
     result.suggestedActions = result.suggestedActions.filter((action) => {
       if (action.equipmentId === "unknown") {
         return true;
@@ -195,10 +289,29 @@ If not relevant: {"relevant": false, "confidence": 0.9, "reasoning": "Not releva
         console.warn(
           `[AI Analyzer] Invalid equipment ID "${action.equipmentId}" — converting to flag_for_review`
         );
-        // Convert to flag_for_review instead of dropping
         action.type = "flag_for_review";
         action.equipmentId = "unknown";
         return true;
+      }
+      return true;
+    });
+
+    // Validate existing record IDs for progress_existing
+    result.suggestedActions = result.suggestedActions.filter((action) => {
+      if (action.type === "progress_existing" && action.existingRecordId) {
+        if (action.existingRecordType === "WorkOrder") {
+          const valid = context.openWorkOrders.some((wo) => wo.id === action.existingRecordId);
+          if (!valid) {
+            console.warn(`[AI Analyzer] Invalid WO ID "${action.existingRecordId}" — converting to flag_for_review`);
+            action.type = "flag_for_review";
+          }
+        } else if (action.existingRecordType === "Project") {
+          const valid = context.activeProjects.some((p) => p.id === action.existingRecordId);
+          if (!valid) {
+            console.warn(`[AI Analyzer] Invalid Project ID "${action.existingRecordId}" — converting to flag_for_review`);
+            action.type = "flag_for_review";
+          }
+        }
       }
       return true;
     });

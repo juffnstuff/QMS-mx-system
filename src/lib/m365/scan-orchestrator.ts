@@ -1,10 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { getUserConnection, getGraphClient, getAppGraphClient } from "./graph-client";
+import { getUserConnection, getGraphClient } from "./graph-client";
 import { analyzeMessage } from "@/lib/ai/analyze-message";
-import { sendNotificationToAdmins } from "@/lib/notifications/send-notification";
-import { suggestionsNeedReview } from "@/lib/notifications/email-templates";
 import type { RawMessage } from "./mail-poller";
-import type { Client } from "@microsoft/microsoft-graph-client";
 
 // Key senders whose emails ALWAYS get AI analysis (skip pre-filter)
 const PRIORITY_SENDERS = [
@@ -47,9 +44,12 @@ const BLOCKED_SUBJECTS = [
   "webinar", "register now", "sign up today",
   "ltl", "freight quote", "freight rate", "trucking rate",
   "bill of lading", "bol", "tracking number",
+  "invoice", "payment due", "accounts payable", "accounts receivable",
 ];
 
-// Maintenance-related keywords for pre-filtering messages before AI analysis
+// Keywords for pre-filtering messages before AI analysis.
+// Focused on: service, preventive maintenance, parts, equipment help, project progress.
+// Excludes: invoices, billing, payments, money-related content.
 const MAINTENANCE_KEYWORDS = [
   // RubberForm specific equipment
   "dake", "9-ram", "5-ram", "bollard cutting", "cst drill",
@@ -73,9 +73,16 @@ const MAINTENANCE_KEYWORDS = [
   // Oils & fluids
   "hydraulic oil", "gear oil", "coolant", "lubricant", "grease",
   "hydraulic fluid", "propane",
-  // Maintenance actions (specific phrases to avoid false positives)
+  // Maintenance actions
   "needs repair", "broken", "leak", "maintenance", "preventive maintenance",
   "work order", "repair", "calibrate", "overhaul", "rebuild",
+  "preventive", "preventative", "pm ", "scheduled maintenance", "routine service",
+  "service needed", "needs service", "help needed", "need help",
+  // Parts shipping & ordering
+  "shipped", "shipping", "delivered", "arrived", "in transit",
+  "back order", "backorder", "on order", "eta", "expected delivery",
+  "parts needed", "parts ordered", "parts received", "parts on the way",
+  "waiting on parts", "waiting for parts",
   // Problem indicators
   "malfunction", "vibration", "overheating", "pressure drop",
   "stuck", "jammed", "won't start", "not working", "acting up", "broke down",
@@ -89,8 +96,13 @@ const MAINTENANCE_KEYWORDS = [
   "service call", "service tech", "field service",
   "pm agreement", "maintenance contract",
   // PM specific
-  "pm schedule", "preventive", "inspection due", "calibration due",
+  "pm schedule", "inspection due", "calibration due",
   "maintenance due", "service due", "overdue",
+  // General equipment & auxiliary
+  "machine", "equipment", "auxiliary", "attachment", "accessory", "component",
+  // Projects & progress (no money terms)
+  "project", "upgrade", "installation", "progress", "update on",
+  "status update", "next step", "ready for",
 ];
 
 export interface ScanResult {
@@ -99,8 +111,6 @@ export interface ScanResult {
   suggestionsCreated: number;
   preFiltered: number;
   teamsMessages: number;
-  sharePointDocs: number;
-  formsResponses: number;
   errors: string[];
 }
 
@@ -287,216 +297,8 @@ async function pollUserTeams(connectionId: string): Promise<RawMessage[]> {
 }
 
 /**
- * Scan SharePoint for documents AND list items (including MS Forms responses).
- * MS Forms stores responses in SharePoint lists, so we read them via the Lists API.
- */
-async function scanSharePoint(): Promise<{
-  docs: RawMessage[];
-  docsIndexed: number;
-  formsResponses: RawMessage[];
-}> {
-  const docs: RawMessage[] = [];
-  const formsResponses: RawMessage[] = [];
-  let docsIndexed = 0;
-
-  try {
-    const appClient = await getAppGraphClient();
-
-    const sitesResponse = await appClient
-      .api("/sites?search=*&$select=id,displayName,webUrl&$top=50")
-      .get();
-
-    for (const site of sitesResponse.value || []) {
-      if (!site.id || !site.displayName) continue;
-
-      await prisma.m365SharePointSite.upsert({
-        where: { siteId: site.id },
-        update: { siteName: site.displayName, siteUrl: site.webUrl || "" },
-        create: {
-          siteId: site.id,
-          siteName: site.displayName,
-          siteUrl: site.webUrl || "",
-          isActive: true,
-        },
-      });
-
-      // --- DOCUMENT LIBRARIES ---
-      try {
-        const drives = await appClient
-          .api(`/sites/${site.id}/drives?$select=id,name&$top=10`)
-          .get();
-
-        for (const drive of drives.value || []) {
-          try {
-            const items = await appClient
-              .api(`/drives/${drive.id}/root/children?$select=id,name,webUrl,file,lastModifiedDateTime,lastModifiedBy&$top=50`)
-              .get();
-
-            for (const item of items.value || []) {
-              if (!item.file) continue;
-
-              const existing = await prisma.sharePointDocument.findUnique({
-                where: { externalId: item.id },
-              });
-              const lastModified = new Date(item.lastModifiedDateTime);
-              if (existing && existing.lastModified >= lastModified) continue;
-
-              await prisma.sharePointDocument.upsert({
-                where: { externalId: item.id },
-                update: {
-                  name: item.name,
-                  webUrl: item.webUrl || "",
-                  contentType: item.file.mimeType || null,
-                  lastModified,
-                },
-                create: {
-                  externalId: item.id,
-                  siteId: site.id,
-                  name: item.name,
-                  webUrl: item.webUrl || "",
-                  contentType: item.file.mimeType || null,
-                  lastModified,
-                },
-              });
-              docsIndexed++;
-
-              const nameLC = item.name.toLowerCase();
-              const isRelevantDoc =
-                nameLC.includes("sop") ||
-                nameLC.includes("work instruction") ||
-                nameLC.includes("wi-") ||
-                nameLC.includes("checklist") ||
-                nameLC.includes("form") ||
-                nameLC.includes("maintenance") ||
-                nameLC.includes("inspection") ||
-                nameLC.includes("procedure") ||
-                nameLC.includes("safety") ||
-                nameLC.includes("equipment") ||
-                nameLC.includes("vehicle") ||
-                nameLC.includes("truck") ||
-                nameLC.includes("pump");
-
-              if (isRelevantDoc) {
-                const modifiedBy = item.lastModifiedBy?.user?.displayName || "Unknown";
-                docs.push({
-                  externalId: `sp-${item.id}`,
-                  subject: `SharePoint: ${item.name}`,
-                  senderName: modifiedBy,
-                  senderEmail: item.lastModifiedBy?.user?.email || "",
-                  bodyPreview: `Document "${item.name}" in ${site.displayName} (${item.file.mimeType || "unknown type"}).`,
-                  bodyContent: `SharePoint document: "${item.name}"\nSite: ${site.displayName}\nLibrary: ${drive.name}\nType: ${item.file.mimeType || "unknown"}\nURL: ${item.webUrl}\nLast modified by: ${modifiedBy}\nLast modified: ${lastModified.toISOString()}`,
-                  receivedAt: lastModified,
-                });
-              }
-            }
-          } catch {
-            // Skip inaccessible drives
-          }
-        }
-      } catch {
-        // Skip inaccessible site drives
-      }
-
-      // --- SHAREPOINT LISTS (includes MS Forms responses) ---
-      try {
-        const listsResponse = await appClient
-          .api(`/sites/${site.id}/lists?$select=id,displayName,list&$top=50`)
-          .get();
-
-        for (const list of listsResponse.value || []) {
-          const listName = (list.displayName || "").toLowerCase();
-
-          // Look for lists that are Forms responses or maintenance-related
-          const isRelevantList =
-            listName.includes("maintenance") ||
-            listName.includes("form") ||
-            listName.includes("request") ||
-            listName.includes("work order") ||
-            listName.includes("equipment") ||
-            listName.includes("inspection") ||
-            listName.includes("checklist") ||
-            listName.includes("safety") ||
-            listName.includes("vehicle") ||
-            listName.includes("truck") ||
-            listName.includes("pump") ||
-            listName.includes("shop") ||
-            // MS Forms creates lists with template "genericList" or the form title
-            (list.list?.template === "genericList");
-
-          if (!isRelevantList) continue;
-
-          try {
-            // Get recent list items (last 30 days)
-            const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-            const itemsResponse = await appClient
-              .api(
-                `/sites/${site.id}/lists/${list.id}/items?$expand=fields&$top=50&$orderby=lastModifiedDateTime desc&$filter=lastModifiedDateTime ge '${since}'`
-              )
-              .get();
-
-            for (const item of itemsResponse.value || []) {
-              const itemId = `form-${list.id}-${item.id}`;
-
-              const existing = await prisma.processedMessage.findUnique({
-                where: { externalId: itemId },
-              });
-              if (existing) continue;
-
-              // Extract all field values into a readable format
-              const fields = item.fields || {};
-              const fieldEntries = Object.entries(fields)
-                .filter(
-                  ([key]) =>
-                    !key.startsWith("@") &&
-                    !key.startsWith("_") &&
-                    key !== "id" &&
-                    key !== "ContentType" &&
-                    key !== "Attachments"
-                )
-                .map(([key, value]) => `${key}: ${value}`)
-                .join("\n");
-
-              const createdBy =
-                item.createdBy?.user?.displayName || "Unknown";
-              const createdAt = new Date(
-                item.createdDateTime || item.lastModifiedDateTime
-              );
-
-              formsResponses.push({
-                externalId: itemId,
-                subject: `Form: ${list.displayName}`,
-                senderName: createdBy,
-                senderEmail: item.createdBy?.user?.email || "",
-                bodyPreview: `Form response in "${list.displayName}" from ${createdBy}. ${fieldEntries.slice(0, 300)}`,
-                bodyContent: `MS Forms / SharePoint List Response\nForm: "${list.displayName}"\nSite: ${site.displayName}\nSubmitted by: ${createdBy}\nSubmitted: ${createdAt.toISOString()}\n\n--- Response Fields ---\n${fieldEntries}`,
-                receivedAt: createdAt,
-              });
-            }
-          } catch (listErr) {
-            console.warn(`[Scan] Cannot read list "${list.displayName}":`, listErr);
-          }
-        }
-      } catch {
-        // Skip if lists API fails for this site
-      }
-
-      await prisma.m365SharePointSite
-        .update({
-          where: { siteId: site.id },
-          data: { lastScannedAt: new Date() },
-        })
-        .catch(() => {});
-    }
-  } catch (error) {
-    console.error("[Scan] SharePoint scanning failed:", error);
-    throw error;
-  }
-
-  return { docs, docsIndexed, formsResponses };
-}
-
-/**
  * Process messages through AI analysis and create suggestions.
+ * Provides full context: equipment registry, open work orders, active projects, and schedules.
  */
 async function processMessages(
   messages: RawMessage[],
@@ -512,8 +314,69 @@ async function processMessages(
       location: true,
       serialNumber: true,
       status: true,
+      parentId: true,
     },
   });
+
+  const openWorkOrders = await prisma.workOrder.findMany({
+    where: { status: { in: ["open", "in_progress"] } },
+    select: {
+      id: true,
+      title: true,
+      equipmentId: true,
+      priority: true,
+      status: true,
+      equipment: { select: { name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  const activeProjects = await prisma.project.findMany({
+    where: { status: { in: ["planning", "in_progress"] } },
+    select: { id: true, title: true, status: true, description: true },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+  });
+
+  const activeSchedules = await prisma.maintenanceSchedule.findMany({
+    select: {
+      id: true,
+      title: true,
+      equipmentId: true,
+      frequency: true,
+      nextDue: true,
+      equipment: { select: { name: true } },
+    },
+    orderBy: { nextDue: "asc" },
+    take: 30,
+  });
+
+  const analysisContext = {
+    equipment,
+    openWorkOrders: openWorkOrders.map((wo: typeof openWorkOrders[number]) => ({
+      id: wo.id,
+      title: wo.title,
+      equipmentId: wo.equipmentId,
+      equipmentName: wo.equipment.name,
+      priority: wo.priority,
+      status: wo.status,
+    })),
+    activeProjects: activeProjects.map((p: typeof activeProjects[number]) => ({
+      id: p.id,
+      title: p.title,
+      status: p.status,
+      description: p.description,
+    })),
+    activeSchedules: activeSchedules.map((s: typeof activeSchedules[number]) => ({
+      id: s.id,
+      title: s.title,
+      equipmentId: s.equipmentId,
+      equipmentName: s.equipment.name,
+      frequency: s.frequency,
+      nextDue: s.nextDue.toISOString().split("T")[0],
+    })),
+  };
 
   for (const msg of messages) {
     if (!shouldAnalyze(msg)) {
@@ -544,7 +407,7 @@ async function processMessages(
           senderName: msg.senderName,
           senderEmail: msg.senderEmail,
         },
-        equipment
+        analysisContext
       );
 
       const processed = await prisma.processedMessage.create({
@@ -571,39 +434,6 @@ async function processMessages(
       if (!analysis.relevant || analysis.suggestedActions.length === 0) continue;
 
       for (const action of analysis.suggestedActions) {
-        // Forms auto-create: if source is forms AND action is create_work_order AND equipment is known
-        if (
-          sourceType === "forms" &&
-          action.type === "create_work_order" &&
-          action.equipmentId !== "unknown"
-        ) {
-          try {
-            const workOrder = await prisma.workOrder.create({
-              data: {
-                equipmentId: action.equipmentId,
-                createdById: userId,
-                title: action.title,
-                description: `[Auto-created from MS Forms submission]\n\n${action.description}`,
-                priority: action.priority || "medium",
-              },
-            });
-            await prisma.aISuggestion.create({
-              data: {
-                processedMessageId: processed.id,
-                suggestionType: action.type,
-                status: "auto_applied",
-                payload: JSON.stringify(action),
-                createdRecordType: "WorkOrder",
-                createdRecordId: workOrder.id,
-              },
-            });
-            result.suggestionsCreated++;
-            continue;
-          } catch (autoErr) {
-            console.warn("[Scan] Forms auto-create failed, falling back to pending:", autoErr);
-          }
-        }
-
         await prisma.aISuggestion.create({
           data: {
             processedMessageId: processed.id,
@@ -622,7 +452,7 @@ async function processMessages(
 }
 
 /**
- * Run a full scan: user's email + Teams channels + SharePoint + Forms.
+ * Run a scan: user's email + Teams channels.
  * If deep=true, clears delta link and goes back 30 days for email.
  */
 export async function runUserScan(
@@ -635,8 +465,6 @@ export async function runUserScan(
     suggestionsCreated: 0,
     preFiltered: 0,
     teamsMessages: 0,
-    sharePointDocs: 0,
-    formsResponses: 0,
     errors: [],
   };
 
@@ -664,33 +492,6 @@ export async function runUserScan(
   } catch (err) {
     console.warn("[Scan] Teams scanning failed:", err);
     result.errors.push("Teams: not accessible (may need additional permissions)");
-  }
-
-  // --- SHAREPOINT + FORMS SCANNING ---
-  try {
-    const { docs, docsIndexed, formsResponses } = await scanSharePoint();
-    result.sharePointDocs = docsIndexed;
-    result.formsResponses = formsResponses.length;
-    result.messagesFound += docs.length + formsResponses.length;
-    await processMessages(docs, "sharepoint", userId, result);
-    await processMessages(formsResponses, "forms", userId, result);
-  } catch (err) {
-    console.warn("[Scan] SharePoint/Forms scanning failed:", err);
-    result.errors.push("SharePoint/Forms: not accessible (may need admin consent)");
-  }
-
-  // --- NOTIFY ADMINS if new suggestions were created ---
-  if (result.suggestionsCreated > 0) {
-    const email = suggestionsNeedReview(result.suggestionsCreated);
-    sendNotificationToAdmins({
-      type: "suggestion_review",
-      title: email.subject,
-      message: `${result.suggestionsCreated} new AI suggestion${result.suggestionsCreated !== 1 ? "s" : ""} from email scanning need review.`,
-      relatedType: "AISuggestion",
-      emailSubject: email.subject,
-      emailHtml: email.html,
-      smsText: email.plain,
-    }).catch((e) => console.error("[Scan] Notification to admins failed:", e));
   }
 
   return result;

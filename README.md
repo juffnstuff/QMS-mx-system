@@ -22,7 +22,7 @@ Quality Management System for tracking equipment, work orders, maintenance sched
 - **Framework:** Next.js 15 (App Router)
 - **Database:** PostgreSQL + Prisma ORM
 - **Auth:** NextAuth v5 (credentials provider, JWT sessions)
-- **AI:** Anthropic Claude API (claude-sonnet-4-20250514)
+- **AI:** Anthropic Claude API (claude-sonnet-4-6)
 - **Microsoft 365:** MS Graph API for email/Teams/SharePoint scanning and email sending
 - **Styling:** Tailwind CSS
 - **Icons:** Lucide React

@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendNotificationToAdmins } from "@/lib/notifications/send-notification";
-import { maintenanceDue } from "@/lib/notifications/email-templates";
+import { sendDigestNotificationToAdmins } from "@/lib/notifications/send-notification";
 
 /**
- * Cron endpoint: check for overdue maintenance schedules and notify admins.
- * Call via Railway cron, Vercel cron, or external scheduler.
- * Secured by CRON_SECRET env var or admin auth.
+ * Cron endpoint: check for overdue maintenance schedules and create digest notifications.
+ * Notifications will be included in the next status digest email (5am, 12pm, or 5pm).
  */
 export async function GET(req: NextRequest) {
-  // Verify authorization
-  const authHeader = req.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  // Verify cron secret (supports x-cron-secret header or Authorization: Bearer)
+  const cronSecret = req.headers.get("x-cron-secret") || req.headers.get("authorization")?.replace("Bearer ", "");
+  if (cronSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -31,7 +27,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: "No overdue schedules", notified: 0 });
   }
 
-  // Dedup: check if we already sent a maintenance_due notification in the last 24h
+  // Dedup: check if we already created a maintenance_due notification in the last 24h
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const recentNotification = await prisma.notification.findFirst({
     where: {
@@ -48,25 +44,20 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Send notification to all admins
-  const scheduleInfo = overdueSchedules.map((s) => ({
-    title: s.title,
-    equipmentName: s.equipment.name,
-  }));
+  const scheduleList = overdueSchedules
+    .map((s: { title: string; equipment: { name: string } }) => `${s.title} (${s.equipment.name})`)
+    .join(", ");
 
-  const email = maintenanceDue(scheduleInfo);
-  await sendNotificationToAdmins({
+  // Create digest notifications for admins — will be emailed in next digest run
+  await sendDigestNotificationToAdmins({
     type: "maintenance_due",
-    title: email.subject,
-    message: `${overdueSchedules.length} maintenance task${overdueSchedules.length !== 1 ? "s are" : " is"} overdue.`,
+    title: `${overdueSchedules.length} Maintenance Task${overdueSchedules.length !== 1 ? "s" : ""} Due/Overdue`,
+    message: `Overdue: ${scheduleList}`,
     relatedType: "MaintenanceSchedule",
-    emailSubject: email.subject,
-    emailHtml: email.html,
-    smsText: email.plain,
   });
 
   return NextResponse.json({
-    message: "Notifications sent",
+    message: "Digest notifications created",
     overdueCount: overdueSchedules.length,
     notified: true,
   });

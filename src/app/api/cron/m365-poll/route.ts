@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { runUserScan } from "@/lib/m365/scan-orchestrator";
 
 export async function GET(req: NextRequest) {
-  // Verify cron secret
-  const cronSecret = req.headers.get("x-cron-secret");
+  // Verify cron secret (supports x-cron-secret header or Authorization: Bearer)
+  const cronSecret = req.headers.get("x-cron-secret") || req.headers.get("authorization")?.replace("Bearer ", "");
   if (cronSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

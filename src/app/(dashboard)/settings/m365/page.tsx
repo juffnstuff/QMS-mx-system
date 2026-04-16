@@ -58,9 +58,9 @@ export default async function M365SettingsPage({
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">My Email Scanner</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Connect your MS365 account and AI will scan your emails, Teams
-          channels, and SharePoint for maintenance items, equipment, and
-          projects
+          Connect your MS365 account and AI will scan your emails and Teams
+          channels for service needs, maintenance items, parts updates, and
+          equipment issues
         </p>
       </div>
 
@@ -97,17 +97,16 @@ export default async function M365SettingsPage({
               Connect your @rubberform.com email using the button above
             </li>
             <li>
-              Click &ldquo;Scan All&rdquo; to scan your inbox, Teams channels,
-              and SharePoint
+              Click &ldquo;Scan New&rdquo; to scan your inbox and Teams
+              channels
             </li>
             <li>
-              AI analyzes emails from shop@, Joe, Anthony, Jesse, Bill, Aaron
-              and others for equipment, vehicles, pumps, parts, and maintenance
-              items
+              AI analyzes messages for service needs, preventive maintenance,
+              parts shipped/needed, equipment help, and project progress
             </li>
             <li>
-              It also scans Teams conversations and SharePoint for SOPs, work
-              instructions, and shop forms
+              It also picks up on existing work orders and projects to suggest
+              progress updates
             </li>
             <li>
               Review AI suggestions and approve to create work orders,
