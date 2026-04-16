@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendNotificationToAdmins } from "@/lib/notifications/send-notification";
+import { sendDigestNotificationToAdmins } from "@/lib/notifications/send-notification";
 import { workOrdersDue } from "@/lib/notifications/email-templates";
 
 export async function GET(req: NextRequest) {
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     }));
 
     const email = workOrdersDue(orderInfo);
-    await sendNotificationToAdmins({
+    await sendDigestNotificationToAdmins({
       type: "work_order_due",
       title: email.subject,
       message: `${overdueOrders.length} work order${overdueOrders.length !== 1 ? "s are" : " is"} overdue.`,
