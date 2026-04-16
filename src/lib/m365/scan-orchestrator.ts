@@ -107,9 +107,6 @@ export interface ScanResult {
   suggestionsCreated: number;
   preFiltered: number;
   teamsMessages: number;
-  // Deprecated — retained at 0 until scan-button UI is updated in the next chunk
-  sharePointDocs: number;
-  formsResponses: number;
   errors: string[];
 }
 
@@ -426,8 +423,6 @@ export async function runUserScan(
     suggestionsCreated: 0,
     preFiltered: 0,
     teamsMessages: 0,
-    sharePointDocs: 0,
-    formsResponses: 0,
     errors: [],
   };
 
