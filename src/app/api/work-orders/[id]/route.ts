@@ -52,6 +52,7 @@ export async function PUT(
       sendNotification({
         userId,
         type: "status_changed",
+        urgency: "digest",
         title: `Work Order Updated: ${existing.title}`,
         message: `Status changed from ${existing.status} to ${status}`,
         relatedType: "WorkOrder",
@@ -59,11 +60,11 @@ export async function PUT(
         emailSubject: email.subject,
         emailHtml: email.html,
         smsText: email.plain,
-      }).catch((e) => console.error("[Notification] Failed:", e));
+      }).catch((e) => console.error("[Notification] status_changed failed:", e));
     }
   }
 
-  // Notify on reassignment
+  // Notify on reassignment — digest-level
   if (assignedToId && assignedToId !== existing.assignedToId && assignedToId !== session.user.id) {
     const assignee = await prisma.user.findUnique({ where: { id: assignedToId } });
     if (assignee) {
@@ -71,6 +72,7 @@ export async function PUT(
       sendNotification({
         userId: assignedToId,
         type: "work_order_assigned",
+        urgency: "digest",
         title: `Work Order Assigned: ${existing.title}`,
         message: `You've been assigned work order "${existing.title}"`,
         relatedType: "WorkOrder",
@@ -78,7 +80,7 @@ export async function PUT(
         emailSubject: email.subject,
         emailHtml: email.html,
         smsText: email.plain,
-      }).catch((e) => console.error("[Notification] Failed:", e));
+      }).catch((e) => console.error("[Notification] work_order_assigned failed:", e));
     }
   }
 

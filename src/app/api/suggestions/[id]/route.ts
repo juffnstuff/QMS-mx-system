@@ -103,6 +103,75 @@ export async function PUT(
       });
       createdRecordType = "WorkOrder";
       createdRecordId = workOrder.id;
+    } else if (suggestion.suggestionType === "progress_existing") {
+      // Append a progress note to an existing WO / Project / MaintenanceSchedule
+      const note = `\n\n[AI progress update ${new Date().toISOString().slice(0, 10)}]\n${payload.progressNote || payload.description || ""}`;
+      if (payload.existingRecordType === "WorkOrder" && payload.existingRecordId) {
+        const existing = await prisma.workOrder.findUnique({ where: { id: payload.existingRecordId } });
+        if (existing) {
+          await prisma.workOrder.update({
+            where: { id: payload.existingRecordId },
+            data: { description: `${existing.description}${note}` },
+          });
+          createdRecordType = "WorkOrder";
+          createdRecordId = payload.existingRecordId;
+        }
+      } else if (payload.existingRecordType === "Project" && payload.existingRecordId) {
+        const existing = await prisma.project.findUnique({ where: { id: payload.existingRecordId } });
+        if (existing) {
+          await prisma.project.update({
+            where: { id: payload.existingRecordId },
+            data: { description: `${existing.description || ""}${note}` },
+          });
+          createdRecordType = "Project";
+          createdRecordId = payload.existingRecordId;
+        }
+      } else if (payload.existingRecordType === "MaintenanceSchedule" && payload.existingRecordId) {
+        const existing = await prisma.maintenanceSchedule.findUnique({ where: { id: payload.existingRecordId } });
+        if (existing) {
+          await prisma.maintenanceSchedule.update({
+            where: { id: payload.existingRecordId },
+            data: { description: `${existing.description || ""}${note}` },
+          });
+          createdRecordType = "MaintenanceSchedule";
+          createdRecordId = payload.existingRecordId;
+        }
+      }
+    } else if (suggestion.suggestionType === "create_auxiliary_equipment") {
+      // Create a child component under an existing parent equipment.
+      if (!payload.parentEquipmentId) {
+        return NextResponse.json({ error: "Missing parentEquipmentId" }, { status: 400 });
+      }
+      const parent = await prisma.equipment.findUnique({ where: { id: payload.parentEquipmentId } });
+      if (!parent) {
+        return NextResponse.json({ error: "Parent equipment not found" }, { status: 400 });
+      }
+      const rand = crypto.randomBytes(3).toString("hex").toUpperCase();
+      const aux = await prisma.equipment.create({
+        data: {
+          name: payload.equipmentName || `${parent.name} — ${payload.auxiliaryType || "Component"}`,
+          type: payload.auxiliaryType || "Component",
+          location: parent.location,
+          serialNumber: `AUX-${Date.now()}-${rand}`,
+          status: "needs_service",
+          parentId: parent.id,
+          notes: `Auto-created as auxiliary component of ${parent.name} from AI suggestion. Please update serial number and details.`,
+        },
+      });
+      createdRecordType = "Equipment";
+      createdRecordId = aux.id;
+
+      if (payload.autoCreateWorkOrder) {
+        await prisma.workOrder.create({
+          data: {
+            equipmentId: aux.id,
+            createdById: session.user.id,
+            title: payload.title || `Service ${aux.name}`,
+            description: `[Auto-created from AI suggestion for auxiliary equipment]\n\n${payload.description || ""}`,
+            priority: payload.priority || "medium",
+          },
+        });
+      }
     } else if (suggestion.suggestionType === "create_maintenance_log") {
       const log = await prisma.maintenanceLog.create({
         data: {
