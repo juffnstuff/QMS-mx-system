@@ -37,23 +37,27 @@ model User {
 }
 
 model Equipment {
-  id           String    @id @default(cuid())
-  name         String
-  type         String
-  location     String
-  serialNumber String    @unique
-  status       String    @default("operational") // "operational" | "needs_service" | "down"
-  notes        String?
-  criticality  String?   // "A" | "B" | "C" — from PM system
-  groupName    String?   // Functional group: "Compression Molding", "Extrusion", etc.
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  name              String
+  type              String
+  location          String
+  serialNumber      String    @unique
+  status            String    @default("operational") // "operational" | "needs_service" | "down"
+  notes             String?
+  criticality       String?   // "A" | "B" | "C" — from PM system
+  groupName         String?   // Functional group: "Compression Molding", "Extrusion", etc.
+  parentEquipmentId String?   // Link auxiliary/child equipment to parent (e.g., pump → press)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
+  parentEquipment Equipment?  @relation("EquipmentHierarchy", fields: [parentEquipmentId], references: [id])
+  childEquipment  Equipment[] @relation("EquipmentHierarchy")
   schedules       MaintenanceSchedule[]
   maintenanceLogs MaintenanceLog[]
   workOrders      WorkOrder[]
 
   @@index([status])
+  @@index([parentEquipmentId])
 }
 
 model MaintenanceSchedule {
@@ -176,7 +180,7 @@ model ProcessedMessage {
 model AISuggestion {
   id                 String    @id @default(cuid())
   processedMessageId String
-  suggestionType     String    // "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review"
+  suggestionType     String    // "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review" | "create_project" | "create_auxiliary_equipment" | "progress_existing"
   status             String    @default("pending") // "pending" | "approved" | "rejected" | "auto_applied"
   payload            String    // JSON with proposed action details
   createdRecordType  String?   // "WorkOrder" | "MaintenanceLog" | "Equipment"

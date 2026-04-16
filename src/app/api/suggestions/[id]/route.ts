@@ -201,6 +201,112 @@ export async function PUT(
         relatedType: "Project",
         relatedId: project.id,
       }).catch((e) => console.error("[Notification] Project created failed:", e));
+    } else if (suggestion.suggestionType === "create_auxiliary_equipment") {
+      // Create a new equipment record linked to a parent
+      let parentId = payload.parentEquipmentId || null;
+
+      // If parent is "unknown" but name is given, try to find by name
+      if (!parentId && payload.parentEquipmentName) {
+        const parentMatch = await prisma.equipment.findFirst({
+          where: {
+            name: { contains: payload.parentEquipmentName, mode: "insensitive" },
+          },
+        });
+        if (parentMatch) parentId = parentMatch.id;
+      }
+
+      const nameLC = (payload.equipmentName || "").toLowerCase();
+      let inferredType = "Component";
+      if (/pump/.test(nameLC)) inferredType = "Pump";
+      else if (/motor/.test(nameLC)) inferredType = "Motor/Power";
+      else if (/charger|battery/.test(nameLC)) inferredType = "Electrical";
+      else if (/attachment|blade|bucket/.test(nameLC)) inferredType = "Attachment";
+      else if (/hose|cable|pipe/.test(nameLC)) inferredType = "Hose/Cable";
+
+      const rand = crypto.randomBytes(3).toString("hex").toUpperCase();
+      const tempSerial = `AUX-${Date.now()}-${rand}`;
+      const auxEquipment = await prisma.equipment.create({
+        data: {
+          name: payload.equipmentName || "Auxiliary Equipment",
+          type: inferredType,
+          location: parentId ? "See parent equipment" : "TBD",
+          serialNumber: tempSerial,
+          status: "operational",
+          parentEquipmentId: parentId,
+          notes: `Auto-created as auxiliary equipment from AI scan.${parentId ? "" : " Please link to parent equipment manually."}${payload.description ? `\n${payload.description}` : ""}`,
+        },
+      });
+      createdRecordType = "Equipment";
+      createdRecordId = auxEquipment.id;
+
+      // Also create a work order or maintenance task if the context suggests one
+      if (payload.priority && payload.priority !== "low") {
+        const targetEquipmentId = parentId || auxEquipment.id;
+        const wo = await prisma.workOrder.create({
+          data: {
+            equipmentId: targetEquipmentId,
+            createdById: session.user.id,
+            title: payload.title || `Service: ${payload.equipmentName}`,
+            description: `[Created from AI email scan — auxiliary equipment]\n\n${payload.description || ""}`,
+            priority: payload.priority || "medium",
+          },
+        });
+        // Update the suggestion to reference the WO as well
+        createdRecordType = "WorkOrder";
+        createdRecordId = wo.id;
+
+        const woEmail = workOrderCreated(wo.title, payload.priority || "medium", wo.id);
+        sendDigestToAdminsAndUsers([], {
+          type: "work_order_created",
+          title: woEmail.subject,
+          message: `New work order from auxiliary equipment: ${wo.title}`,
+          relatedType: "WorkOrder",
+          relatedId: wo.id,
+        }).catch((e) => console.error("[Notification] Aux WO created failed:", e));
+      }
+    } else if (suggestion.suggestionType === "progress_existing") {
+      // Add a note/update to an existing record
+      const recordType = payload.existingRecordType;
+      const recordId = payload.existingRecordId;
+      const update = payload.suggestedUpdate || payload.description || "";
+
+      if (recordType === "WorkOrder" && recordId) {
+        const existing = await prisma.workOrder.findUnique({ where: { id: recordId } });
+        if (existing) {
+          await prisma.workOrder.update({
+            where: { id: recordId },
+            data: {
+              description: `${existing.description}\n\n[AI Scan Update — ${new Date().toLocaleDateString()}]\n${update}`,
+            },
+          });
+          createdRecordType = "WorkOrder";
+          createdRecordId = recordId;
+        }
+      } else if (recordType === "Project" && recordId) {
+        const existing = await prisma.project.findUnique({ where: { id: recordId } });
+        if (existing) {
+          await prisma.project.update({
+            where: { id: recordId },
+            data: {
+              description: `${existing.description || ""}\n\n[AI Scan Update — ${new Date().toLocaleDateString()}]\n${update}`,
+            },
+          });
+          createdRecordType = "Project";
+          createdRecordId = recordId;
+        }
+      } else if (recordType === "MaintenanceSchedule" && recordId) {
+        const existing = await prisma.maintenanceSchedule.findUnique({ where: { id: recordId } });
+        if (existing) {
+          await prisma.maintenanceSchedule.update({
+            where: { id: recordId },
+            data: {
+              description: `${existing.description || ""}\n\n[AI Scan Update — ${new Date().toLocaleDateString()}]\n${update}`,
+            },
+          });
+          createdRecordType = "MaintenanceSchedule";
+          createdRecordId = recordId;
+        }
+      }
     }
 
     const updated = await prisma.aISuggestion.update({
