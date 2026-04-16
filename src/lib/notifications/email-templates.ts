@@ -1,9 +1,9 @@
 const BASE_URL = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-function wrap(title: string, body: string, link?: string): string {
+function wrap(title: string, body: string, link?: string, accent = "#1f2937"): string {
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: #1f2937; color: white; padding: 16px 20px; border-radius: 8px 8px 0 0;">
+      <div style="background: ${accent}; color: white; padding: 16px 20px; border-radius: 8px 8px 0 0;">
         <h2 style="margin: 0; font-size: 16px;">QMS Tracker — RubberForm</h2>
       </div>
       <div style="background: white; border: 1px solid #e5e7eb; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
@@ -31,6 +31,19 @@ export function workOrderAssigned(title: string, assigneeName: string, workOrder
   };
 }
 
+export function workOrderCreated(title: string, equipmentName: string, priority: string, workOrderId: string) {
+  const link = `${BASE_URL}/work-orders/${workOrderId}`;
+  return {
+    subject: `New Work Order: ${title}`,
+    html: wrap(
+      `Work Order Created`,
+      `<p>A new work order was created:</p><ul><li><strong>${title}</strong></li><li>Equipment: ${equipmentName}</li><li>Priority: ${priority}</li></ul>`,
+      link
+    ),
+    plain: `New work order "${title}" on ${equipmentName} (${priority}). View at ${link}`,
+  };
+}
+
 export function statusChanged(title: string, oldStatus: string, newStatus: string, workOrderId: string) {
   const link = `${BASE_URL}/work-orders/${workOrderId}`;
   return {
@@ -44,16 +57,56 @@ export function statusChanged(title: string, oldStatus: string, newStatus: strin
   };
 }
 
-export function suggestionsNeedReview(count: number) {
-  const link = `${BASE_URL}/settings/m365/suggestions`;
+export function equipmentDown(equipmentName: string, location: string, notes: string | null, equipmentId: string) {
+  const link = `${BASE_URL}/equipment/${equipmentId}`;
   return {
-    subject: `${count} AI Suggestion${count !== 1 ? "s" : ""} Need Review`,
+    subject: `URGENT: Equipment Down — ${equipmentName}`,
     html: wrap(
-      `AI Suggestions Need Review`,
-      `<p>${count} new AI suggestion${count !== 1 ? "s" : ""} from email scanning ${count !== 1 ? "are" : "is"} awaiting your review.</p>`,
+      `Equipment Down`,
+      `<p style="color: #b91c1c; font-weight: 600;">${equipmentName} has been marked DOWN.</p><p>Location: ${location}</p>${notes ? `<p>Notes: ${notes}</p>` : ""}<p>Immediate attention required.</p>`,
+      link,
+      "#b91c1c"
+    ),
+    plain: `URGENT: ${equipmentName} at ${location} is DOWN. ${notes || ""} View at ${link}`.trim(),
+  };
+}
+
+export function equipmentStatusChanged(equipmentName: string, oldStatus: string, newStatus: string, equipmentId: string) {
+  const link = `${BASE_URL}/equipment/${equipmentId}`;
+  return {
+    subject: `Equipment Status Changed: ${equipmentName}`,
+    html: wrap(
+      `Equipment Status Updated`,
+      `<p><strong>${equipmentName}</strong> changed from <strong>${oldStatus}</strong> to <strong>${newStatus}</strong>.</p>`,
       link
     ),
-    plain: `${count} new AI suggestions need review. View at ${link}`,
+    plain: `${equipmentName} status: ${oldStatus} → ${newStatus}. View at ${link}`,
+  };
+}
+
+export function projectCreated(title: string, priority: string, projectId: string) {
+  const link = `${BASE_URL}/projects/${projectId}`;
+  return {
+    subject: `New Project: ${title}`,
+    html: wrap(
+      `Project Created`,
+      `<p>A new project was created:</p><ul><li><strong>${title}</strong></li><li>Priority: ${priority}</li></ul>`,
+      link
+    ),
+    plain: `New project "${title}" (${priority}). View at ${link}`,
+  };
+}
+
+export function maintenanceLogged(equipmentName: string, description: string, equipmentId: string) {
+  const link = `${BASE_URL}/equipment/${equipmentId}`;
+  return {
+    subject: `Maintenance Logged: ${equipmentName}`,
+    html: wrap(
+      `Maintenance Activity`,
+      `<p>Maintenance was logged on <strong>${equipmentName}</strong>:</p><p>${description}</p>`,
+      link
+    ),
+    plain: `Maintenance logged on ${equipmentName}: ${description.slice(0, 100)}. View at ${link}`,
   };
 }
 
@@ -102,5 +155,54 @@ export function maintenanceDue(schedules: { title: string; equipmentName: string
       link
     ),
     plain: `${schedules.length} maintenance tasks due/overdue: ${schedules.map((s) => s.title).join(", ")}. View at ${link}`,
+  };
+}
+
+interface DigestRow {
+  title: string;
+  type: string;
+  message: string;
+  link: string;
+  createdAt: Date;
+}
+
+/**
+ * Summary table digest emailed 3x daily (5am / 12pm / 5pm) consolidating
+ * queued digest-urgency notifications for a single user.
+ */
+export function statusDigest(rows: DigestRow[], slotLabel: string) {
+  const tableRows = rows
+    .map(
+      (r) => `
+      <tr>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-size: 13px;">${r.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-size: 13px;">${r.type}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-size: 13px;"><a href="${r.link}" style="color: #2563eb; text-decoration: none;">${r.title}</a></td>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #4b5563;">${r.message}</td>
+      </tr>
+    `
+    )
+    .join("");
+
+  return {
+    subject: `QMS ${slotLabel} Digest — ${rows.length} update${rows.length !== 1 ? "s" : ""}`,
+    html: wrap(
+      `${slotLabel} Digest`,
+      `
+        <p>${rows.length} update${rows.length !== 1 ? "s" : ""} since the last digest:</p>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+          <thead>
+            <tr style="background: #f9fafb;">
+              <th style="padding: 8px; text-align: left; font-size: 12px; color: #6b7280; border-bottom: 2px solid #e5e7eb;">Time</th>
+              <th style="padding: 8px; text-align: left; font-size: 12px; color: #6b7280; border-bottom: 2px solid #e5e7eb;">Type</th>
+              <th style="padding: 8px; text-align: left; font-size: 12px; color: #6b7280; border-bottom: 2px solid #e5e7eb;">Item</th>
+              <th style="padding: 8px; text-align: left; font-size: 12px; color: #6b7280; border-bottom: 2px solid #e5e7eb;">Detail</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      `
+    ),
+    plain: `QMS ${slotLabel} digest — ${rows.length} updates. ${rows.map((r) => r.title).join("; ")}`,
   };
 }
