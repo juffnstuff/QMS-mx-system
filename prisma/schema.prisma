@@ -12,6 +12,7 @@ model User {
   name           String
   passwordHash   String
   role           String    @default("operator") // "admin" | "operator"
+  isSuperAdmin   Boolean   @default(false) // Super admins (implicitly admins) can delete users
   phone          String?
   carrier        String?   // SMS gateway domain: "vtext.com", "tmomail.net", etc.
   notifyEmail    Boolean   @default(true)

@@ -16,11 +16,13 @@ import {
 import { AddUserForm } from "@/components/add-user-form";
 import { ResetPasswordButton } from "@/components/reset-password-button";
 import { UserRoleToggle } from "@/components/user-role-toggle";
+import { DeleteUserButton } from "@/components/delete-user-button";
 import Link from "next/link";
 
 export default async function UsersPage() {
   const session = await auth();
   if (session?.user.role !== "admin") redirect("/");
+  const isSuperAdmin = session.user.isSuperAdmin;
 
   const users = await prisma.user.findMany({
     orderBy: { name: "asc" },
@@ -29,6 +31,7 @@ export default async function UsersPage() {
       name: true,
       email: true,
       role: true,
+      isSuperAdmin: true,
       phone: true,
       notifyEmail: true,
       notifySMS: true,
@@ -109,13 +112,19 @@ export default async function UsersPage() {
                   {/* Role badge */}
                   <span
                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                      user.role === "admin"
-                        ? "bg-purple-100 text-purple-800"
-                        : "bg-blue-100 text-blue-800"
+                      user.isSuperAdmin
+                        ? "bg-amber-100 text-amber-800"
+                        : user.role === "admin"
+                          ? "bg-purple-100 text-purple-800"
+                          : "bg-blue-100 text-blue-800"
                     }`}
                   >
                     <Shield size={12} />
-                    {user.role === "admin" ? "Admin" : "Operator"}
+                    {user.isSuperAdmin
+                      ? "Super Admin"
+                      : user.role === "admin"
+                        ? "Admin"
+                        : "Operator"}
                   </span>
 
                   {/* Notification indicators */}
@@ -210,6 +219,9 @@ export default async function UsersPage() {
                 <div className="ml-auto flex items-center gap-2">
                   <UserRoleToggle userId={user.id} userName={user.name} currentRole={user.role} />
                   <ResetPasswordButton userId={user.id} userName={user.name} />
+                  {isSuperAdmin && !user.isSuperAdmin && user.id !== session.user.id && (
+                    <DeleteUserButton userId={user.id} userName={user.name} />
+                  )}
                 </div>
               </div>
             </div>

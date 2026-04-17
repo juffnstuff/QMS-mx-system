@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ConnectionCard } from "@/components/m365/connection-card";
 import { ScanButton } from "@/components/m365/scan-button";
+import { RecheckApprovedButton } from "@/components/m365/recheck-approved-button";
 
 export default async function M365SettingsPage({
   searchParams,
@@ -25,14 +26,10 @@ export default async function M365SettingsPage({
     })
     .catch(() => null);
 
-  // Stats scoped to this user's scans
+  // Global suggestion counts so the numbers match what clicking through shows
+  // on /settings/m365/suggestions (which lists everyone's suggestions).
   const pendingSuggestions = await prisma.aISuggestion
-    .count({
-      where: {
-        status: "pending",
-        processedMessage: { scannedByUserId: session.user.id },
-      },
-    })
+    .count({ where: { status: "pending" } })
     .catch(() => 0);
 
   const messagesLast24h = await prisma.processedMessage
@@ -45,12 +42,7 @@ export default async function M365SettingsPage({
     .catch(() => 0);
 
   const approvedTotal = await prisma.aISuggestion
-    .count({
-      where: {
-        status: "approved",
-        processedMessage: { scannedByUserId: session.user.id },
-      },
-    })
+    .count({ where: { status: "approved" } })
     .catch(() => 0);
 
   return (
@@ -168,6 +160,19 @@ export default async function M365SettingsPage({
         <div className="mt-4 text-xs text-gray-400 text-center">
           Last scanned:{" "}
           {new Date(connection.lastPolledAt).toLocaleString()}
+        </div>
+      )}
+
+      {/* Admin tools */}
+      {connection && session.user.role !== "operator" && (
+        <div className="mt-6 p-4 bg-white border border-gray-200 rounded-lg">
+          <h3 className="text-sm font-semibold text-gray-800 mb-1">Admin tools</h3>
+          <p className="text-xs text-gray-500 mb-3">
+            If approved suggestions point to records that no longer exist in the
+            system, re-check will move them back to Pending Review so you can
+            redo them.
+          </p>
+          <RecheckApprovedButton />
         </div>
       )}
     </div>
