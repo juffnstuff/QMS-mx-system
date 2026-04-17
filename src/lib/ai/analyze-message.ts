@@ -173,7 +173,7 @@ ${message.body.slice(0, 4000)}
 ### Relevance gate — REJECT these outright
 These are **NEVER** QMS-relevant. If the email is one of these, set relevant=false:
 - **Invoices, billing statements, accounts receivable/payable, financial reports, purchase order confirmations** — we do not track billing in QMS.
-- Quotes that are purely financial with no equipment/service context.
+- Quotes that are purely financial with **no** equipment, part, or service content (e.g. a bare dollar number with no context).
 - Sports tickets, box seats, game schedules (Sabres, Bills, etc.).
 - Social events, happy hours, team outings, lunch orders.
 - Marketing, newsletters, promotions, webinars.
@@ -182,6 +182,17 @@ These are **NEVER** QMS-relevant. If the email is one of these, set relevant=fal
 - Password resets, license renewals, software notifications.
 
 **"Service" means equipment/maintenance service, NOT customer service or trucking service.**
+
+### Relevance boosters — ALWAYS treat as relevant
+Emails matching any of these patterns are RubberForm-operational and should be acted on (create_work_order, progress_existing, create_auxiliary_equipment, flag_for_review, etc.), never marked not-relevant:
+
+- **External equipment/parts/service vendor replies** about RubberForm equipment. Examples of vendor signals: sender name or domain includes "parts", "service", "equipment", "industrial", "machinery", "repair", "supply"; names like Veritiv, Polychem, InQuip, Grainger, MSC, Motion, Applied, Kaman, Fastenal, McMaster, Bearings Inc., hydraulic/pneumatic shops; signature blocks listing equipment brands.
+- **Any email naming a specific RubberForm machine, model, or equipment type** in the subject or body — even if it's a forwarded reply, thread, or carries a ref/case number (e.g. "[ ref:!00D... ]"). Equipment names/models like "PC-102", "table bander", "Dake press", "granulator", "extruder", "forklift", specific serial numbers, brand+model combos. This applies regardless of whether the equipment is in the registry yet. If unregistered, suggest create_work_order with isNewEquipment=true or flag_for_review.
+- **Quotes, estimates, or pricing** that reference a specific piece of equipment, part, or service. "Quote for hydraulic pump rebuild on Dake" is relevant — log it (create_project or create_work_order). Only reject if the quote is literally a standalone dollar figure with zero equipment context.
+- **Forwards (FW:/Fwd:) from our own team** that include any of the above — treat the forwarded content as the subject of analysis.
+- **Vendor case/ticket acknowledgments** referencing our equipment (ref numbers, case IDs) — use progress_existing if tied to an open WO/project, otherwise create_work_order or flag_for_review.
+
+When in doubt between "not relevant" and "flag_for_review", ALWAYS pick flag_for_review. A missed equipment/vendor email is a bigger cost than a false positive in the queue.
 
 ### Match emails to EXISTING records first
 Before creating anything new, check the Open Work Orders, Active Projects, and Active Maintenance Schedules lists above. If this email is a progress update, parts-shipping notice, vendor reply, or follow-up to something already tracked:
