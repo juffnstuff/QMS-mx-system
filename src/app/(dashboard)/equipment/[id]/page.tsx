@@ -5,7 +5,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
 import Link from "next/link";
-import { Pencil, ShieldAlert, Shield, ShieldCheck, Link2 } from "lucide-react";
+import { Pencil, ShieldAlert, Shield, ShieldCheck, Link2, ClipboardList, Plus } from "lucide-react";
 
 const EQUIPMENT_CLASS_LABELS: Record<string, string> = {
   extruders: "Extruders & Production",
@@ -313,8 +313,24 @@ export default async function EquipmentDetailPage({
 
       {/* Recent Maintenance Log */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between gap-3">
           <h2 className="font-semibold text-gray-900">Maintenance History</h2>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/equipment/${id}/maintenance-log`}
+              className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              <ClipboardList size={14} />
+              View full log
+            </Link>
+            <Link
+              href={`/maintenance/new?equipmentId=${id}`}
+              className="inline-flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
+              <Plus size={14} />
+              Log Maintenance
+            </Link>
+          </div>
         </div>
         <div className="divide-y divide-gray-100">
           {equipment.maintenanceLogs.length === 0 ? (

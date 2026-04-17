@@ -46,6 +46,31 @@ const BOARD_TO_NATIVE_STATUS: Record<EntityType, Record<string, string | null>> 
   },
 };
 
+// Advance a schedule's nextDue based on its frequency
+function advanceNextDue(from: Date, frequency: string): Date {
+  const next = new Date(from);
+  switch (frequency) {
+    case "daily":
+      next.setDate(next.getDate() + 1);
+      break;
+    case "weekly":
+      next.setDate(next.getDate() + 7);
+      break;
+    case "monthly":
+      next.setMonth(next.getMonth() + 1);
+      break;
+    case "quarterly":
+      next.setMonth(next.getMonth() + 3);
+      break;
+    case "annual":
+      next.setFullYear(next.getFullYear() + 1);
+      break;
+    default:
+      next.setMonth(next.getMonth() + 1);
+  }
+  return next;
+}
+
 export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session) {
@@ -53,7 +78,13 @@ export async function PATCH(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { entityType, entityId, boardStatus } = body;
+  const { entityType, entityId, boardStatus, completionNotes, partsUsed } = body as {
+    entityType?: string;
+    entityId?: string;
+    boardStatus?: string;
+    completionNotes?: string;
+    partsUsed?: string;
+  };
 
   if (!entityType || !entityId || !boardStatus) {
     return NextResponse.json(
@@ -89,15 +120,82 @@ export async function PATCH(req: NextRequest) {
   }
 
   try {
+    const now = new Date();
     let result;
+    let maintenanceLogId: string | null = null;
 
     switch (entityType as EntityType) {
-      case "workOrder":
+      case "workOrder": {
+        // Read equipment + title before update so we can build a log entry on done
+        const existing = boardStatus === "done"
+          ? await prisma.workOrder.findUnique({
+              where: { id: entityId },
+              select: { equipmentId: true, title: true },
+            })
+          : null;
+
         result = await prisma.workOrder.update({
           where: { id: entityId },
           data: updateData,
         });
+
+        if (boardStatus === "done" && existing) {
+          const log = await prisma.maintenanceLog.create({
+            data: {
+              equipmentId: existing.equipmentId,
+              userId: session.user.id,
+              description: completionNotes
+                ? `${existing.title} — ${completionNotes}`
+                : existing.title,
+              partsUsed: partsUsed || null,
+              performedAt: now,
+            },
+          });
+          maintenanceLogId = log.id;
+        }
         break;
+      }
+      case "maintenanceSchedule": {
+        if (boardStatus === "done") {
+          const schedule = await prisma.maintenanceSchedule.findUnique({
+            where: { id: entityId },
+            select: { equipmentId: true, title: true, frequency: true },
+          });
+          if (!schedule) throw new Error("Schedule not found");
+
+          const newNextDue = advanceNextDue(now, schedule.frequency);
+          const [log, updatedSchedule] = await prisma.$transaction([
+            prisma.maintenanceLog.create({
+              data: {
+                equipmentId: schedule.equipmentId,
+                userId: session.user.id,
+                description: completionNotes
+                  ? `${schedule.title} — ${completionNotes}`
+                  : schedule.title,
+                partsUsed: partsUsed || null,
+                performedAt: now,
+              },
+            }),
+            // Advance the schedule's nextDue and reset the board so the next cycle appears
+            prisma.maintenanceSchedule.update({
+              where: { id: entityId },
+              data: {
+                lastDone: now,
+                nextDue: newNextDue,
+                boardStatus: "scheduled",
+              },
+            }),
+          ]);
+          result = updatedSchedule;
+          maintenanceLogId = log.id;
+        } else {
+          result = await prisma.maintenanceSchedule.update({
+            where: { id: entityId },
+            data: { boardStatus },
+          });
+        }
+        break;
+      }
       case "nonConformance":
         result = await prisma.nonConformance.update({
           where: { id: entityId },
@@ -116,15 +214,9 @@ export async function PATCH(req: NextRequest) {
           data: updateData,
         });
         break;
-      case "maintenanceSchedule":
-        result = await prisma.maintenanceSchedule.update({
-          where: { id: entityId },
-          data: { boardStatus },
-        });
-        break;
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, maintenanceLogId });
   } catch (error) {
     console.error("[Kanban PATCH] Error:", error);
     return NextResponse.json({ error: "Record not found or update failed" }, { status: 404 });

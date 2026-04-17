@@ -17,7 +17,6 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { useRouter } from "next/navigation";
 import { KanbanColumn } from "./kanban-column";
 import { KanbanCard, KanbanCardData, EntityType } from "./kanban-card";
-import { ChevronDown } from "lucide-react";
 
 const COLUMNS = [
   { id: "backlog", title: "Backlog" },
@@ -40,6 +39,22 @@ function parseCardKey(key: string): { entityType: EntityType; id: string } | nul
   return { entityType: entityType as EntityType, id };
 }
 
+// Moving a work order or maintenance schedule to "done" creates a MaintenanceLog;
+// prompt the user for completion details before committing.
+function shouldPromptForCompletion(entityType: EntityType, targetCol: ColumnId): boolean {
+  return (
+    targetCol === "done" &&
+    (entityType === "workOrder" || entityType === "maintenanceSchedule")
+  );
+}
+
+type PendingCompletion = {
+  cardKey: string;
+  targetCol: ColumnId;
+  entityType: EntityType;
+  cardTitle: string;
+};
+
 export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) {
   const router = useRouter();
   const [columns, setColumns] = useState<Record<ColumnId, string[]>>(initialColumns);
@@ -52,6 +67,9 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<ColumnId>("backlog");
   const [expandedCols, setExpandedCols] = useState<Set<string>>(new Set(["backlog", "in_progress"]));
+  // Snapshot of column state captured before a move that may need to be reverted.
+  const [pendingSnapshot, setPendingSnapshot] = useState<Record<ColumnId, string[]> | null>(null);
+  const [pendingCompletion, setPendingCompletion] = useState<PendingCompletion | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -73,21 +91,17 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
     setTimeout(() => setToastMessage(null), 3000);
   }, []);
 
-  // Shared move-card logic used by both drag-and-drop AND tap-to-move
-  const performMove = useCallback(
-    async (cardKey: string, targetCol: ColumnId) => {
+  // Send the move to the API. Optionally carries completion notes/parts when
+  // transitioning to "done" for workOrder/maintenanceSchedule.
+  const commitMove = useCallback(
+    async (
+      cardKey: string,
+      targetCol: ColumnId,
+      completion?: { completionNotes?: string; partsUsed?: string },
+      snapshotForRevert?: Record<ColumnId, string[]>,
+    ) => {
       const parsed = parseCardKey(cardKey);
       if (!parsed) return;
-
-      const sourceCol = findColumn(cardKey);
-      if (!sourceCol || sourceCol === targetCol) return;
-
-      // Optimistic update
-      setColumns((prev) => {
-        const source = prev[sourceCol].filter((k) => k !== cardKey);
-        const target = [...prev[targetCol], cardKey];
-        return { ...prev, [sourceCol]: source, [targetCol]: target };
-      });
 
       try {
         const res = await fetch("/api/kanban", {
@@ -97,6 +111,8 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
             entityType: parsed.entityType,
             entityId: parsed.id,
             boardStatus: targetCol,
+            ...(completion?.completionNotes ? { completionNotes: completion.completionNotes } : {}),
+            ...(completion?.partsUsed ? { partsUsed: completion.partsUsed } : {}),
           }),
         });
 
@@ -107,19 +123,63 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
 
         const card = cardMap.get(cardKey);
         const colLabel = COLUMNS.find((c) => c.id === targetCol)?.title || targetCol;
-        showToast(`${card?.title || "Item"} moved to ${colLabel}`);
+        const loggedSuffix =
+          targetCol === "done" &&
+          (parsed.entityType === "workOrder" || parsed.entityType === "maintenanceSchedule")
+            ? " · maintenance logged"
+            : "";
+        showToast(`${card?.title || "Item"} moved to ${colLabel}${loggedSuffix}`);
         router.refresh();
       } catch (error) {
         showToast(`Failed to update: ${error instanceof Error ? error.message : "Unknown error"}`);
-        setColumns(initialColumns);
+        if (snapshotForRevert) setColumns(snapshotForRevert);
       }
     },
-    [findColumn, initialColumns, cardMap, router, showToast]
+    [cardMap, router, showToast]
   );
 
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  }, []);
+  // Shared move-card logic used by tap-to-move (mobile) and by performMove fallback
+  const performMove = useCallback(
+    async (cardKey: string, targetCol: ColumnId) => {
+      const parsed = parseCardKey(cardKey);
+      if (!parsed) return;
+
+      const sourceCol = findColumn(cardKey);
+      if (!sourceCol || sourceCol === targetCol) return;
+
+      const snapshot = columns;
+
+      // Optimistic update
+      setColumns((prev) => {
+        const source = prev[sourceCol].filter((k) => k !== cardKey);
+        const target = [...prev[targetCol], cardKey];
+        return { ...prev, [sourceCol]: source, [targetCol]: target };
+      });
+
+      if (shouldPromptForCompletion(parsed.entityType, targetCol)) {
+        const card = cardMap.get(cardKey);
+        setPendingSnapshot(snapshot);
+        setPendingCompletion({
+          cardKey,
+          targetCol,
+          entityType: parsed.entityType,
+          cardTitle: card?.title || "this item",
+        });
+        return;
+      }
+
+      await commitMove(cardKey, targetCol, undefined, snapshot);
+    },
+    [columns, findColumn, cardMap, commitMove]
+  );
+
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      setActiveId(event.active.id as string);
+      setPendingSnapshot(columns);
+    },
+    [columns]
+  );
 
   const handleDragOver = useCallback(
     (event: DragOverEvent) => {
@@ -156,13 +216,19 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
       const { active, over } = event;
       setActiveId(null);
 
-      if (!over) return;
+      if (!over) {
+        setPendingSnapshot(null);
+        return;
+      }
 
       const activeKey = active.id as string;
       const overId = over.id as string;
       const targetCol = findColumn(activeKey);
 
-      if (!targetCol) return;
+      if (!targetCol) {
+        setPendingSnapshot(null);
+        return;
+      }
 
       // Handle reorder within same column
       if (columns[targetCol].includes(overId) && activeKey !== overId) {
@@ -175,41 +241,59 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
       }
 
       const parsed = parseCardKey(activeKey);
-      if (!parsed) return;
+      if (!parsed) {
+        setPendingSnapshot(null);
+        return;
+      }
 
-      const originalCol = Object.entries(initialColumns).find(([, keys]) =>
+      const snapshot = pendingSnapshot;
+      const originalCol = Object.entries(snapshot ?? initialColumns).find(([, keys]) =>
         keys.includes(activeKey)
       )?.[0];
 
       if (originalCol !== targetCol) {
-        try {
-          const res = await fetch("/api/kanban", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              entityType: parsed.entityType,
-              entityId: parsed.id,
-              boardStatus: targetCol,
-            }),
-          });
-
-          if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || "Update failed");
-          }
-
+        if (shouldPromptForCompletion(parsed.entityType, targetCol)) {
           const card = cardMap.get(activeKey);
-          const colLabel = COLUMNS.find((c) => c.id === targetCol)?.title || targetCol;
-          showToast(`${card?.title || "Item"} moved to ${colLabel}`);
-          router.refresh();
-        } catch (error) {
-          showToast(`Failed to update: ${error instanceof Error ? error.message : "Unknown error"}`);
-          setColumns(initialColumns);
+          setPendingCompletion({
+            cardKey: activeKey,
+            targetCol,
+            entityType: parsed.entityType,
+            cardTitle: card?.title || "this item",
+          });
+          // keep pendingSnapshot so cancel can revert
+          return;
         }
+
+        await commitMove(activeKey, targetCol, undefined, snapshot ?? initialColumns);
       }
+
+      setPendingSnapshot(null);
     },
-    [columns, findColumn, initialColumns, cardMap, router, showToast]
+    [columns, findColumn, initialColumns, cardMap, commitMove, pendingSnapshot]
   );
+
+  const handleCompletionConfirm = useCallback(
+    async (notes: string, parts: string) => {
+      if (!pendingCompletion) return;
+      const { cardKey, targetCol } = pendingCompletion;
+      const snapshot = pendingSnapshot ?? initialColumns;
+      setPendingCompletion(null);
+      setPendingSnapshot(null);
+      await commitMove(
+        cardKey,
+        targetCol,
+        { completionNotes: notes.trim() || undefined, partsUsed: parts.trim() || undefined },
+        snapshot,
+      );
+    },
+    [pendingCompletion, pendingSnapshot, initialColumns, commitMove]
+  );
+
+  const handleCompletionCancel = useCallback(() => {
+    if (pendingSnapshot) setColumns(pendingSnapshot);
+    setPendingCompletion(null);
+    setPendingSnapshot(null);
+  }, [pendingSnapshot]);
 
   const activeCard = activeId ? cardMap.get(activeId) || null : null;
 
@@ -316,12 +400,107 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
         </p>
       </div>
 
+      {/* Completion prompt — shown when a card moves to Done and needs a maintenance log */}
+      {pendingCompletion && (
+        <CompletionDialog
+          entityType={pendingCompletion.entityType}
+          cardTitle={pendingCompletion.cardTitle}
+          onConfirm={handleCompletionConfirm}
+          onCancel={handleCompletionCancel}
+        />
+      )}
+
       {/* Toast notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 left-6 sm:left-auto z-50 bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg text-sm animate-fade-in max-w-sm mx-auto sm:mx-0">
           {toastMessage}
         </div>
       )}
+    </div>
+  );
+}
+
+function CompletionDialog({
+  entityType,
+  cardTitle,
+  onConfirm,
+  onCancel,
+}: {
+  entityType: EntityType;
+  cardTitle: string;
+  onConfirm: (notes: string, parts: string) => void;
+  onCancel: () => void;
+}) {
+  const [notes, setNotes] = useState("");
+  const [parts, setParts] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const label = entityType === "workOrder" ? "Work order" : "Maintenance";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div className="p-5 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">Complete {label}</h3>
+          <p className="text-sm text-gray-500 mt-1 line-clamp-2">{cardTitle}</p>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setSubmitting(true);
+            onConfirm(notes, parts);
+          }}
+          className="p-5 space-y-4"
+        >
+          <div>
+            <label htmlFor="completion-notes" className="block text-sm font-medium text-gray-700 mb-1">
+              What was done?
+            </label>
+            <textarea
+              id="completion-notes"
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Brief description of the work performed (optional)"
+              autoFocus
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Appended to the maintenance log entry.
+            </p>
+          </div>
+          <div>
+            <label htmlFor="completion-parts" className="block text-sm font-medium text-gray-700 mb-1">
+              Parts used
+            </label>
+            <input
+              id="completion-parts"
+              type="text"
+              value={parts}
+              onChange={(e) => setParts(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., 2x bearings, 1 gallon hydraulic fluid"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={submitting}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              {submitting ? "Logging..." : "Log & Complete"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
