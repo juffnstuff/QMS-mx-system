@@ -10,11 +10,18 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, type, location, serialNumber, status, notes } = body;
+    const { name, type, location, serialNumber, status, criticality, equipmentClass, groupName, parentId, assignedTechnicianId, secondaryTechnicianId, notes } = body;
 
     if (!name || !type || !location || !serialNumber) {
       return NextResponse.json(
         { error: "Name, type, location, and serial number are required" },
+        { status: 400 }
+      );
+    }
+
+    if (criticality && !["A", "B", "C"].includes(criticality)) {
+      return NextResponse.json(
+        { error: "Criticality must be A, B, or C" },
         { status: 400 }
       );
     }
@@ -30,7 +37,17 @@ export async function POST(req: NextRequest) {
     }
 
     const equipment = await prisma.equipment.create({
-      data: { name, type, location, serialNumber, status: status || "operational", notes },
+      data: {
+        name, type, location, serialNumber,
+        status: status || "operational",
+        criticality: criticality || "C",
+        equipmentClass: equipmentClass || null,
+        groupName: groupName || null,
+        parentId: parentId || null,
+        assignedTechnicianId: assignedTechnicianId || null,
+        secondaryTechnicianId: secondaryTechnicianId || null,
+        notes,
+      },
     });
 
     return NextResponse.json(equipment, { status: 201 });

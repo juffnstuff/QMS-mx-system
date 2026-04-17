@@ -88,6 +88,9 @@ export default async function CAPAsPage({
           <div className="p-8 text-center text-gray-500">
             <Shield size={40} className="mx-auto mb-3 text-gray-300" />
             <p>No CAPA records found.</p>
+            <Link href="/capas/new" className="inline-flex items-center gap-1 mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium">
+              <Plus size={14} /> Create your first CAPA
+            </Link>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
@@ -102,6 +105,7 @@ export default async function CAPAsPage({
                       {sourceLabels[capa.source] || capa.source}
                       {" • "}
                       {capa.originator?.name || "Unknown"}
+                      {capa.assignedTo && ` • Assigned: ${capa.assignedTo.name}`}
                     </p>
                     {capa.targetCloseDate && (
                       <p className={`text-xs mt-0.5 ${new Date(capa.targetCloseDate) < new Date() && capa.status !== "closed" ? "text-red-500" : "text-gray-400"}`}>

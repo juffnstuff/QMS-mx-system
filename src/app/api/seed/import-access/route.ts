@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { accessNCRs } from "@/data/access-import/ncrs";
-import { currentProjects, futureProjects, worthNotingProjects } from "@/data/access-import/projects";
-import type { AccessProject } from "@/data/access-import/projects";
 
 // ── Equipment enrichment: criticality + groupName by serialNumber ──────────
 
@@ -100,22 +98,6 @@ const equipmentEnrichments: Record<string, { criticality: string; groupName: str
   "RF-EQ-069": { criticality: "B", groupName: "Other" },
 };
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function mapPriority(p: string): string {
-  if (p.startsWith("1")) return "critical";
-  if (p.startsWith("2")) return "high";
-  if (p.startsWith("3")) return "medium";
-  if (p.startsWith("4")) return "medium";
-  return "low"; // 5 Discovery, 7 Idea
-}
-
-function mapStatus(s: string): string {
-  if (s === "Completed") return "completed";
-  if (s === "Not Started") return "planning";
-  return "in_progress";
-}
-
 // ── POST handler ───────────────────────────────────────────────────────────
 
 export async function POST() {
@@ -126,7 +108,7 @@ export async function POST() {
     }
 
     const adminId = session.user.id;
-    const results = { equipment: 0, ncrs: 0, projects: 0 };
+    const results = { equipment: 0, ncrs: 0 };
 
     // 1) Equipment enrichments
     for (const [serial, data] of Object.entries(equipmentEnrichments)) {
@@ -141,69 +123,48 @@ export async function POST() {
     const existingNCRs = await prisma.nonConformance.findMany({
       select: { ncrNumber: true },
     });
-    const existingNumbers = new Set(existingNCRs.map((n) => n.ncrNumber));
+    const existingNumbers = new Set(existingNCRs.map((n: { ncrNumber: string }) => n.ncrNumber));
+
+    const ncrTypeMap: Record<string, string> = {
+      Dimensional: "dimensional", Quality: "quality", Function: "function",
+      Aesthetic: "aesthetic", Asthetic: "aesthetic", Safety: "safety", Compliance: "compliance",
+    };
+    const dispositionMap: Record<string, string> = {
+      "Use as is": "use_as_is", "In-House Rework": "rework",
+      Scrap: "scrap", "Return to Vendor": "return_to_vendor",
+    };
 
     for (const ncr of accessNCRs) {
-      const ncrNum = `NCR-${ncr.ncrNumber.slice(0, 2) === "26" ? "2026" : "2025"}-${ncr.ncrNumber.slice(2)}`;
-      if (existingNumbers.has(ncrNum)) continue;
+      if (existingNumbers.has(ncr.ncrNumber)) continue;
 
       await prisma.nonConformance.create({
         data: {
-          ncrNumber: ncrNum,
+          ncrNumber: ncr.ncrNumber,
           submittedById: adminId,
-          date: ncr.date ? new Date(ncr.date) : new Date(),
-          partNumber: ncr.partNumber,
-          drawingNumber: ncr.drawingNumber,
-          quantityAffected: ncr.quantityAffected,
-          vendor: ncr.vendor,
-          otherInfo: ncr.description,
-          ncrType: ncr.ncrType,
-          requirementDescription: ncr.requirementDescription || "(imported — no description)",
-          nonConformanceDescription: ncr.nonConformanceDescription,
-          disposition: ncr.disposition,
-          immediateAction: ncr.immediateAction,
-          ncrTagNumber: ncr.ncrTagNumber,
-          status: ncr.status,
+          date: ncr.initiatedDate ? new Date(ncr.initiatedDate) : new Date(),
+          partNumber: ncr.partNumber || null,
+          drawingNumber: ncr.drawingNumber || null,
+          drawingRevision: ncr.drawingRevision || null,
+          quantityAffected: ncr.quantityAffected || null,
+          vendor: ncr.vendor || null,
+          otherInfo: ncr.description || null,
+          ncrType: ncrTypeMap[ncr.ncrType] || "quality",
+          requirementDescription: ncr.requirements || "(imported — no description)",
+          nonConformanceDescription: ncr.actual || ncr.description || "(imported)",
+          disposition: dispositionMap[ncr.disposition] || null,
+          immediateAction: ncr.immediateAction || null,
+          ncrTagNumber: ncr.ncrTagNumber || null,
+          plantLocation: ncr.department || null,
+          status: ncr.status === "Open" ? "open" : "closed",
         },
       });
       results.ncrs++;
     }
 
-    // 3) Projects — skip duplicates by title
-    const existingProjects = await prisma.project.findMany({
-      select: { title: true },
-    });
-    const existingTitles = new Set(existingProjects.map((p) => p.title));
-    const allProjects: AccessProject[] = [
-      ...currentProjects,
-      ...futureProjects,
-      ...worthNotingProjects,
-    ];
-
-    for (const proj of allProjects) {
-      if (existingTitles.has(proj.title)) continue;
-
-      await prisma.project.create({
-        data: {
-          title: proj.title,
-          description: proj.notes,
-          status: mapStatus(proj.status),
-          priority: mapPriority(proj.priority),
-          budget: proj.budget > 0 ? `$${proj.budget.toLocaleString()}` : null,
-          dueDate: proj.endDate ? new Date(proj.endDate) : null,
-          createdById: adminId,
-          phase: "concept",
-          designRequirements: proj.department ? `Dept: ${proj.department}` : null,
-          plannedSchedule: proj.budgetHrs > 0 ? `${proj.budgetHrs} hrs budgeted` : null,
-        },
-      });
-      results.projects++;
-    }
-
     return NextResponse.json({
       ok: true,
       imported: results,
-      message: `Enriched ${results.equipment} equipment, created ${results.ncrs} NCRs, ${results.projects} projects`,
+      message: `Enriched ${results.equipment} equipment, created ${results.ncrs} NCRs`,
     });
   } catch (error) {
     console.error("[import-access]", error);

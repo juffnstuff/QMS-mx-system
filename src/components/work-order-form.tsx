@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { FormActions } from "./form-actions";
 
 interface Props {
   equipment: { id: string; name: string }[];
@@ -27,6 +27,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
       description: formData.get("description"),
       priority: formData.get("priority"),
       assignedToId: formData.get("assignedToId") || null,
+      secondaryAssignedToId: formData.get("secondaryAssignedToId") || null,
       dueDate: formData.get("dueDate") || null,
       workOrderType: formData.get("workOrderType") || "corrective",
       requirements: (formData.get("requirements") as string) || null,
@@ -63,6 +64,13 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
           {error}
         </div>
       )}
+
+      <FormActions
+        loading={loading}
+        submitLabel="Create Work Order"
+        loadingLabel="Creating..."
+        cancelHref="/work-orders"
+      />
 
       <div className="space-y-4">
         <div>
@@ -134,16 +142,34 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
             </select>
           </div>
           <div>
-            <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
-              Due Date
+            <label htmlFor="secondaryAssignedToId" className="block text-sm font-medium text-gray-700 mb-1">
+              Secondary Assignee
             </label>
-            <input
-              id="dueDate"
-              name="dueDate"
-              type="date"
+            <select
+              id="secondaryAssignedToId"
+              name="secondaryAssignedToId"
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            >
+              <option value="">Unassigned</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
+            Due Date
+          </label>
+          <input
+            id="dueDate"
+            name="dueDate"
+            type="date"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
         <div>
@@ -247,18 +273,12 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
         )}
       </div>
 
-      <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {loading ? "Creating..." : "Create Work Order"}
-        </button>
-        <Link href="/work-orders" className="text-gray-600 hover:text-gray-800 text-sm">
-          Cancel
-        </Link>
-      </div>
+      <FormActions
+        loading={loading}
+        submitLabel="Create Work Order"
+        loadingLabel="Creating..."
+        cancelHref="/work-orders"
+      />
     </form>
   );
 }

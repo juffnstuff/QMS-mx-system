@@ -12,7 +12,13 @@ export default async function EditProjectPage({
   const session = await auth();
   if (session?.user.role !== "admin") redirect("/projects");
 
-  const project = await prisma.project.findUnique({ where: { id } });
+  const [project, users] = await Promise.all([
+    prisma.project.findUnique({ where: { id } }),
+    prisma.user.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, email: true, role: true },
+    }),
+  ]);
   if (!project) notFound();
 
   return (
@@ -23,6 +29,7 @@ export default async function EditProjectPage({
           ...project,
           dueDate: project.dueDate ? project.dueDate.toISOString() : null,
         }}
+        users={users}
       />
     </div>
   );

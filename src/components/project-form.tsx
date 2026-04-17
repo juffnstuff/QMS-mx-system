@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { UserPicker } from "./user-picker";
+import { FormActions } from "./form-actions";
+import { DeleteRecordButton } from "./delete-record-button";
+
+interface UserOption {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
 const RELEASE_CHECKLIST_ITEMS = [
   "manufacturingDrawings",
@@ -30,10 +39,13 @@ interface ProjectData {
   id?: string;
   title: string;
   description: string | null;
+  keywords?: string | null;
   status: string;
   priority: string;
   budget: string | null;
   dueDate: string | null;
+  projectLeadId?: string | null;
+  secondaryLeadId?: string | null;
   phase?: string;
   projectJustification?: string | null;
   designObjectives?: string | null;
@@ -58,10 +70,12 @@ function parseChecklist(json: string | null | undefined): Record<string, string>
   }
 }
 
-export function ProjectForm({ project }: { project?: ProjectData }) {
+export function ProjectForm({ project, users }: { project?: ProjectData; users?: UserOption[] }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [projectLeadId, setProjectLeadId] = useState(project?.projectLeadId || "");
+  const [secondaryLeadId, setSecondaryLeadId] = useState(project?.secondaryLeadId || "");
   const isEdit = !!project;
 
   const [phase1Open, setPhase1Open] = useState(true);
@@ -91,10 +105,13 @@ export function ProjectForm({ project }: { project?: ProjectData }) {
     const data = {
       title: formData.get("title") as string,
       description: (formData.get("description") as string) || null,
+      keywords: (formData.get("keywords") as string) || null,
       status: formData.get("status") as string,
       priority: formData.get("priority") as string,
       budget: plannedBudget || topBudget || null,
       dueDate: (formData.get("dueDate") as string) || null,
+      projectLeadId: projectLeadId || null,
+      secondaryLeadId: secondaryLeadId || null,
       phase: (formData.get("phase") as string) || "concept",
       projectJustification: (formData.get("projectJustification") as string) || null,
       designObjectives: (formData.get("designObjectives") as string) || null,
@@ -145,6 +162,16 @@ export function ProjectForm({ project }: { project?: ProjectData }) {
         </div>
       )}
 
+      <FormActions
+        loading={loading}
+        submitLabel={isEdit ? "Save Changes" : "New Project"}
+        loadingLabel={isEdit ? "Saving..." : "Creating..."}
+        cancelHref={isEdit ? `/projects/${project?.id}` : "/projects"}
+        deleteButton={isEdit ? (
+          <DeleteRecordButton recordId={project!.id!} recordType="projects" recordLabel={project!.title} redirectTo="/projects" />
+        ) : undefined}
+      />
+
       <div className="space-y-4">
         <div>
           <label htmlFor="title" className={labelClass}>
@@ -173,6 +200,42 @@ export function ProjectForm({ project }: { project?: ProjectData }) {
             placeholder="Project details, scope, goals..."
           />
         </div>
+
+        <div>
+          <label htmlFor="keywords" className={labelClass}>
+            Keywords / Facility Area
+          </label>
+          <input
+            id="keywords"
+            name="keywords"
+            type="text"
+            defaultValue={project?.keywords || ""}
+            className={inputClass}
+            placeholder='e.g., "2nd floor, upstairs, mezzanine, flooring estimate"'
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Comma-separated synonyms the email scanner uses to match incoming messages to this project.
+          </p>
+        </div>
+
+        {users && users.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <UserPicker
+              users={users}
+              value={projectLeadId}
+              onChange={setProjectLeadId}
+              label="Project Lead"
+              placeholder="Select project lead..."
+            />
+            <UserPicker
+              users={users}
+              value={secondaryLeadId}
+              onChange={setSecondaryLeadId}
+              label="Secondary Lead"
+              placeholder="Select secondary lead..."
+            />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
@@ -491,27 +554,15 @@ export function ProjectForm({ project }: { project?: ProjectData }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {loading
-            ? isEdit
-              ? "Saving..."
-              : "Creating..."
-            : isEdit
-            ? "Save Changes"
-            : "Create Project"}
-        </button>
-        <Link
-          href={isEdit ? `/projects/${project.id}` : "/projects"}
-          className="text-gray-600 hover:text-gray-800 text-sm"
-        >
-          Cancel
-        </Link>
-      </div>
+      <FormActions
+        loading={loading}
+        submitLabel={isEdit ? "Save Changes" : "New Project"}
+        loadingLabel={isEdit ? "Saving..." : "Creating..."}
+        cancelHref={isEdit ? `/projects/${project?.id}` : "/projects"}
+        deleteButton={isEdit ? (
+          <DeleteRecordButton recordId={project!.id!} recordType="projects" recordLabel={project!.title} redirectTo="/projects" />
+        ) : undefined}
+      />
     </form>
   );
 }

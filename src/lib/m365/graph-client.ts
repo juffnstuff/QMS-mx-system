@@ -91,26 +91,6 @@ export async function getGraphClient(connectionId: string): Promise<Client> {
 }
 
 /**
- * Get an app-level Graph client using client credentials flow.
- * Used for SharePoint access which requires application permissions.
- */
-export async function getAppGraphClient(): Promise<Client> {
-  const msalClient = getMsalClient();
-
-  const result = await msalClient.acquireTokenByClientCredential({
-    scopes: ["https://graph.microsoft.com/.default"],
-  });
-
-  if (!result) throw new Error("Client credential token acquisition failed");
-
-  return Client.init({
-    authProvider: (done) => {
-      done(null, result.accessToken);
-    },
-  });
-}
-
-/**
  * Send an email via Microsoft Graph sendMail API.
  * Requires Mail.Send permission in the M365 connection.
  */

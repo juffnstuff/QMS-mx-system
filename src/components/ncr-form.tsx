@@ -2,16 +2,27 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { UserPicker } from "./user-picker";
+import { FormActions } from "./form-actions";
+
+interface UserOption {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
 interface Props {
   isAdmin: boolean;
+  users?: UserOption[];
 }
 
-export function NCRForm({ isAdmin }: Props) {
+export function NCRForm({ isAdmin, users }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [assignedInvestigatorId, setAssignedInvestigatorId] = useState("");
+  const [secondaryInvestigatorId, setSecondaryInvestigatorId] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -33,6 +44,8 @@ export function NCRForm({ isAdmin }: Props) {
       immediateAction: formData.get("immediateAction") || null,
       ncrTagNumber: formData.get("ncrTagNumber") || null,
       plantLocation: formData.get("plantLocation") || null,
+      assignedInvestigatorId: assignedInvestigatorId || null,
+      secondaryInvestigatorId: secondaryInvestigatorId || null,
     };
 
     const res = await fetch("/api/ncrs", {
@@ -62,6 +75,13 @@ export function NCRForm({ isAdmin }: Props) {
           {error}
         </div>
       )}
+
+      <FormActions
+        loading={loading}
+        submitLabel="Create NCR"
+        loadingLabel="Creating..."
+        cancelHref="/ncrs"
+      />
 
       <div className="space-y-4">
         <div>
@@ -156,6 +176,25 @@ export function NCRForm({ isAdmin }: Props) {
           </select>
         </div>
 
+        {users && users.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <UserPicker
+              users={users}
+              value={assignedInvestigatorId}
+              onChange={setAssignedInvestigatorId}
+              label="Assigned Investigator"
+              placeholder="Select investigator..."
+            />
+            <UserPicker
+              users={users}
+              value={secondaryInvestigatorId}
+              onChange={setSecondaryInvestigatorId}
+              label="Secondary Investigator"
+              placeholder="Select secondary investigator..."
+            />
+          </div>
+        )}
+
         <div>
           <label htmlFor="requirementDescription" className="block text-sm font-medium text-gray-700 mb-1">
             Describe the Requirement or Specification *
@@ -240,18 +279,12 @@ export function NCRForm({ isAdmin }: Props) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {loading ? "Creating..." : "Create NCR"}
-        </button>
-        <Link href="/ncrs" className="text-gray-600 hover:text-gray-800 text-sm">
-          Cancel
-        </Link>
-      </div>
+      <FormActions
+        loading={loading}
+        submitLabel="Create NCR"
+        loadingLabel="Creating..."
+        cancelHref="/ncrs"
+      />
     </form>
   );
 }

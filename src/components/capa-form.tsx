@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
+import { FormActions } from "./form-actions";
 
 interface ActionItem {
   description: string;
@@ -52,6 +52,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
       referenceNcrId: formData.get("referenceNcrId") || null,
       targetCloseDate: formData.get("targetCloseDate") || null,
       assignedToId: formData.get("assignedToId") || null,
+      secondaryAssignedToId: formData.get("secondaryAssignedToId") || null,
       source: formData.get("source"),
       sourceOther: formData.get("sourceOther") || null,
       severityLevel: formData.get("severityLevel"),
@@ -101,6 +102,13 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
           {error}
         </div>
       )}
+
+      <FormActions
+        loading={loading}
+        submitLabel="Create CAPA"
+        loadingLabel="Creating..."
+        cancelHref="/capas"
+      />
 
       {/* Section 1 — Identification */}
       <div className="mb-8">
@@ -158,6 +166,26 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
               <select
                 id="assignedToId"
                 name="assignedToId"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Unassigned</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="secondaryAssignedToId" className="block text-sm font-medium text-gray-700 mb-1">
+                Secondary Responsible
+              </label>
+              <select
+                id="secondaryAssignedToId"
+                name="secondaryAssignedToId"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Unassigned</option>
@@ -565,18 +593,12 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
         </div>
       )}
 
-      <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {loading ? "Creating..." : "Create CAPA"}
-        </button>
-        <Link href="/capas" className="text-gray-600 hover:text-gray-800 text-sm">
-          Cancel
-        </Link>
-      </div>
+      <FormActions
+        loading={loading}
+        submitLabel="Create CAPA"
+        loadingLabel="Creating..."
+        cancelHref="/capas"
+      />
     </form>
   );
 }

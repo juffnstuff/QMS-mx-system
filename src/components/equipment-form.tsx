@@ -3,6 +3,22 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { UserPicker } from "./user-picker";
+import { FormActions } from "./form-actions";
+import { DeleteRecordButton } from "./delete-record-button";
+
+interface EquipmentOption {
+  id: string;
+  name: string;
+  serialNumber: string;
+}
+
+interface UserOption {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
 interface EquipmentData {
   id?: string;
@@ -11,13 +27,29 @@ interface EquipmentData {
   location: string;
   serialNumber: string;
   status: string;
+  criticality: string;
+  equipmentClass: string | null;
+  groupName: string | null;
+  parentId: string | null;
+  assignedTechnicianId: string | null;
+  secondaryTechnicianId: string | null;
   notes: string | null;
 }
 
-export function EquipmentForm({ equipment }: { equipment?: EquipmentData }) {
+const EQUIPMENT_CLASS_OPTIONS = [
+  { value: "extruders", label: "Extruders & Production" },
+  { value: "presses", label: "Compression Molding" },
+  { value: "forklifts", label: "Forklifts & Material Handling" },
+  { value: "utilities", label: "Utilities & Support" },
+  { value: "other", label: "Other" },
+] as const;
+
+export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: EquipmentData; allEquipment?: EquipmentOption[]; users?: UserOption[] }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [assignedTechnicianId, setAssignedTechnicianId] = useState(equipment?.assignedTechnicianId || "");
+  const [secondaryTechnicianId, setSecondaryTechnicianId] = useState(equipment?.secondaryTechnicianId || "");
   const isEdit = !!equipment;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -32,6 +64,12 @@ export function EquipmentForm({ equipment }: { equipment?: EquipmentData }) {
       location: formData.get("location") as string,
       serialNumber: formData.get("serialNumber") as string,
       status: formData.get("status") as string,
+      criticality: formData.get("criticality") as string,
+      equipmentClass: (formData.get("equipmentClass") as string) || null,
+      groupName: (formData.get("groupName") as string) || null,
+      parentId: (formData.get("parentId") as string) || null,
+      assignedTechnicianId: assignedTechnicianId || null,
+      secondaryTechnicianId: secondaryTechnicianId || null,
       notes: (formData.get("notes") as string) || null,
     };
 
@@ -67,6 +105,16 @@ export function EquipmentForm({ equipment }: { equipment?: EquipmentData }) {
           {error}
         </div>
       )}
+
+      <FormActions
+        loading={loading}
+        submitLabel={isEdit ? "Save Changes" : "Add Equipment"}
+        loadingLabel={isEdit ? "Saving..." : "Adding..."}
+        cancelHref={isEdit ? `/equipment/${equipment?.id}` : "/equipment"}
+        deleteButton={isEdit ? (
+          <DeleteRecordButton recordId={equipment!.id!} recordType="equipment" recordLabel={equipment!.name} redirectTo="/equipment" />
+        ) : undefined}
+      />
 
       <div className="space-y-4">
         <div>
@@ -143,6 +191,105 @@ export function EquipmentForm({ equipment }: { equipment?: EquipmentData }) {
           </div>
         </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="criticality" className="block text-sm font-medium text-gray-700 mb-1">
+              Criticality *
+            </label>
+            <select
+              id="criticality"
+              name="criticality"
+              required
+              defaultValue={equipment?.criticality || ""}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="" disabled>Select criticality...</option>
+              <option value="A">Class A — Critical (production stoppage if down)</option>
+              <option value="B">Class B — Important (degrades output, workaround possible)</option>
+              <option value="C">Class C — General (non-critical, minimal impact)</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="groupName" className="block text-sm font-medium text-gray-700 mb-1">
+              Equipment Group
+            </label>
+            <input
+              id="groupName"
+              name="groupName"
+              defaultValue={equipment?.groupName || ""}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder='e.g., "Dake Press System"'
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="equipmentClass" className="block text-sm font-medium text-gray-700 mb-1">
+            Equipment Class
+          </label>
+          <select
+            id="equipmentClass"
+            name="equipmentClass"
+            defaultValue={equipment?.equipmentClass || ""}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Uncategorized</option>
+            {EQUIPMENT_CLASS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">
+            Used to group equipment into categories on the registry.
+          </p>
+        </div>
+
+        {allEquipment && allEquipment.length > 0 && (
+          <div>
+            <label htmlFor="parentId" className="block text-sm font-medium text-gray-700 mb-1">
+              Parent Equipment
+            </label>
+            <select
+              id="parentId"
+              name="parentId"
+              defaultValue={equipment?.parentId || ""}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">None (top-level equipment)</option>
+              {allEquipment
+                .filter((e) => e.id !== equipment?.id)
+                .map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name} ({e.serialNumber})
+                  </option>
+                ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">
+              Select if this is a sub-component of another piece of equipment
+            </p>
+          </div>
+        )}
+
+        {users && users.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <UserPicker
+              users={users}
+              value={assignedTechnicianId}
+              onChange={setAssignedTechnicianId}
+              label="Assigned Technician"
+              placeholder="Select primary technician..."
+            />
+            <UserPicker
+              users={users}
+              value={secondaryTechnicianId}
+              onChange={setSecondaryTechnicianId}
+              label="Secondary Technician"
+              placeholder="Select backup technician..."
+            />
+          </div>
+        )}
+
         <div>
           <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
             Notes
@@ -158,27 +305,15 @@ export function EquipmentForm({ equipment }: { equipment?: EquipmentData }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {loading
-            ? isEdit
-              ? "Saving..."
-              : "Adding..."
-            : isEdit
-            ? "Save Changes"
-            : "Add Equipment"}
-        </button>
-        <Link
-          href={isEdit ? `/equipment/${equipment.id}` : "/equipment"}
-          className="text-gray-600 hover:text-gray-800 text-sm"
-        >
-          Cancel
-        </Link>
-      </div>
+      <FormActions
+        loading={loading}
+        submitLabel={isEdit ? "Save Changes" : "Add Equipment"}
+        loadingLabel={isEdit ? "Saving..." : "Adding..."}
+        cancelHref={isEdit ? `/equipment/${equipment?.id}` : "/equipment"}
+        deleteButton={isEdit ? (
+          <DeleteRecordButton recordId={equipment!.id!} recordType="equipment" recordLabel={equipment!.name} redirectTo="/equipment" />
+        ) : undefined}
+      />
     </form>
   );
 }

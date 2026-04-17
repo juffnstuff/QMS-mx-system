@@ -23,7 +23,7 @@ export default async function ComplaintsPage({
   const complaints = await prisma.customerComplaint.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: { submittedBy: true },
+    include: { submittedBy: true, assignedTo: true },
     take: 50,
   });
 
@@ -84,6 +84,9 @@ export default async function ComplaintsPage({
           <div className="p-8 text-center text-gray-500">
             <MessageSquareWarning size={40} className="mx-auto mb-3 text-gray-300" />
             <p>No customer complaints found.</p>
+            <Link href="/complaints/new" className="inline-flex items-center gap-1 mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium">
+              <Plus size={14} /> Submit your first complaint
+            </Link>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
@@ -98,6 +101,7 @@ export default async function ComplaintsPage({
                       {complaint.customerName}
                       {" \u2022 "}
                       Submitted by {complaint.submittedBy.name}
+                      {complaint.assignedTo && ` \u2022 Assigned: ${complaint.assignedTo.name}`}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {new Date(complaint.date).toLocaleDateString()}

@@ -42,11 +42,11 @@ export async function PUT(
     const { id } = await params;
     const body = await req.json();
     const {
-      title, description, status, priority, budget, dueDate,
+      title, description, keywords, status, priority, budget, dueDate,
       phase, projectJustification, designObjectives, designRequirements,
       potentialVendors, salesMarketingActions, engineeringActions,
       releaseChecklist, actualBudget, plannedSchedule, actualSchedule,
-      isComplete, contingentDetails,
+      isComplete, contingentDetails, projectLeadId, secondaryLeadId,
     } = body;
 
     if (!title) {
@@ -71,11 +71,14 @@ export async function PUT(
       data: {
         title,
         description: description || null,
+        keywords: keywords !== undefined ? (keywords || null) : existing.keywords,
         status,
         priority,
         budget: budget || null,
         dueDate: dueDate ? new Date(dueDate) : null,
         completedAt,
+        projectLeadId: projectLeadId !== undefined ? (projectLeadId || null) : existing.projectLeadId,
+        secondaryLeadId: secondaryLeadId !== undefined ? (secondaryLeadId || null) : existing.secondaryLeadId,
         phase: phase || existing.phase,
         projectJustification: projectJustification !== undefined ? (projectJustification || null) : existing.projectJustification,
         designObjectives: designObjectives !== undefined ? (designObjectives || null) : existing.designObjectives,

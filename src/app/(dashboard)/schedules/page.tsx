@@ -8,7 +8,7 @@ export default async function SchedulesPage() {
 
   const schedules = await prisma.maintenanceSchedule.findMany({
     orderBy: { nextDue: "asc" },
-    include: { equipment: true },
+    include: { equipment: true, assignedTo: true },
   });
 
   const now = new Date();
@@ -51,14 +51,15 @@ export default async function SchedulesPage() {
               <div className="bg-white rounded-lg shadow-sm border border-red-200">
                 <div className="divide-y divide-red-100">
                   {overdueSchedules.map((schedule) => (
-                    <div key={schedule.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-red-50/50">
+                    <Link key={schedule.id} href={`/schedules/${schedule.id}`} className="block p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-red-50/50 hover:bg-red-100/50 transition-colors">
                       <div>
-                        <p className="font-medium text-gray-900">{schedule.title}</p>
+                        <p className="font-medium text-blue-600 hover:text-blue-800">{schedule.title}</p>
                         <p className="text-sm text-gray-500">
                           <Link href={`/equipment/${schedule.equipmentId}`} className="text-blue-600 hover:text-blue-800">
                             {schedule.equipment.name}
                           </Link>
                           {" "}&bull; <span className="capitalize">{schedule.frequency}</span>
+                          {schedule.assignedTo && <>{" "}&bull; {schedule.assignedTo.name}</>}
                         </p>
                         {schedule.description && (
                           <p className="text-sm text-gray-400 mt-0.5">{schedule.description}</p>
@@ -70,7 +71,7 @@ export default async function SchedulesPage() {
                           Was due {new Date(schedule.nextDue).toLocaleDateString()}
                         </p>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -90,9 +91,9 @@ export default async function SchedulesPage() {
                       (new Date(schedule.nextDue).getTime() - now.getTime()) / 86400000
                     );
                     return (
-                      <div key={schedule.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <Link key={schedule.id} href={`/schedules/${schedule.id}`} className="block p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-gray-50 transition-colors">
                         <div>
-                          <p className="font-medium text-gray-900">{schedule.title}</p>
+                          <p className="font-medium text-blue-600 hover:text-blue-800">{schedule.title}</p>
                           <p className="text-sm text-gray-500">
                             <Link href={`/equipment/${schedule.equipmentId}`} className="text-blue-600 hover:text-blue-800">
                               {schedule.equipment.name}
@@ -111,7 +112,7 @@ export default async function SchedulesPage() {
                             {new Date(schedule.nextDue).toLocaleDateString()}
                           </p>
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>

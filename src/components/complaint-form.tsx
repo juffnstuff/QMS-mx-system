@@ -2,16 +2,27 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { UserPicker } from "./user-picker";
+import { FormActions } from "./form-actions";
+
+interface UserOption {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
 
 interface Props {
   isAdmin: boolean;
+  users?: UserOption[];
 }
 
-export function ComplaintForm({ isAdmin }: Props) {
+export function ComplaintForm({ isAdmin, users }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [assignedToId, setAssignedToId] = useState("");
+  const [secondaryAssignedToId, setSecondaryAssignedToId] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -21,6 +32,8 @@ export function ComplaintForm({ isAdmin }: Props) {
     const formData = new FormData(e.currentTarget);
     const data = {
       customerName: formData.get("customerName"),
+      assignedToId: assignedToId || null,
+      secondaryAssignedToId: secondaryAssignedToId || null,
       customerAddress: formData.get("customerAddress") || null,
       customerContact: formData.get("customerContact") || null,
       contactPhone: formData.get("contactPhone") || null,
@@ -78,6 +91,13 @@ export function ComplaintForm({ isAdmin }: Props) {
           {error}
         </div>
       )}
+
+      <FormActions
+        loading={loading}
+        submitLabel="Submit Complaint"
+        loadingLabel="Submitting..."
+        cancelHref="/complaints"
+      />
 
       {/* Section: Complaint Details */}
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Complaint Details</h2>
@@ -296,6 +316,25 @@ export function ComplaintForm({ isAdmin }: Props) {
             placeholder="Any additional information..."
           />
         </div>
+
+        {users && users.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <UserPicker
+              users={users}
+              value={assignedToId}
+              onChange={setAssignedToId}
+              label="Assigned To"
+              placeholder="Select person to handle this complaint..."
+            />
+            <UserPicker
+              users={users}
+              value={secondaryAssignedToId}
+              onChange={setSecondaryAssignedToId}
+              label="Secondary Assignee"
+              placeholder="Select secondary assignee..."
+            />
+          </div>
+        )}
       </div>
 
       {/* Section: Management Disposition (admin-only) */}
@@ -399,18 +438,12 @@ export function ComplaintForm({ isAdmin }: Props) {
         </>
       )}
 
-      <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {loading ? "Submitting..." : "Submit Complaint"}
-        </button>
-        <Link href="/complaints" className="text-gray-600 hover:text-gray-800 text-sm">
-          Cancel
-        </Link>
-      </div>
+      <FormActions
+        loading={loading}
+        submitLabel="Submit Complaint"
+        loadingLabel="Submitting..."
+        cancelHref="/complaints"
+      />
     </form>
   );
 }

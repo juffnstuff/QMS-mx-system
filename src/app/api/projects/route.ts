@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendNotification } from "@/lib/notifications/send-notification";
+import { projectAssigned } from "@/lib/notifications/email-templates";
 
 export async function GET(req: NextRequest) {
   try {
@@ -46,11 +48,11 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const {
-      title, description, status, priority, budget, dueDate,
+      title, description, keywords, status, priority, budget, dueDate,
       phase, projectJustification, designObjectives, designRequirements,
       potentialVendors, salesMarketingActions, engineeringActions,
       releaseChecklist, actualBudget, plannedSchedule, actualSchedule,
-      isComplete, contingentDetails,
+      isComplete, contingentDetails, projectLeadId, secondaryLeadId,
     } = body;
 
     if (!title) {
@@ -61,11 +63,14 @@ export async function POST(req: NextRequest) {
       data: {
         title,
         description: description || null,
+        keywords: keywords || null,
         status: status || "planning",
         priority: priority || "medium",
         budget: budget || null,
         dueDate: dueDate ? new Date(dueDate) : null,
         createdById: session.user.id,
+        projectLeadId: projectLeadId || null,
+        secondaryLeadId: secondaryLeadId || null,
         phase: phase || "concept",
         projectJustification: projectJustification || null,
         designObjectives: designObjectives || null,
@@ -81,6 +86,32 @@ export async function POST(req: NextRequest) {
         contingentDetails: contingentDetails || null,
       },
     });
+
+    // Notify lead + secondary lead on assignment (deduped, skip creator).
+    const assigneeRoles: Array<{ id: string; role: "lead" | "secondary" }> = [];
+    if (projectLeadId) assigneeRoles.push({ id: projectLeadId, role: "lead" });
+    if (secondaryLeadId && secondaryLeadId !== projectLeadId) {
+      assigneeRoles.push({ id: secondaryLeadId, role: "secondary" });
+    }
+
+    for (const { id, role } of assigneeRoles) {
+      if (id === session.user.id) continue;
+      const assignee = await prisma.user.findUnique({ where: { id } });
+      if (!assignee) continue;
+      const email = projectAssigned(title, assignee.name, project.id, role);
+      sendNotification({
+        userId: id,
+        type: "project_assigned",
+        urgency: "digest",
+        title: email.subject,
+        message: `You've been named the ${role === "secondary" ? "secondary lead" : "lead"} on project "${title}"`,
+        relatedType: "Project",
+        relatedId: project.id,
+        emailSubject: email.subject,
+        emailHtml: email.html,
+        smsText: email.plain,
+      }).catch((e) => console.error("[Notification] project assignee failed:", e));
+    }
 
     return NextResponse.json(project, { status: 201 });
   } catch (error) {

@@ -52,6 +52,7 @@ export async function PUT(
       sendNotification({
         userId,
         type: "status_changed",
+        urgency: "digest",
         title: `Work Order Updated: ${existing.title}`,
         message: `Status changed from ${existing.status} to ${status}`,
         relatedType: "WorkOrder",
@@ -59,11 +60,11 @@ export async function PUT(
         emailSubject: email.subject,
         emailHtml: email.html,
         smsText: email.plain,
-      }).catch((e) => console.error("[Notification] Failed:", e));
+      }).catch((e) => console.error("[Notification] status_changed failed:", e));
     }
   }
 
-  // Notify on reassignment
+  // Notify on reassignment — digest-level
   if (assignedToId && assignedToId !== existing.assignedToId && assignedToId !== session.user.id) {
     const assignee = await prisma.user.findUnique({ where: { id: assignedToId } });
     if (assignee) {
@@ -71,6 +72,7 @@ export async function PUT(
       sendNotification({
         userId: assignedToId,
         type: "work_order_assigned",
+        urgency: "digest",
         title: `Work Order Assigned: ${existing.title}`,
         message: `You've been assigned work order "${existing.title}"`,
         relatedType: "WorkOrder",
@@ -78,9 +80,28 @@ export async function PUT(
         emailSubject: email.subject,
         emailHtml: email.html,
         smsText: email.plain,
-      }).catch((e) => console.error("[Notification] Failed:", e));
+      }).catch((e) => console.error("[Notification] work_order_assigned failed:", e));
     }
   }
 
   return NextResponse.json(workOrder);
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session || session.user.role !== "admin") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  try {
+    await prisma.workOrder.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Failed to delete work order:", error);
+    return NextResponse.json({ error: "Failed to delete work order" }, { status: 500 });
+  }
 }

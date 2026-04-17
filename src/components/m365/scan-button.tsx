@@ -7,9 +7,9 @@ interface ScanResult {
   messagesAnalyzed: number;
   suggestionsCreated: number;
   preFiltered: number;
+  irrelevant: number;
+  suggestionErrors: number;
   teamsMessages: number;
-  sharePointDocs: number;
-  formsResponses: number;
   errors: string[];
 }
 
@@ -47,11 +47,10 @@ export function ScanButton() {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">
-            Scan Email, Teams, Forms &amp; SharePoint
+            Scan Email &amp; Teams
           </h2>
           <p className="text-sm text-gray-500">
-            AI scans your inbox, Teams channels, MS Forms responses, and
-            SharePoint documents
+            AI scans your inbox and Teams channels for maintenance items
           </p>
         </div>
       </div>
@@ -149,28 +148,13 @@ export function ScanButton() {
             <div>
               <p className="text-xs text-green-600">Emails</p>
               <p className="text-lg font-bold text-green-900">
-                {result.messagesFound -
-                  result.teamsMessages -
-                  result.sharePointDocs -
-                  result.formsResponses}
+                {result.messagesFound - result.teamsMessages}
               </p>
             </div>
             <div>
               <p className="text-xs text-green-600">Teams</p>
               <p className="text-lg font-bold text-green-900">
                 {result.teamsMessages}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-green-600">Forms</p>
-              <p className="text-lg font-bold text-green-900">
-                {result.formsResponses}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-green-600">SharePoint</p>
-              <p className="text-lg font-bold text-green-900">
-                {result.sharePointDocs}
               </p>
             </div>
             <div>
@@ -191,6 +175,20 @@ export function ScanButton() {
                 {result.preFiltered}
               </p>
             </div>
+            <div>
+              <p className="text-xs text-green-600">Not Relevant</p>
+              <p className="text-lg font-bold text-green-900">
+                {result.irrelevant}
+              </p>
+            </div>
+            {result.suggestionErrors > 0 && (
+              <div>
+                <p className="text-xs text-red-600">Insert Errors</p>
+                <p className="text-lg font-bold text-red-700">
+                  {result.suggestionErrors}
+                </p>
+              </div>
+            )}
           </div>
           {result.suggestionsCreated > 0 && (
             <p className="mt-3 text-sm text-green-700">

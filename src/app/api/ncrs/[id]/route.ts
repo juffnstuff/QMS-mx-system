@@ -62,6 +62,7 @@ export async function PUT(
       plantLocation,
       status,
       approvedById,
+      assignedInvestigatorId,
     } = body;
 
     // Only admin can change status, disposition, or approval
@@ -80,6 +81,7 @@ export async function PUT(
     if (immediateAction !== undefined) updateData.immediateAction = immediateAction || null;
     if (ncrTagNumber !== undefined) updateData.ncrTagNumber = ncrTagNumber || null;
     if (plantLocation !== undefined) updateData.plantLocation = plantLocation || null;
+    if (assignedInvestigatorId !== undefined) updateData.assignedInvestigatorId = assignedInvestigatorId || null;
 
     // Admin-only fields
     if (isAdmin) {

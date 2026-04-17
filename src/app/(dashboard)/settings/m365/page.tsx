@@ -58,9 +58,8 @@ export default async function M365SettingsPage({
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">My Email Scanner</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Connect your MS365 account and AI will scan your emails, Teams
-          channels, and SharePoint for maintenance items, equipment, and
-          projects
+          Connect your MS365 account and AI will scan your emails and Teams
+          channels for maintenance items, equipment, and projects
         </p>
       </div>
 
@@ -97,8 +96,8 @@ export default async function M365SettingsPage({
               Connect your @rubberform.com email using the button above
             </li>
             <li>
-              Click &ldquo;Scan All&rdquo; to scan your inbox, Teams channels,
-              and SharePoint
+              Click &ldquo;Scan New&rdquo; to scan your inbox and Teams
+              channels
             </li>
             <li>
               AI analyzes emails from shop@, Joe, Anthony, Jesse, Bill, Aaron
@@ -106,8 +105,7 @@ export default async function M365SettingsPage({
               items
             </li>
             <li>
-              It also scans Teams conversations and SharePoint for SOPs, work
-              instructions, and shop forms
+              It also scans Teams conversations for the same signals
             </li>
             <li>
               Review AI suggestions and approve to create work orders,
@@ -152,13 +150,16 @@ export default async function M365SettingsPage({
             </p>
             <p className="text-xs text-blue-600 mt-1">View activity &rarr;</p>
           </Link>
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <Link
+            href="/settings/m365/suggestions?status=approved"
+            className="bg-white p-4 rounded-lg border border-gray-200 hover:border-green-300 transition-colors"
+          >
             <p className="text-sm text-gray-500">Approved</p>
             <p className="text-2xl font-bold text-gray-900">{approvedTotal}</p>
             <p className="text-xs text-green-600 mt-1">
-              Items pushed to team
+              Items pushed to team &rarr;
             </p>
-          </div>
+          </Link>
         </div>
       )}
 

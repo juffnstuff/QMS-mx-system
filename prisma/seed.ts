@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import "dotenv/config";
+import { accessNCRs } from "../src/data/access-import/ncrs";
 
 const adapter = new PrismaPg(process.env.DATABASE_URL!);
 const prisma = new PrismaClient({ adapter });
@@ -15,7 +16,7 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { email: "admin@rubberform.com" },
-    update: {},
+    update: { passwordHash: adminPassword },
     create: {
       email: "admin@rubberform.com",
       name: "Plant Manager",
@@ -25,22 +26,11 @@ async function main() {
   });
 
   const operator1 = await prisma.user.upsert({
-    where: { email: "mike@rubberform.com" },
-    update: {},
+    where: { email: "anthony@rubberform.com" },
+    update: { passwordHash: operatorPassword },
     create: {
-      email: "mike@rubberform.com",
-      name: "Mike Johnson",
-      passwordHash: operatorPassword,
-      role: "operator",
-    },
-  });
-
-  const operator2 = await prisma.user.upsert({
-    where: { email: "sarah@rubberform.com" },
-    update: {},
-    create: {
-      email: "sarah@rubberform.com",
-      name: "Sarah Martinez",
+      email: "anthony@rubberform.com",
+      name: "Anthony",
       passwordHash: operatorPassword,
       role: "operator",
     },
@@ -180,6 +170,27 @@ async function main() {
     data: equipmentData,
   });
   console.log(`Created ${createdEquipment.count} equipment records`);
+
+  // Auto-populate criticality from notes field
+  const allEquipmentForCrit = await prisma.equipment.findMany({
+    where: { notes: { not: null } },
+    select: { id: true, notes: true },
+  });
+  let critUpdated = 0;
+  for (const item of allEquipmentForCrit) {
+    if (!item.notes) continue;
+    const critMatch = item.notes.match(/Criticality\s+([ABC])/i);
+    const classMatch = item.notes.match(/Class\s+([ABC])\b/i);
+    const parsed = (critMatch?.[1] || classMatch?.[1])?.toUpperCase();
+    if (parsed && ["A", "B", "C"].includes(parsed)) {
+      await prisma.equipment.update({
+        where: { id: item.id },
+        data: { criticality: parsed },
+      });
+      critUpdated++;
+    }
+  }
+  console.log(`Updated criticality for ${critUpdated} equipment from notes`);
 
   // Fetch all equipment keyed by serialNumber for schedule references
   const allEquipment = await prisma.equipment.findMany();
@@ -351,6 +362,48 @@ async function main() {
     data: scheduleData,
   });
   console.log(`Created ${createdSchedules.count} maintenance schedules`);
+
+  // ==========================================================================
+  // NCRs — 29 records from RF-OMS-2.0 Access DB
+  // ==========================================================================
+
+  await prisma.nonConformance.deleteMany();
+
+  const ncrTypeMap: Record<string, string> = {
+    Dimensional: "dimensional", Quality: "quality", Function: "function",
+    Aesthetic: "aesthetic", Asthetic: "aesthetic", Safety: "safety", Compliance: "compliance",
+  };
+  const dispositionMap: Record<string, string> = {
+    "Use as is": "use_as_is", "In-House Rework": "rework",
+    Scrap: "scrap", "Return to Vendor": "return_to_vendor",
+  };
+
+  let ncrCount = 0;
+  for (const ncr of accessNCRs) {
+    await prisma.nonConformance.create({
+      data: {
+        ncrNumber: ncr.ncrNumber,
+        submittedById: admin.id,
+        date: ncr.initiatedDate ? new Date(ncr.initiatedDate) : new Date(),
+        partNumber: ncr.partNumber || null,
+        drawingNumber: ncr.drawingNumber || null,
+        drawingRevision: ncr.drawingRevision || null,
+        quantityAffected: ncr.quantityAffected || null,
+        vendor: ncr.vendor || null,
+        otherInfo: ncr.description || null,
+        ncrType: ncrTypeMap[ncr.ncrType] || "quality",
+        requirementDescription: ncr.requirements || "(imported — no description)",
+        nonConformanceDescription: ncr.actual || ncr.description || "(imported)",
+        disposition: dispositionMap[ncr.disposition] || null,
+        immediateAction: ncr.immediateAction || null,
+        ncrTagNumber: ncr.ncrTagNumber || null,
+        plantLocation: ncr.department || null,
+        status: ncr.status === "Open" ? "open" : "closed",
+      },
+    });
+    ncrCount++;
+  }
+  console.log(`Created ${ncrCount} NCR records`);
 
   console.log("Database seeded successfully!");
 }

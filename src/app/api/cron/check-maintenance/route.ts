@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendNotificationToAdmins } from "@/lib/notifications/send-notification";
+import { sendDigestNotificationToAdmins } from "@/lib/notifications/send-notification";
+import { notifyAssigneesForOverdueRecords } from "@/lib/notifications/assignee-overdue";
 import { maintenanceDue } from "@/lib/notifications/email-templates";
 
 /**
@@ -40,34 +41,40 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  if (recentNotification) {
-    return NextResponse.json({
-      message: "Already notified within 24h",
-      overdueCount: overdueSchedules.length,
-      notified: 0,
+  let adminNotified = false;
+  if (!recentNotification) {
+    // Send notification to all admins
+    const scheduleInfo = overdueSchedules.map((s) => ({
+      title: s.title,
+      equipmentName: s.equipment.name,
+    }));
+
+    const email = maintenanceDue(scheduleInfo);
+    await sendDigestNotificationToAdmins({
+      type: "maintenance_due",
+      title: email.subject,
+      message: `${overdueSchedules.length} maintenance task${overdueSchedules.length !== 1 ? "s are" : " is"} overdue.`,
+      relatedType: "MaintenanceSchedule",
+      emailSubject: email.subject,
+      emailHtml: email.html,
+      smsText: email.plain,
     });
+    adminNotified = true;
   }
 
-  // Send notification to all admins
-  const scheduleInfo = overdueSchedules.map((s) => ({
-    title: s.title,
-    equipmentName: s.equipment.name,
-  }));
-
-  const email = maintenanceDue(scheduleInfo);
-  await sendNotificationToAdmins({
-    type: "maintenance_due",
-    title: email.subject,
-    message: `${overdueSchedules.length} maintenance task${overdueSchedules.length !== 1 ? "s are" : " is"} overdue.`,
-    relatedType: "MaintenanceSchedule",
-    emailSubject: email.subject,
-    emailHtml: email.html,
-    smsText: email.plain,
-  });
+  // Per-assignee digest (primary + secondary). Non-admins only; the helper
+  // dedupes across the three overdue crons so admins already covered by the
+  // digest above aren't double-emailed.
+  const assigneeResult = await notifyAssigneesForOverdueRecords(
+    overdueSchedules.map((s) => ({
+      assigneeIds: [s.assignedToId, s.secondaryAssignedToId],
+    }))
+  );
 
   return NextResponse.json({
-    message: "Notifications sent",
+    message: "Notifications processed",
     overdueCount: overdueSchedules.length,
-    notified: true,
+    adminNotified,
+    assigneesNotified: assigneeResult.notified,
   });
 }

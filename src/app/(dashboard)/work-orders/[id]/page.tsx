@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
 import { WorkOrderStatusUpdate } from "@/components/work-order-status-update";
 import { MakeRecurringButton } from "@/components/make-recurring-button";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { DeleteRecordButton } from "@/components/delete-record-button";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 export default async function WorkOrderDetailPage({
   params,
@@ -20,6 +21,7 @@ export default async function WorkOrderDetailPage({
     include: {
       equipment: true,
       assignedTo: true,
+      secondaryAssignedTo: true,
       createdBy: true,
       createdSchedules: true,
     },
@@ -29,17 +31,31 @@ export default async function WorkOrderDetailPage({
 
   return (
     <div>
+      <Breadcrumbs items={[
+        { label: "Work Orders", href: "/work-orders" },
+        { label: order.title },
+      ]} />
       <div className="flex items-center gap-4 mb-6">
-        <Link href="/work-orders" className="text-gray-400 hover:text-gray-600 transition-colors">
-          <ArrowLeft size={20} />
-        </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">{order.title}</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{order.equipment.name}</p>
+          <p className="text-gray-500 text-sm mt-0.5">
+            <Link href={`/equipment/${order.equipmentId}`} className="text-blue-600 hover:text-blue-800">
+              {order.equipment.name}
+            </Link>
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <StatusBadge status={order.priority} />
           <StatusBadge status={order.status} />
+          {session?.user.role === "admin" && (
+            <DeleteRecordButton
+              recordId={id}
+              recordType="work-orders"
+              recordLabel={order.title}
+              redirectTo="/work-orders"
+              compact
+            />
+          )}
         </div>
       </div>
 
@@ -115,13 +131,25 @@ export default async function WorkOrderDetailPage({
               </div>
               <div>
                 <dt className="text-xs text-gray-500 uppercase">Assigned To</dt>
-                <dd className="text-sm text-gray-900">
-                  {order.assignedTo ? order.assignedTo.name : "Unassigned"}
+                <dd className="text-sm">
+                  {order.assignedTo ? (
+                    <Link href={`/users?highlight=${order.assignedTo.id}`} className="text-blue-600 hover:text-blue-800">{order.assignedTo.name}</Link>
+                  ) : "Unassigned"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-gray-500 uppercase">Secondary Assignee</dt>
+                <dd className="text-sm">
+                  {order.secondaryAssignedTo ? (
+                    <Link href={`/users?highlight=${order.secondaryAssignedTo.id}`} className="text-blue-600 hover:text-blue-800">{order.secondaryAssignedTo.name}</Link>
+                  ) : <span className="text-gray-400">None</span>}
                 </dd>
               </div>
               <div>
                 <dt className="text-xs text-gray-500 uppercase">Created By</dt>
-                <dd className="text-sm text-gray-900">{order.createdBy.name}</dd>
+                <dd className="text-sm">
+                  <Link href={`/users?highlight=${order.createdBy.id}`} className="text-blue-600 hover:text-blue-800">{order.createdBy.name}</Link>
+                </dd>
               </div>
               <div>
                 <dt className="text-xs text-gray-500 uppercase">Created</dt>
