@@ -2,6 +2,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { formatDistanceToNow } from "date-fns";
+import { Clock } from "lucide-react";
 import { ConnectionCard } from "@/components/m365/connection-card";
 import { ScanButton } from "@/components/m365/scan-button";
 import { RecheckApprovedButton } from "@/components/m365/recheck-approved-button";
@@ -114,6 +116,32 @@ export default async function M365SettingsPage({
       {connection && (
         <div className="mt-6">
           <ScanButton />
+          <div
+            className="mt-3 flex items-center gap-1.5 text-xs text-gray-500"
+            title={
+              connection.lastPolledAt
+                ? new Date(connection.lastPolledAt).toLocaleString()
+                : undefined
+            }
+          >
+            <Clock size={12} className="text-gray-400" />
+            {connection.lastPolledAt ? (
+              <>
+                Last scan:{" "}
+                <span className="text-gray-700 font-medium">
+                  {formatDistanceToNow(new Date(connection.lastPolledAt), {
+                    addSuffix: true,
+                  })}
+                </span>
+                <span className="text-gray-400">
+                  {" "}
+                  ({new Date(connection.lastPolledAt).toLocaleString()})
+                </span>
+              </>
+            ) : (
+              <span>No scans yet — click Scan New to start.</span>
+            )}
+          </div>
         </div>
       )}
 
@@ -152,14 +180,6 @@ export default async function M365SettingsPage({
               Items pushed to team &rarr;
             </p>
           </Link>
-        </div>
-      )}
-
-      {/* Last polled info */}
-      {connection?.lastPolledAt && (
-        <div className="mt-4 text-xs text-gray-400 text-center">
-          Last scanned:{" "}
-          {new Date(connection.lastPolledAt).toLocaleString()}
         </div>
       )}
 
