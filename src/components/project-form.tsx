@@ -46,6 +46,7 @@ interface ProjectData {
   dueDate: string | null;
   projectLeadId?: string | null;
   secondaryLeadId?: string | null;
+  parentProjectId?: string | null;
   phase?: string;
   projectJustification?: string | null;
   designObjectives?: string | null;
@@ -61,6 +62,12 @@ interface ProjectData {
   contingentDetails?: string | null;
 }
 
+interface ParentProjectOption {
+  id: string;
+  title: string;
+  parentProjectId?: string | null;
+}
+
 function parseChecklist(json: string | null | undefined): Record<string, string> {
   if (!json) return {};
   try {
@@ -70,13 +77,26 @@ function parseChecklist(json: string | null | undefined): Record<string, string>
   }
 }
 
-export function ProjectForm({ project, users }: { project?: ProjectData; users?: UserOption[] }) {
+export function ProjectForm({
+  project,
+  users,
+  allProjects,
+}: {
+  project?: ProjectData;
+  users?: UserOption[];
+  allProjects?: ParentProjectOption[];
+}) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [projectLeadId, setProjectLeadId] = useState(project?.projectLeadId || "");
   const [secondaryLeadId, setSecondaryLeadId] = useState(project?.secondaryLeadId || "");
   const isEdit = !!project;
+
+  // Parent must be a top-level project (no grandchildren) and cannot be self.
+  const parentOptions = (allProjects || []).filter(
+    (p) => !p.parentProjectId && p.id !== project?.id,
+  );
 
   const [phase1Open, setPhase1Open] = useState(true);
   const [phase2Open, setPhase2Open] = useState(false);
@@ -112,6 +132,7 @@ export function ProjectForm({ project, users }: { project?: ProjectData; users?:
       dueDate: (formData.get("dueDate") as string) || null,
       projectLeadId: projectLeadId || null,
       secondaryLeadId: secondaryLeadId || null,
+      parentProjectId: (formData.get("parentProjectId") as string) || null,
       phase: (formData.get("phase") as string) || "concept",
       projectJustification: (formData.get("projectJustification") as string) || null,
       designObjectives: (formData.get("designObjectives") as string) || null,
@@ -200,6 +221,30 @@ export function ProjectForm({ project, users }: { project?: ProjectData; users?:
             placeholder="Project details, scope, goals..."
           />
         </div>
+
+        {parentOptions.length > 0 && (
+          <div>
+            <label htmlFor="parentProjectId" className={labelClass}>
+              Parent Project
+            </label>
+            <select
+              id="parentProjectId"
+              name="parentProjectId"
+              defaultValue={project?.parentProjectId || ""}
+              className={inputClass}
+            >
+              <option value="">— None (this is a main project) —</option>
+              {parentOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">
+              Leave empty for a main project. Select a parent to make this a sub-project / task.
+            </p>
+          </div>
+        )}
 
         <div>
           <label htmlFor="keywords" className={labelClass}>

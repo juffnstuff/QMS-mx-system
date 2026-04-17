@@ -21,6 +21,11 @@ export default async function ProjectDetailPage({
       createdBy: { select: { id: true, name: true } },
       projectLead: { select: { id: true, name: true } },
       secondaryLead: { select: { id: true, name: true } },
+      parent: { select: { id: true, title: true, status: true } },
+      children: {
+        select: { id: true, title: true, status: true, priority: true, dueDate: true },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 
@@ -123,8 +128,50 @@ export default async function ProjectDetailPage({
               <dd className="text-gray-900">{project.keywords}</dd>
             </div>
           )}
+          {project.parent && (
+            <div className="sm:col-span-2">
+              <dt className="text-sm text-gray-500">Parent Project</dt>
+              <dd>
+                <Link
+                  href={`/projects/${project.parent.id}`}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-50 text-blue-700 text-sm hover:bg-blue-100 transition-colors"
+                >
+                  {project.parent.title}
+                  <StatusBadge status={project.parent.status} />
+                </Link>
+              </dd>
+            </div>
+          )}
         </dl>
       </div>
+
+      {project.children.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="font-semibold text-gray-900 mb-4">
+            Sub-Projects / Tasks ({project.children.length})
+          </h2>
+          <div className="divide-y divide-gray-200">
+            {project.children.map((child) => (
+              <Link
+                key={child.id}
+                href={`/projects/${child.id}`}
+                className="flex items-center justify-between py-3 hover:bg-gray-50 -mx-6 px-6 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-gray-900 font-medium">{child.title}</span>
+                  <StatusBadge status={child.status} />
+                  <StatusBadge status={child.priority} />
+                </div>
+                {child.dueDate && (
+                  <span className="text-sm text-gray-500">
+                    Due {new Date(child.dueDate).toLocaleDateString()}
+                  </span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

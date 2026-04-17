@@ -12,6 +12,7 @@ model User {
   name           String
   passwordHash   String
   role           String    @default("operator") // "admin" | "operator"
+  isSuperAdmin   Boolean   @default(false) // Super admins (implicitly admins) can delete users
   phone          String?
   carrier        String?   // SMS gateway domain: "vtext.com", "tmomail.net", etc.
   notifyEmail    Boolean   @default(true)
@@ -282,6 +283,7 @@ model Project {
   actualSchedule     String?   // F-17 Phase 3
   isComplete         String?   // "yes" | "no" | "contingent"
   contingentDetails  String?
+  parentProjectId String? // Parent project ID — sub-projects/tasks roll up to a main project
   createdById String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -289,9 +291,12 @@ model Project {
   createdBy   User  @relation("ProjectCreator", fields: [createdById], references: [id])
   projectLead   User? @relation("ProjectLead", fields: [projectLeadId], references: [id])
   secondaryLead User? @relation("ProjectSecondary", fields: [secondaryLeadId], references: [id])
+  parent        Project?  @relation("ProjectHierarchy", fields: [parentProjectId], references: [id])
+  children      Project[] @relation("ProjectHierarchy")
 
   @@index([boardStatus])
   @@index([projectLeadId])
+  @@index([parentProjectId])
 }
 
 model Notification {

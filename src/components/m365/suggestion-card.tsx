@@ -37,6 +37,17 @@ interface EquipmentOption {
   location?: string;
 }
 
+interface ProjectOption {
+  id: string;
+  title: string;
+  parentProjectId?: string | null;
+}
+
+interface UserOption {
+  id: string;
+  name: string;
+}
+
 const typeLabels: Record<string, string> = {
   create_work_order: "Create Work Order",
   create_maintenance_log: "Log Maintenance",
@@ -98,9 +109,24 @@ interface ProjectFields {
   description: string;
   priority: string;
   status: string;
+  phase: string;
   budget: string;
   dueDate: string;
   keywords: string;
+  parentProjectId: string;
+  projectLeadId: string;
+  secondaryLeadId: string;
+  projectJustification: string;
+  designObjectives: string;
+  designRequirements: string;
+  potentialVendors: string;
+  salesMarketingActions: string;
+  engineeringActions: string;
+  actualBudget: string;
+  plannedSchedule: string;
+  actualSchedule: string;
+  isComplete: string;
+  contingentDetails: string;
 }
 
 interface MaintenanceFields {
@@ -179,9 +205,24 @@ function initialKindForms(
       description: pickString(pf, "description", payload.description || ""),
       priority: pickString(pf, "priority", payload.priority || "medium"),
       status: pickString(pf, "status", "planning"),
+      phase: pickString(pf, "phase", "concept"),
       budget: pickString(pf, "budget", payload.budget || ""),
       dueDate: pickString(pf, "dueDate", ""),
       keywords: pickString(pf, "keywords", ""),
+      parentProjectId: pickString(pf, "parentProjectId", ""),
+      projectLeadId: pickString(pf, "projectLeadId", ""),
+      secondaryLeadId: pickString(pf, "secondaryLeadId", ""),
+      projectJustification: pickString(pf, "projectJustification", ""),
+      designObjectives: pickString(pf, "designObjectives", ""),
+      designRequirements: pickString(pf, "designRequirements", ""),
+      potentialVendors: pickString(pf, "potentialVendors", ""),
+      salesMarketingActions: pickString(pf, "salesMarketingActions", ""),
+      engineeringActions: pickString(pf, "engineeringActions", ""),
+      actualBudget: pickString(pf, "actualBudget", ""),
+      plannedSchedule: pickString(pf, "plannedSchedule", ""),
+      actualSchedule: pickString(pf, "actualSchedule", ""),
+      isComplete: pickString(pf, "isComplete", ""),
+      contingentDetails: pickString(pf, "contingentDetails", ""),
     },
     maintenance: {
       title: pickString(pf, "title", payload.title || ""),
@@ -229,14 +270,20 @@ const labelClass = "block text-xs font-medium text-gray-600 mb-1";
 export function SuggestionCard({
   suggestion,
   equipment = [],
+  projects = [],
+  users = [],
 }: {
   suggestion: Suggestion;
   equipment?: EquipmentOption[];
+  projects?: ProjectOption[];
+  users?: UserOption[];
 }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const equipmentList = equipment;
+  // Only top-level projects are valid parents (enforces 2-level hierarchy).
+  const parentProjectOptions = projects.filter((p) => !p.parentProjectId);
   const payload: SuggestionPayload = JSON.parse(suggestion.payload);
 
   const proposedFields =
@@ -422,6 +469,29 @@ export function SuggestionCard({
 
                   {kind === "project" && (
                     <div className="space-y-3">
+                      {parentProjectOptions.length > 0 && (
+                        <div>
+                          <label className={labelClass}>Parent Project</label>
+                          <select
+                            value={forms.project.parentProjectId}
+                            onChange={(e) =>
+                              updateProject("parentProjectId", e.target.value)
+                            }
+                            className={inputClass}
+                          >
+                            <option value="">— None (this is a main project) —</option>
+                            {parentProjectOptions.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.title}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Select a parent to make this a sub-project / task that rolls
+                            up to a main project.
+                          </p>
+                        </div>
+                      )}
                       <div>
                         <label className={labelClass}>Title</label>
                         <input
@@ -440,7 +510,68 @@ export function SuggestionCard({
                           className={inputClass}
                         />
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className={labelClass}>Keywords / Facility Area</label>
+                        <input
+                          type="text"
+                          value={forms.project.keywords}
+                          onChange={(e) => updateProject("keywords", e.target.value)}
+                          className={inputClass}
+                          placeholder="comma-separated synonyms for future email matching"
+                        />
+                      </div>
+                      {users.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className={labelClass}>Project Lead</label>
+                            <select
+                              value={forms.project.projectLeadId}
+                              onChange={(e) =>
+                                updateProject("projectLeadId", e.target.value)
+                              }
+                              className={inputClass}
+                            >
+                              <option value="">Unassigned</option>
+                              {users.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className={labelClass}>Secondary Lead</label>
+                            <select
+                              value={forms.project.secondaryLeadId}
+                              onChange={(e) =>
+                                updateProject("secondaryLeadId", e.target.value)
+                              }
+                              className={inputClass}
+                            >
+                              <option value="">None</option>
+                              {users.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className={labelClass}>Status</label>
+                          <select
+                            value={forms.project.status}
+                            onChange={(e) => updateProject("status", e.target.value)}
+                            className={inputClass}
+                          >
+                            <option value="planning">Planning</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="on_hold">On Hold</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                        </div>
                         <div>
                           <label className={labelClass}>Priority</label>
                           <select
@@ -455,18 +586,20 @@ export function SuggestionCard({
                           </select>
                         </div>
                         <div>
-                          <label className={labelClass}>Status</label>
+                          <label className={labelClass}>Phase</label>
                           <select
-                            value={forms.project.status}
-                            onChange={(e) => updateProject("status", e.target.value)}
+                            value={forms.project.phase}
+                            onChange={(e) => updateProject("phase", e.target.value)}
                             className={inputClass}
                           >
-                            <option value="planning">Planning</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="on_hold">On Hold</option>
-                            <option value="completed">Completed</option>
+                            <option value="concept">Concept</option>
+                            <option value="design">Design &amp; Development</option>
+                            <option value="production_release">Production Release</option>
+                            <option value="complete">Complete</option>
                           </select>
                         </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className={labelClass}>Budget</label>
                           <input
@@ -487,16 +620,164 @@ export function SuggestionCard({
                           />
                         </div>
                       </div>
-                      <div>
-                        <label className={labelClass}>Keywords</label>
-                        <input
-                          type="text"
-                          value={forms.project.keywords}
-                          onChange={(e) => updateProject("keywords", e.target.value)}
-                          className={inputClass}
-                          placeholder="comma-separated synonyms for future email matching"
-                        />
-                      </div>
+
+                      <details className="border border-gray-200 rounded-md overflow-hidden bg-white">
+                        <summary className="px-3 py-2 bg-gray-50 cursor-pointer text-xs font-semibold text-gray-700">
+                          Phase 1: Project Concept
+                        </summary>
+                        <div className="p-3 space-y-3">
+                          <div>
+                            <label className={labelClass}>Project Justification</label>
+                            <textarea
+                              rows={2}
+                              value={forms.project.projectJustification}
+                              onChange={(e) =>
+                                updateProject("projectJustification", e.target.value)
+                              }
+                              className={inputClass}
+                              placeholder="Why is this project needed?"
+                            />
+                          </div>
+                          <div>
+                            <label className={labelClass}>Design Objectives</label>
+                            <textarea
+                              rows={2}
+                              value={forms.project.designObjectives}
+                              onChange={(e) =>
+                                updateProject("designObjectives", e.target.value)
+                              }
+                              className={inputClass}
+                            />
+                          </div>
+                          <div>
+                            <label className={labelClass}>
+                              Design Requirements / Specifications
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={forms.project.designRequirements}
+                              onChange={(e) =>
+                                updateProject("designRequirements", e.target.value)
+                              }
+                              className={inputClass}
+                            />
+                          </div>
+                          <div>
+                            <label className={labelClass}>
+                              Potential Vendors and Contractors
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={forms.project.potentialVendors}
+                              onChange={(e) =>
+                                updateProject("potentialVendors", e.target.value)
+                              }
+                              className={inputClass}
+                            />
+                          </div>
+                        </div>
+                      </details>
+
+                      <details className="border border-gray-200 rounded-md overflow-hidden bg-white">
+                        <summary className="px-3 py-2 bg-gray-50 cursor-pointer text-xs font-semibold text-gray-700">
+                          Phase 2: Design &amp; Development
+                        </summary>
+                        <div className="p-3 space-y-3">
+                          <div>
+                            <label className={labelClass}>Sales &amp; Marketing Actions</label>
+                            <textarea
+                              rows={2}
+                              value={forms.project.salesMarketingActions}
+                              onChange={(e) =>
+                                updateProject("salesMarketingActions", e.target.value)
+                              }
+                              className={inputClass}
+                            />
+                          </div>
+                          <div>
+                            <label className={labelClass}>Engineering Actions</label>
+                            <textarea
+                              rows={2}
+                              value={forms.project.engineeringActions}
+                              onChange={(e) =>
+                                updateProject("engineeringActions", e.target.value)
+                              }
+                              className={inputClass}
+                            />
+                          </div>
+                        </div>
+                      </details>
+
+                      <details className="border border-gray-200 rounded-md overflow-hidden bg-white">
+                        <summary className="px-3 py-2 bg-gray-50 cursor-pointer text-xs font-semibold text-gray-700">
+                          Phase 3: Production Release
+                        </summary>
+                        <div className="p-3 space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className={labelClass}>Actual Budget</label>
+                              <input
+                                type="text"
+                                value={forms.project.actualBudget}
+                                onChange={(e) =>
+                                  updateProject("actualBudget", e.target.value)
+                                }
+                                className={inputClass}
+                              />
+                            </div>
+                            <div>
+                              <label className={labelClass}>Planned Schedule</label>
+                              <input
+                                type="text"
+                                value={forms.project.plannedSchedule}
+                                onChange={(e) =>
+                                  updateProject("plannedSchedule", e.target.value)
+                                }
+                                className={inputClass}
+                              />
+                            </div>
+                            <div>
+                              <label className={labelClass}>Actual Schedule</label>
+                              <input
+                                type="text"
+                                value={forms.project.actualSchedule}
+                                onChange={(e) =>
+                                  updateProject("actualSchedule", e.target.value)
+                                }
+                                className={inputClass}
+                              />
+                            </div>
+                            <div>
+                              <label className={labelClass}>Is Complete?</label>
+                              <select
+                                value={forms.project.isComplete}
+                                onChange={(e) =>
+                                  updateProject("isComplete", e.target.value)
+                                }
+                                className={inputClass}
+                              >
+                                <option value="">—</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                                <option value="contingent">Contingent</option>
+                              </select>
+                            </div>
+                          </div>
+                          {forms.project.isComplete === "contingent" && (
+                            <div>
+                              <label className={labelClass}>Contingent Details</label>
+                              <textarea
+                                rows={2}
+                                value={forms.project.contingentDetails}
+                                onChange={(e) =>
+                                  updateProject("contingentDetails", e.target.value)
+                                }
+                                className={inputClass}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </details>
                     </div>
                   )}
 

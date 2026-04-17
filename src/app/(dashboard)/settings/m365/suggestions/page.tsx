@@ -21,7 +21,7 @@ export default async function SuggestionsPage({
 
   const where = statusFilter === "all" ? {} : { status: statusFilter };
 
-  const [suggestions, total, equipment] = await Promise.all([
+  const [suggestions, total, equipment, allProjects, users] = await Promise.all([
     prisma.aISuggestion.findMany({
       where,
       select: {
@@ -56,6 +56,14 @@ export default async function SuggestionsPage({
     prisma.aISuggestion.count({ where }),
     prisma.equipment.findMany({
       select: { id: true, name: true, serialNumber: true, location: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.project.findMany({
+      select: { id: true, title: true, parentProjectId: true },
+      orderBy: { title: "asc" },
+    }),
+    prisma.user.findMany({
+      select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -102,6 +110,8 @@ export default async function SuggestionsPage({
               key={suggestion.id}
               suggestion={suggestion}
               equipment={equipment}
+              projects={allProjects}
+              users={users}
             />
           ))}
         </div>

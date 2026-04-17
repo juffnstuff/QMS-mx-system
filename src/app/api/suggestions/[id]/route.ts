@@ -345,15 +345,44 @@ async function createRecordForKind({
   if (kind === "project") {
     const title = str("title");
     if (!title) return { error: "Project title is required" };
+
+    // Validate + enforce 2-level hierarchy on chosen parent.
+    const parentProjectId = str("parentProjectId");
+    if (parentProjectId) {
+      const parent = await prisma.project.findUnique({
+        where: { id: parentProjectId },
+        select: { parentProjectId: true },
+      });
+      if (!parent) return { error: "Parent project not found" };
+      if (parent.parentProjectId) {
+        return { error: "Parent must be a top-level project" };
+      }
+    }
+
     const project = await prisma.project.create({
       data: {
         title,
         description: strOrNull("description"),
         priority: str("priority") ?? "medium",
         status: str("status") ?? "planning",
+        phase: str("phase") ?? "concept",
         budget: strOrNull("budget"),
         keywords: strOrNull("keywords"),
         dueDate: str("dueDate") ? new Date(str("dueDate")!) : null,
+        parentProjectId: parentProjectId ?? null,
+        projectLeadId: strOrNull("projectLeadId"),
+        secondaryLeadId: strOrNull("secondaryLeadId"),
+        projectJustification: strOrNull("projectJustification"),
+        designObjectives: strOrNull("designObjectives"),
+        designRequirements: strOrNull("designRequirements"),
+        potentialVendors: strOrNull("potentialVendors"),
+        salesMarketingActions: strOrNull("salesMarketingActions"),
+        engineeringActions: strOrNull("engineeringActions"),
+        actualBudget: strOrNull("actualBudget"),
+        plannedSchedule: strOrNull("plannedSchedule"),
+        actualSchedule: strOrNull("actualSchedule"),
+        isComplete: strOrNull("isComplete"),
+        contingentDetails: strOrNull("contingentDetails"),
         createdById: userId,
       },
     });

@@ -53,10 +53,28 @@ export async function POST(req: NextRequest) {
       potentialVendors, salesMarketingActions, engineeringActions,
       releaseChecklist, actualBudget, plannedSchedule, actualSchedule,
       isComplete, contingentDetails, projectLeadId, secondaryLeadId,
+      parentProjectId,
     } = body;
 
     if (!title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
+    }
+
+    // Enforce 2-level hierarchy: chosen parent cannot itself be a sub-project.
+    if (parentProjectId) {
+      const parent = await prisma.project.findUnique({
+        where: { id: parentProjectId },
+        select: { id: true, parentProjectId: true },
+      });
+      if (!parent) {
+        return NextResponse.json({ error: "Parent project not found" }, { status: 400 });
+      }
+      if (parent.parentProjectId) {
+        return NextResponse.json(
+          { error: "Parent must be a top-level project" },
+          { status: 400 },
+        );
+      }
     }
 
     const project = await prisma.project.create({
@@ -71,6 +89,7 @@ export async function POST(req: NextRequest) {
         createdById: session.user.id,
         projectLeadId: projectLeadId || null,
         secondaryLeadId: secondaryLeadId || null,
+        parentProjectId: parentProjectId || null,
         phase: phase || "concept",
         projectJustification: projectJustification || null,
         designObjectives: designObjectives || null,
