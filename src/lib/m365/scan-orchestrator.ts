@@ -106,6 +106,8 @@ export interface ScanResult {
   messagesAnalyzed: number;
   suggestionsCreated: number;
   preFiltered: number;
+  irrelevant: number;
+  suggestionErrors: number;
   teamsMessages: number;
   errors: string[];
 }
@@ -352,8 +354,9 @@ async function processMessages(
       continue;
     }
 
+    let analysis: Awaited<ReturnType<typeof analyzeMessage>>;
     try {
-      const analysis = await analyzeMessage(
+      analysis = await analyzeMessage(
         {
           subject: msg.subject,
           body: msg.bodyContent,
@@ -367,48 +370,74 @@ async function processMessages(
           schedules: scheduleContext,
         }
       );
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error("[Scan] AI analysis threw:", msg.externalId, err);
+      result.errors.push(`AI analysis failed for "${msg.subject}": ${detail}`);
+      continue;
+    }
 
-      const processed = await prisma.processedMessage.create({
-        data: {
-          externalId: msg.externalId,
-          sourceType,
-          sourceId: userId,
-          scannedByUserId: userId,
-          subject: msg.subject,
-          senderName: msg.senderName,
-          senderEmail: msg.senderEmail,
-          bodyPreview: msg.bodyPreview,
-          receivedAt: msg.receivedAt,
-          aiAnalysis: JSON.stringify(analysis),
-          actionTaken: analysis.relevant
-            ? analysis.suggestedActions[0]?.type || "ignored"
-            : "ignored",
-          confidence: analysis.confidence,
-        },
+    const hasActions = analysis.relevant && analysis.suggestedActions.length > 0;
+
+    // Persist the processed message and any suggestions atomically so a
+    // suggestion-insert failure cannot leave a bare ProcessedMessage behind
+    // (which would block the message from ever being re-scanned).
+    try {
+      await prisma.$transaction(async (tx) => {
+        const processed = await tx.processedMessage.create({
+          data: {
+            externalId: msg.externalId,
+            sourceType,
+            sourceId: userId,
+            scannedByUserId: userId,
+            subject: msg.subject,
+            senderName: msg.senderName,
+            senderEmail: msg.senderEmail,
+            bodyPreview: msg.bodyPreview,
+            receivedAt: msg.receivedAt,
+            aiAnalysis: JSON.stringify(analysis),
+            actionTaken: analysis.relevant
+              ? analysis.suggestedActions[0]?.type || "ignored"
+              : "ignored",
+            confidence: analysis.confidence,
+          },
+        });
+
+        if (!hasActions) return;
+
+        for (const action of analysis.suggestedActions) {
+          await tx.aISuggestion.create({
+            data: {
+              processedMessageId: processed.id,
+              suggestionType: action.type,
+              kind: action.kind ?? "project",
+              status: "pending",
+              payload: JSON.stringify(action),
+              proposedFields: action.proposedFields
+                ? (action.proposedFields as object)
+                : undefined,
+            },
+          });
+        }
       });
 
       result.messagesAnalyzed++;
-
-      if (!analysis.relevant || analysis.suggestedActions.length === 0) continue;
-
-      for (const action of analysis.suggestedActions) {
-        await prisma.aISuggestion.create({
-          data: {
-            processedMessageId: processed.id,
-            suggestionType: action.type,
-            kind: action.kind ?? "project",
-            status: "pending",
-            payload: JSON.stringify(action),
-            proposedFields: action.proposedFields
-              ? (action.proposedFields as object)
-              : undefined,
-          },
-        });
-        result.suggestionsCreated++;
+      if (!hasActions) {
+        result.irrelevant++;
+      } else {
+        result.suggestionsCreated += analysis.suggestedActions.length;
       }
     } catch (err) {
-      console.error("[Scan] AI analysis failed:", msg.externalId, err);
-      result.errors.push(`AI analysis failed for: ${msg.subject}`);
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error(
+        "[Scan] Suggestion persistence failed:",
+        msg.externalId,
+        err,
+      );
+      result.suggestionErrors++;
+      result.errors.push(
+        `Suggestion insert failed for "${msg.subject}": ${detail}`,
+      );
     }
   }
 }
@@ -426,6 +455,8 @@ export async function runUserScan(
     messagesAnalyzed: 0,
     suggestionsCreated: 0,
     preFiltered: 0,
+    irrelevant: 0,
+    suggestionErrors: 0,
     teamsMessages: 0,
     errors: [],
   };
