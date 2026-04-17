@@ -14,7 +14,12 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { action, reviewNote, parentEquipmentId } = body; // action: "approve" | "reject"
+  const { action, reviewNote, parentEquipmentId, overrides } = body as {
+    action: "approve" | "reject";
+    reviewNote?: string;
+    parentEquipmentId?: string;
+    overrides?: Record<string, string>;
+  };
 
   if (!["approve", "reject"].includes(action)) {
     return NextResponse.json({ error: "Action must be 'approve' or 'reject'" }, { status: 400 });
@@ -45,8 +50,34 @@ export async function PUT(
     return NextResponse.json(updated);
   }
 
-  // Approve: create the actual record — now visible to everyone
-  const payload = JSON.parse(suggestion.payload);
+  // Approve: create the actual record — now visible to everyone.
+  // Reviewer edits in the UI arrive as `overrides` and take precedence over AI-proposed values.
+  const rawPayload = JSON.parse(suggestion.payload);
+  const payload = { ...rawPayload };
+  if (overrides) {
+    const ALLOWED_OVERRIDE_KEYS = [
+      "title",
+      "description",
+      "priority",
+      "budget",
+      "newStatus",
+      "partsUsed",
+      "equipmentName",
+      "progressNote",
+      "equipmentId",
+    ];
+    for (const key of ALLOWED_OVERRIDE_KEYS) {
+      const val = overrides[key];
+      if (typeof val === "string" && val.length > 0) {
+        payload[key] = val;
+      } else if (val === "") {
+        // Empty string means "clear" — only honor that for nullable fields
+        if (["budget", "partsUsed", "newStatus", "progressNote"].includes(key)) {
+          payload[key] = null;
+        }
+      }
+    }
+  }
   let createdRecordType: string | null = null;
   let createdRecordId: string | null = null;
 

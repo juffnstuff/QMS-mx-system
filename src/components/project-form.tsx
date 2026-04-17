@@ -39,6 +39,7 @@ interface ProjectData {
   id?: string;
   title: string;
   description: string | null;
+  keywords?: string | null;
   status: string;
   priority: string;
   budget: string | null;
@@ -104,6 +105,7 @@ export function ProjectForm({ project, users }: { project?: ProjectData; users?:
     const data = {
       title: formData.get("title") as string,
       description: (formData.get("description") as string) || null,
+      keywords: (formData.get("keywords") as string) || null,
       status: formData.get("status") as string,
       priority: formData.get("priority") as string,
       budget: plannedBudget || topBudget || null,
@@ -197,6 +199,23 @@ export function ProjectForm({ project, users }: { project?: ProjectData; users?:
             className={inputClass}
             placeholder="Project details, scope, goals..."
           />
+        </div>
+
+        <div>
+          <label htmlFor="keywords" className={labelClass}>
+            Keywords / Facility Area
+          </label>
+          <input
+            id="keywords"
+            name="keywords"
+            type="text"
+            defaultValue={project?.keywords || ""}
+            className={inputClass}
+            placeholder='e.g., "2nd floor, upstairs, mezzanine, flooring estimate"'
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Comma-separated synonyms the email scanner uses to match incoming messages to this project.
+          </p>
         </div>
 
         {users && users.length > 0 && (

@@ -117,6 +117,12 @@ export default async function ProjectDetailPage({
               <dd className="text-gray-900 whitespace-pre-wrap">{project.description}</dd>
             </div>
           )}
+          {project.keywords && (
+            <div className="sm:col-span-2">
+              <dt className="text-sm text-gray-500">Keywords / Facility Area</dt>
+              <dd className="text-gray-900">{project.keywords}</dd>
+            </div>
+          )}
         </dl>
       </div>
     </div>

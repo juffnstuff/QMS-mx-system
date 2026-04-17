@@ -42,7 +42,7 @@ export async function PUT(
     const { id } = await params;
     const body = await req.json();
     const {
-      title, description, status, priority, budget, dueDate,
+      title, description, keywords, status, priority, budget, dueDate,
       phase, projectJustification, designObjectives, designRequirements,
       potentialVendors, salesMarketingActions, engineeringActions,
       releaseChecklist, actualBudget, plannedSchedule, actualSchedule,
@@ -71,6 +71,7 @@ export async function PUT(
       data: {
         title,
         description: description || null,
+        keywords: keywords !== undefined ? (keywords || null) : existing.keywords,
         status,
         priority,
         budget: budget || null,

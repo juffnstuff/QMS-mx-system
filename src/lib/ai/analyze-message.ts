@@ -23,6 +23,7 @@ interface ActiveProject {
   title: string;
   status: string;
   phase: string;
+  keywords?: string | null;
 }
 
 interface ActiveSchedule {
@@ -95,7 +96,12 @@ function formatWorkOrders(list: OpenWorkOrder[]): string {
 
 function formatProjects(list: ActiveProject[]): string {
   if (!list.length) return "(none active)";
-  return list.map((p) => `- ID: ${p.id} | "${p.title}" | Status: ${p.status} | Phase: ${p.phase}`).join("\n");
+  return list
+    .map((p) => {
+      const kw = p.keywords?.trim() ? ` | Keywords: ${p.keywords.trim()}` : "";
+      return `- ID: ${p.id} | "${p.title}" | Status: ${p.status} | Phase: ${p.phase}${kw}`;
+    })
+    .join("\n");
 }
 
 function formatSchedules(list: ActiveSchedule[]): string {
@@ -181,6 +187,8 @@ These are **NEVER** QMS-relevant. If the email is one of these, set relevant=fal
 Before creating anything new, check the Open Work Orders, Active Projects, and Active Maintenance Schedules lists above. If this email is a progress update, parts-shipping notice, vendor reply, or follow-up to something already tracked:
 - Use **progress_existing** with existingRecordType, existingRecordId, and a concise progressNote of what's new.
 - Examples: "parts shipped Tuesday" on a WO already waiting on parts → progress_existing. "Jesse sent the quote we asked about" on an active project → progress_existing.
+
+**Project keywords are authoritative.** Each Active Project may list Keywords — synonyms, facility areas, or shorthand terms that map to that project. If an email mentions any of those keywords (even loosely — e.g. "upstairs", "2nd floor", "new floor", "flooring estimate"), strongly prefer **progress_existing** against that project over creating a new one or flagging for review.
 
 ### Auxiliary equipment (child components)
 When an email describes a component (pump, motor, charger, VFD) being ordered/installed/serviced for an existing piece of equipment in the registry, use **create_auxiliary_equipment** with parentEquipmentId set to the parent. Optionally set autoCreateWorkOrder=true if service/install work is described.

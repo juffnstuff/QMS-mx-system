@@ -257,6 +257,7 @@ model Project {
   id          String    @id @default(cuid())
   title       String
   description String?
+  keywords    String?   // Comma-separated synonyms / facility areas to help AI match emails (e.g. "2nd floor, upstairs, flooring estimate")
   status      String    @default("planning") // "planning" | "in_progress" | "completed" | "on_hold"
   priority    String    @default("medium")   // "low" | "medium" | "high" | "critical"
   boardStatus String    @default("backlog") // "backlog" | "in_progress" | "needs_parts" | "scheduled" | "done"

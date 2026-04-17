@@ -301,7 +301,7 @@ async function processMessages(
     }),
     prisma.project.findMany({
       where: { status: { in: ["planning", "in_progress", "on_hold"] } },
-      select: { id: true, title: true, status: true, phase: true },
+      select: { id: true, title: true, status: true, phase: true, keywords: true },
     }),
     prisma.maintenanceSchedule.findMany({
       where: { boardStatus: { not: "done" } },

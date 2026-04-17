@@ -37,6 +37,8 @@ const typeLabels: Record<string, string> = {
   create_maintenance_log: "Log Maintenance",
   update_equipment_status: "Update Equipment Status",
   create_project: "Create Project",
+  create_auxiliary_equipment: "Create Auxiliary Equipment",
+  progress_existing: "Progress Existing Record",
   flag_for_review: "Flag for Review",
 };
 
@@ -45,6 +47,8 @@ const typeBadgeColors: Record<string, string> = {
   create_maintenance_log: "bg-green-100 text-green-700",
   update_equipment_status: "bg-orange-100 text-orange-700",
   create_project: "bg-indigo-100 text-indigo-700",
+  create_auxiliary_equipment: "bg-cyan-100 text-cyan-700",
+  progress_existing: "bg-purple-100 text-purple-700",
   flag_for_review: "bg-yellow-100 text-yellow-700",
 };
 
@@ -55,14 +59,36 @@ const statusBadgeColors: Record<string, string> = {
   auto_applied: "bg-purple-100 text-purple-700",
 };
 
-// Context-aware label for the first field in Proposed Action
-const typeFieldLabels: Record<string, string> = {
-  create_work_order: "Work Order",
-  create_maintenance_log: "Maintenance Log",
-  update_equipment_status: "Equipment",
-  create_project: "Project",
-  flag_for_review: "Item",
-};
+// Editable fields tracked in local state — sent as `overrides` on approve.
+interface EditableFields {
+  title: string;
+  description: string;
+  priority: string;
+  budget: string;
+  newStatus: string;
+  partsUsed: string;
+  equipmentName: string;
+  progressNote: string;
+  equipmentId: string;
+}
+
+function initialEdits(payload: Record<string, unknown>): EditableFields {
+  return {
+    title: (payload.title as string) || "",
+    description: (payload.description as string) || "",
+    priority: (payload.priority as string) || "medium",
+    budget: (payload.budget as string) || "",
+    newStatus: (payload.newStatus as string) || "",
+    partsUsed: (payload.partsUsed as string) || "",
+    equipmentName: (payload.equipmentName as string) || "",
+    progressNote: (payload.progressNote as string) || "",
+    equipmentId: (payload.equipmentId as string) || "",
+  };
+}
+
+const inputClass =
+  "w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500";
+const labelClass = "block text-xs font-medium text-gray-600 mb-1";
 
 export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
   const router = useRouter();
@@ -70,38 +96,61 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
   const [loading, setLoading] = useState(false);
   const [parentEquipmentId, setParentEquipmentId] = useState<string>("");
   const [equipmentList, setEquipmentList] = useState<EquipmentOption[]>([]);
-  const payload = JSON.parse(suggestion.payload);
+  const payload: Record<string, unknown> = JSON.parse(suggestion.payload);
+  const [edits, setEdits] = useState<EditableFields>(() => initialEdits(payload));
 
   const isNewEquipment = payload.isNewEquipment && payload.equipmentId === "unknown";
-  const showParentPicker = isNewEquipment && suggestion.status === "pending";
+  const isPending = suggestion.status === "pending";
+  const showParentPicker = isNewEquipment && isPending;
 
-  // Fetch equipment list when parent picker is needed
+  // Fetch equipment list whenever the expanded pending card might need it
+  // (parent picker, or a manual equipment override).
   useEffect(() => {
-    if (showParentPicker && expanded && equipmentList.length === 0) {
+    if (expanded && isPending && equipmentList.length === 0) {
       fetch("/api/equipment")
         .then((r) => r.json())
         .then((data) => {
           if (Array.isArray(data)) {
-            setEquipmentList(data.map((e: EquipmentOption) => ({
-              id: e.id,
-              name: e.name,
-              serialNumber: e.serialNumber,
-            })));
+            setEquipmentList(
+              data.map((e: EquipmentOption) => ({
+                id: e.id,
+                name: e.name,
+                serialNumber: e.serialNumber,
+              }))
+            );
           }
         })
         .catch(() => {});
     }
-  }, [showParentPicker, expanded, equipmentList.length]);
+  }, [expanded, isPending, equipmentList.length]);
+
+  function updateEdit<K extends keyof EditableFields>(key: K, value: EditableFields[K]) {
+    setEdits((prev) => ({ ...prev, [key]: value }));
+  }
+
+  // Collect only the fields the user actually changed from the original payload.
+  function buildOverrides(): Record<string, string> {
+    const original = initialEdits(payload);
+    const diff: Record<string, string> = {};
+    for (const key of Object.keys(edits) as (keyof EditableFields)[]) {
+      if (edits[key] !== original[key]) {
+        diff[key] = edits[key];
+      }
+    }
+    return diff;
+  }
 
   async function handleAction(action: "approve" | "reject") {
     setLoading(true);
     try {
+      const overrides = action === "approve" ? buildOverrides() : undefined;
       const res = await fetch(`/api/suggestions/${suggestion.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
           parentEquipmentId: parentEquipmentId || undefined,
+          overrides: overrides && Object.keys(overrides).length > 0 ? overrides : undefined,
         }),
       });
       if (!res.ok) throw new Error("Failed");
@@ -113,8 +162,23 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
     }
   }
 
-  const fieldLabel = typeFieldLabels[suggestion.suggestionType] || "Item";
   const isProject = suggestion.suggestionType === "create_project";
+  const isWorkOrder = suggestion.suggestionType === "create_work_order";
+  const isAuxiliary = suggestion.suggestionType === "create_auxiliary_equipment";
+  const isStatusUpdate = suggestion.suggestionType === "update_equipment_status";
+  const isMaintLog = suggestion.suggestionType === "create_maintenance_log";
+  const isProgress = suggestion.suggestionType === "progress_existing";
+  const showPriority = isWorkOrder || isProject || isAuxiliary;
+  const showBudget = isProject;
+  const showPartsUsed = isMaintLog;
+  const showNewStatus = isStatusUpdate;
+  const showProgressNote = isProgress;
+  const showEquipmentPicker =
+    isPending &&
+    !isProject &&
+    !isProgress &&
+    !isAuxiliary &&
+    equipmentList.length > 0;
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -145,7 +209,7 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
                 </span>
               )}
             </div>
-            <p className="font-medium text-gray-900 mt-1">{payload.title}</p>
+            <p className="font-medium text-gray-900 mt-1">{edits.title || (payload.title as string)}</p>
             <p className="text-sm text-gray-500 mt-0.5">
               From: {suggestion.processedMessage.senderName || "Unknown"} &middot;{" "}
               {suggestion.processedMessage.sourceType === "email" ? "Email" : "Teams"} &middot;{" "}
@@ -169,53 +233,177 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
             </div>
           </div>
 
-          {/* Proposed Action */}
+          {/* Proposed Action — editable when pending */}
           <div className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-1">Proposed Action</h4>
-            <div className="bg-white p-3 rounded border border-gray-200 text-sm space-y-1">
-              <p>
-                <span className="text-gray-500">{fieldLabel}:</span>{" "}
-                <span className="text-gray-900 font-medium">{payload.title || payload.equipmentName}</span>
-                {isNewEquipment && (
-                  <span className="ml-2 px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                    New Equipment — will be registered on approval
-                  </span>
-                )}
-              </p>
-              {/* Show equipment context for work orders / maintenance logs */}
-              {!isProject && payload.equipmentName && (
-                <p>
-                  <span className="text-gray-500">Equipment:</span>{" "}
-                  <span className="text-gray-900">{payload.equipmentName}</span>
-                </p>
+            <div className="flex items-center justify-between mb-1">
+              <h4 className="text-sm font-medium text-gray-700">Proposed Action</h4>
+              {isPending && (
+                <span className="text-xs text-gray-400">Edit any field before approving</span>
               )}
-              <p>
-                <span className="text-gray-500">Description:</span>{" "}
-                <span className="text-gray-900">{payload.description}</span>
-              </p>
-              {payload.priority && (
-                <p>
-                  <span className="text-gray-500">Priority:</span>{" "}
-                  <span className="text-gray-900 capitalize">{payload.priority}</span>
-                </p>
-              )}
-              {payload.newStatus && (
-                <p>
-                  <span className="text-gray-500">New Status:</span>{" "}
-                  <span className="text-gray-900">{payload.newStatus.replace("_", " ")}</span>
-                </p>
-              )}
-              {payload.partsUsed && (
-                <p>
-                  <span className="text-gray-500">Parts:</span>{" "}
-                  <span className="text-gray-900">{payload.partsUsed}</span>
-                </p>
-              )}
-              {payload.budget && (
-                <p>
-                  <span className="text-gray-500">Budget:</span>{" "}
-                  <span className="text-gray-900">{payload.budget}</span>
-                </p>
+            </div>
+            <div className="bg-white p-3 rounded border border-gray-200 text-sm">
+              {isPending ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className={labelClass}>Title</label>
+                    <input
+                      type="text"
+                      value={edits.title}
+                      onChange={(e) => updateEdit("title", e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Description</label>
+                    <textarea
+                      rows={3}
+                      value={edits.description}
+                      onChange={(e) => updateEdit("description", e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
+                  {isNewEquipment && (
+                    <div>
+                      <label className={labelClass}>
+                        Equipment name <span className="text-amber-600">(new — will be registered on approval)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={edits.equipmentName}
+                        onChange={(e) => updateEdit("equipmentName", e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                  )}
+                  {showEquipmentPicker && (
+                    <div>
+                      <label className={labelClass}>
+                        {isNewEquipment ? "Or link to existing equipment instead" : "Equipment"}
+                      </label>
+                      <select
+                        value={edits.equipmentId}
+                        onChange={(e) => updateEdit("equipmentId", e.target.value)}
+                        className={inputClass}
+                      >
+                        <option value="unknown">
+                          {isNewEquipment ? "— register as new (use name above) —" : "— unknown —"}
+                        </option>
+                        {equipmentList.map((eq) => (
+                          <option key={eq.id} value={eq.id}>
+                            {eq.name} ({eq.serialNumber})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {showPriority && (
+                      <div>
+                        <label className={labelClass}>Priority</label>
+                        <select
+                          value={edits.priority}
+                          onChange={(e) => updateEdit("priority", e.target.value)}
+                          className={inputClass}
+                        >
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                          <option value="critical">Critical</option>
+                        </select>
+                      </div>
+                    )}
+                    {showNewStatus && (
+                      <div>
+                        <label className={labelClass}>New status</label>
+                        <select
+                          value={edits.newStatus}
+                          onChange={(e) => updateEdit("newStatus", e.target.value)}
+                          className={inputClass}
+                        >
+                          <option value="">— no change —</option>
+                          <option value="operational">Operational</option>
+                          <option value="needs_service">Needs Service</option>
+                          <option value="down">Down</option>
+                        </select>
+                      </div>
+                    )}
+                    {showBudget && (
+                      <div>
+                        <label className={labelClass}>Budget</label>
+                        <input
+                          type="text"
+                          value={edits.budget}
+                          onChange={(e) => updateEdit("budget", e.target.value)}
+                          className={inputClass}
+                          placeholder="e.g., $12,000"
+                        />
+                      </div>
+                    )}
+                    {showPartsUsed && (
+                      <div>
+                        <label className={labelClass}>Parts used</label>
+                        <input
+                          type="text"
+                          value={edits.partsUsed}
+                          onChange={(e) => updateEdit("partsUsed", e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  {showProgressNote && (
+                    <div>
+                      <label className={labelClass}>Progress note to append</label>
+                      <textarea
+                        rows={2}
+                        value={edits.progressNote}
+                        onChange={(e) => updateEdit("progressNote", e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <p>
+                    <span className="text-gray-500">Title:</span>{" "}
+                    <span className="text-gray-900 font-medium">{payload.title as string}</span>
+                  </p>
+                  {(payload.equipmentName as string) && !isProject && (
+                    <p>
+                      <span className="text-gray-500">Equipment:</span>{" "}
+                      <span className="text-gray-900">{payload.equipmentName as string}</span>
+                    </p>
+                  )}
+                  <p>
+                    <span className="text-gray-500">Description:</span>{" "}
+                    <span className="text-gray-900">{payload.description as string}</span>
+                  </p>
+                  {(payload.priority as string) && (
+                    <p>
+                      <span className="text-gray-500">Priority:</span>{" "}
+                      <span className="text-gray-900 capitalize">{payload.priority as string}</span>
+                    </p>
+                  )}
+                  {(payload.newStatus as string) && (
+                    <p>
+                      <span className="text-gray-500">New Status:</span>{" "}
+                      <span className="text-gray-900">{(payload.newStatus as string).replace("_", " ")}</span>
+                    </p>
+                  )}
+                  {(payload.partsUsed as string) && (
+                    <p>
+                      <span className="text-gray-500">Parts:</span>{" "}
+                      <span className="text-gray-900">{payload.partsUsed as string}</span>
+                    </p>
+                  )}
+                  {(payload.budget as string) && (
+                    <p>
+                      <span className="text-gray-500">Budget:</span>{" "}
+                      <span className="text-gray-900">{payload.budget as string}</span>
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -256,7 +444,7 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
           )}
 
           {/* Action Buttons */}
-          {suggestion.status === "pending" && (
+          {isPending && (
             <div className="flex gap-2">
               <button
                 onClick={() => handleAction("approve")}

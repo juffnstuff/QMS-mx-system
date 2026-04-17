@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const {
-      title, description, status, priority, budget, dueDate,
+      title, description, keywords, status, priority, budget, dueDate,
       phase, projectJustification, designObjectives, designRequirements,
       potentialVendors, salesMarketingActions, engineeringActions,
       releaseChecklist, actualBudget, plannedSchedule, actualSchedule,
@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
       data: {
         title,
         description: description || null,
+        keywords: keywords || null,
         status: status || "planning",
         priority: priority || "medium",
         budget: budget || null,
