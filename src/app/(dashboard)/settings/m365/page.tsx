@@ -150,13 +150,16 @@ export default async function M365SettingsPage({
             </p>
             <p className="text-xs text-blue-600 mt-1">View activity &rarr;</p>
           </Link>
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <Link
+            href="/settings/m365/suggestions?status=approved"
+            className="bg-white p-4 rounded-lg border border-gray-200 hover:border-green-300 transition-colors"
+          >
             <p className="text-sm text-gray-500">Approved</p>
             <p className="text-2xl font-bold text-gray-900">{approvedTotal}</p>
             <p className="text-xs text-green-600 mt-1">
-              Items pushed to team
+              Items pushed to team &rarr;
             </p>
-          </div>
+          </Link>
         </div>
       )}
 
