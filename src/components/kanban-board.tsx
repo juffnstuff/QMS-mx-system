@@ -482,7 +482,7 @@ function CompletionDialog({
               placeholder="e.g., 2x bearings, 1 gallon hydraulic fluid"
             />
           </div>
-          <div className="flex items-center justify-end gap-2 pt-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={onCancel}
@@ -490,6 +490,20 @@ function CompletionDialog({
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
             >
               Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSubmitting(true);
+                const tag = "Completed by vendor";
+                const trimmed = notes.trim();
+                const finalNotes = trimmed ? `${tag} — ${trimmed}` : tag;
+                onConfirm(finalNotes, parts);
+              }}
+              disabled={submitting}
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+            >
+              Vendor Completed
             </button>
             <button
               type="submit"
