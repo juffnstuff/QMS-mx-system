@@ -142,6 +142,112 @@ export function projectsDue(projects: { title: string; dueDate: string }[]) {
   };
 }
 
+export function scheduleAssigned(
+  title: string,
+  assigneeName: string,
+  scheduleId: string,
+  role: "primary" | "secondary" = "primary"
+) {
+  const link = `${BASE_URL}/schedules/${scheduleId}`;
+  const roleLabel = role === "secondary" ? "secondary assignee" : "assignee";
+  return {
+    subject: `Maintenance Schedule Assigned: ${title}`,
+    html: wrap(
+      `Maintenance Schedule Assigned to You`,
+      `<p>Hi ${assigneeName},</p><p>You've been named the ${roleLabel} on maintenance schedule: <strong>${title}</strong></p>`,
+      link
+    ),
+    plain: `Maintenance schedule "${title}" assigned to you as ${roleLabel}. View at ${link}`,
+  };
+}
+
+export function projectAssigned(
+  title: string,
+  assigneeName: string,
+  projectId: string,
+  role: "lead" | "secondary" = "lead"
+) {
+  const link = `${BASE_URL}/projects/${projectId}`;
+  const roleLabel = role === "secondary" ? "secondary lead" : "lead";
+  return {
+    subject: `Project Assigned: ${title}`,
+    html: wrap(
+      `Project Assigned to You`,
+      `<p>Hi ${assigneeName},</p><p>You've been named the ${roleLabel} on project: <strong>${title}</strong></p>`,
+      link
+    ),
+    plain: `Project "${title}" assigned to you as ${roleLabel}. View at ${link}`,
+  };
+}
+
+interface OverdueWorkOrder {
+  title: string;
+  equipmentName: string;
+  dueDate: string;
+  id: string;
+  role: "primary" | "secondary";
+}
+
+interface OverdueSchedule {
+  title: string;
+  equipmentName: string;
+  id: string;
+  role: "primary" | "secondary";
+}
+
+interface OverdueProject {
+  title: string;
+  dueDate: string;
+  id: string;
+  role: "lead" | "secondary";
+}
+
+/**
+ * Per-assignee digest of all overdue items they're responsible for across
+ * work orders, maintenance schedules, and projects.
+ */
+export function assignedItemsOverdue(
+  assigneeName: string,
+  workOrders: OverdueWorkOrder[],
+  schedules: OverdueSchedule[],
+  projects: OverdueProject[]
+) {
+  const total = workOrders.length + schedules.length + projects.length;
+
+  const section = (header: string, rows: string[]): string => {
+    if (rows.length === 0) return "";
+    return `<h4 style="margin: 16px 0 6px; color: #111827; font-size: 14px;">${header}</h4><ul>${rows.join("")}</ul>`;
+  };
+
+  const woRows = workOrders.map(
+    (o) =>
+      `<li><a href="${BASE_URL}/work-orders/${o.id}" style="color: #2563eb; text-decoration: none;"><strong>${o.title}</strong></a> — ${o.equipmentName} (due ${o.dueDate})${o.role === "secondary" ? " <em>(secondary)</em>" : ""}</li>`
+  );
+  const schedRows = schedules.map(
+    (s) =>
+      `<li><a href="${BASE_URL}/schedules/${s.id}" style="color: #2563eb; text-decoration: none;"><strong>${s.title}</strong></a> — ${s.equipmentName}${s.role === "secondary" ? " <em>(secondary)</em>" : ""}</li>`
+  );
+  const projRows = projects.map(
+    (p) =>
+      `<li><a href="${BASE_URL}/projects/${p.id}" style="color: #2563eb; text-decoration: none;"><strong>${p.title}</strong></a> (due ${p.dueDate})${p.role === "secondary" ? " <em>(secondary lead)</em>" : ""}</li>`
+  );
+
+  const body = `
+    <p>Hi ${assigneeName},</p>
+    <p>You have <strong>${total} overdue item${total !== 1 ? "s" : ""}</strong> assigned to you:</p>
+    ${section("Work Orders", woRows)}
+    ${section("Maintenance Schedules", schedRows)}
+    ${section("Projects", projRows)}
+    <p style="margin-top: 16px;">Please update status or reschedule as appropriate.</p>
+  `;
+
+  return {
+    subject: `Your Overdue QMS Items — ${total} item${total !== 1 ? "s" : ""}`,
+    html: wrap(`Overdue Items Assigned to You`, body, `${BASE_URL}/`, "#b45309"),
+    plain: `You have ${total} overdue items assigned to you. Work orders: ${workOrders.length}, schedules: ${schedules.length}, projects: ${projects.length}. View in QMS.`,
+  };
+}
+
 export function maintenanceDue(schedules: { title: string; equipmentName: string }[]) {
   const link = `${BASE_URL}/schedules`;
   const list = schedules

@@ -48,24 +48,34 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Notify assignee immediately if assigned
-  if (assignedToId && assignedToId !== session.user.id) {
-    const assignee = await prisma.user.findUnique({ where: { id: assignedToId } });
-    if (assignee) {
-      const email = workOrderAssigned(title, assignee.name, workOrder.id);
-      sendNotification({
-        userId: assignedToId,
-        type: "work_order_assigned",
-        urgency: "digest",
-        title: `Work Order Assigned: ${title}`,
-        message: `You've been assigned work order "${title}"`,
-        relatedType: "WorkOrder",
-        relatedId: workOrder.id,
-        emailSubject: email.subject,
-        emailHtml: email.html,
-        smsText: email.plain,
-      }).catch((e) => console.error("[Notification] assignee failed:", e));
-    }
+  // Notify primary + secondary assignee on creation (deduped; skip creator).
+  const assigneeIds = new Set<string>();
+  if (assignedToId && assignedToId !== session.user.id) assigneeIds.add(assignedToId);
+  if (
+    secondaryAssignedToId &&
+    secondaryAssignedToId !== session.user.id &&
+    secondaryAssignedToId !== assignedToId
+  ) {
+    assigneeIds.add(secondaryAssignedToId);
+  }
+
+  for (const uid of assigneeIds) {
+    const assignee = await prisma.user.findUnique({ where: { id: uid } });
+    if (!assignee) continue;
+    const isSecondary = uid === secondaryAssignedToId;
+    const email = workOrderAssigned(title, assignee.name, workOrder.id);
+    sendNotification({
+      userId: uid,
+      type: "work_order_assigned",
+      urgency: "digest",
+      title: `Work Order Assigned: ${title}`,
+      message: `You've been assigned${isSecondary ? " as secondary" : ""} to work order "${title}"`,
+      relatedType: "WorkOrder",
+      relatedId: workOrder.id,
+      emailSubject: email.subject,
+      emailHtml: email.html,
+      smsText: email.plain,
+    }).catch((e) => console.error("[Notification] assignee failed:", e));
   }
 
   // Digest-level notice to admins + secondary assignee about the new WO
