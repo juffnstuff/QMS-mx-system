@@ -28,12 +28,21 @@ interface EquipmentData {
   serialNumber: string;
   status: string;
   criticality: string;
+  equipmentClass: string | null;
   groupName: string | null;
   parentId: string | null;
   assignedTechnicianId: string | null;
   secondaryTechnicianId: string | null;
   notes: string | null;
 }
+
+const EQUIPMENT_CLASS_OPTIONS = [
+  { value: "extruders", label: "Extruders & Production" },
+  { value: "presses", label: "Compression Molding" },
+  { value: "forklifts", label: "Forklifts & Material Handling" },
+  { value: "utilities", label: "Utilities & Support" },
+  { value: "other", label: "Other" },
+] as const;
 
 export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: EquipmentData; allEquipment?: EquipmentOption[]; users?: UserOption[] }) {
   const router = useRouter();
@@ -56,6 +65,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
       serialNumber: formData.get("serialNumber") as string,
       status: formData.get("status") as string,
       criticality: formData.get("criticality") as string,
+      equipmentClass: (formData.get("equipmentClass") as string) || null,
       groupName: (formData.get("groupName") as string) || null,
       parentId: (formData.get("parentId") as string) || null,
       assignedTechnicianId: assignedTechnicianId || null,
@@ -211,6 +221,28 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
               placeholder='e.g., "Dake Press System"'
             />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="equipmentClass" className="block text-sm font-medium text-gray-700 mb-1">
+            Equipment Class
+          </label>
+          <select
+            id="equipmentClass"
+            name="equipmentClass"
+            defaultValue={equipment?.equipmentClass || ""}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Uncategorized</option>
+            {EQUIPMENT_CLASS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">
+            Used to group equipment into categories on the registry.
+          </p>
         </div>
 
         {allEquipment && allEquipment.length > 0 && (

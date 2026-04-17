@@ -56,6 +56,7 @@ model Equipment {
   serialNumber String    @unique
   status       String    @default("operational") // "operational" | "needs_service" | "down"
   criticality  String    @default("C") // "A" | "B" | "C" — A=production-critical, B=important, C=general
+  equipmentClass String? // "extruders" | "presses" | "forklifts" | "utilities" | "other" — category for organizing equipment
   groupName    String?   // Equipment group label, e.g. "Dake Press System", "6in Extrusion Line"
   parentId     String?   // Parent equipment ID for sub-components (e.g. pump → press)
   assignedTechnicianId String? // User responsible for this equipment
@@ -74,6 +75,7 @@ model Equipment {
 
   @@index([status])
   @@index([criticality])
+  @@index([equipmentClass])
   @@index([groupName])
   @@index([parentId])
   @@index([assignedTechnicianId])

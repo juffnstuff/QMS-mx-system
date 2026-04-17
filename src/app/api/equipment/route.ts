@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, type, location, serialNumber, status, criticality, groupName, parentId, assignedTechnicianId, secondaryTechnicianId, notes } = body;
+    const { name, type, location, serialNumber, status, criticality, equipmentClass, groupName, parentId, assignedTechnicianId, secondaryTechnicianId, notes } = body;
 
     if (!name || !type || !location || !serialNumber) {
       return NextResponse.json(
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
         name, type, location, serialNumber,
         status: status || "operational",
         criticality: criticality || "C",
+        equipmentClass: equipmentClass || null,
         groupName: groupName || null,
         parentId: parentId || null,
         assignedTechnicianId: assignedTechnicianId || null,

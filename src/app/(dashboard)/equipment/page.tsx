@@ -2,8 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { StatusBadge } from "@/components/status-badge";
 import Link from "next/link";
-import { Plus, Search, ShieldAlert, Shield, ShieldCheck } from "lucide-react";
-import { CriticalityMigrateButton } from "@/components/criticality-migrate-button";
+import { Plus, Search, ShieldAlert, Shield, ShieldCheck, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { MobileCategorySelect } from "@/components/mobile-category-select";
 
 function CriticalityBadge({ criticality }: { criticality: string }) {
@@ -22,7 +21,7 @@ function CriticalityBadge({ criticality }: { criticality: string }) {
   );
 }
 
-// Category definitions: each maps to an array of equipment type keywords
+// Category definitions: each maps to an array of equipment type keywords (fallback when equipmentClass is unset)
 const CATEGORIES = [
   { id: "all", label: "All Equipment", types: null },
   { id: "extruders", label: "Extruders & Production", types: ["Extruder", "Puller", "Cooling Table", "Cross Saw", "Mixer", "Feed System", "Die Cutting", "Bollard", "Granulator"] },
@@ -32,26 +31,36 @@ const CATEGORIES = [
   { id: "other", label: "Other", types: null }, // catch-all
 ] as const;
 
-function categorizeEquipment(type: string): string {
+function categorizeEquipment(item: { type: string; equipmentClass: string | null }): string {
+  if (item.equipmentClass) return item.equipmentClass;
   for (const cat of CATEGORIES) {
     if (cat.id === "all" || cat.id === "other") continue;
-    if (cat.types?.some((t) => type.toLowerCase().includes(t.toLowerCase()))) {
+    if (cat.types?.some((t) => item.type.toLowerCase().includes(t.toLowerCase()))) {
       return cat.id;
     }
   }
   return "other";
 }
 
+type SortKey = "name" | "type" | "location" | "serialNumber" | "criticality" | "technician" | "status" | "openWos";
+type SortDir = "asc" | "desc";
+
+const VALID_SORT_KEYS: SortKey[] = ["name", "type", "location", "serialNumber", "criticality", "technician", "status", "openWos"];
+
 export default async function EquipmentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; search?: string; category?: string }>;
+  searchParams: Promise<{ status?: string; search?: string; category?: string; sortBy?: string; sortDir?: string }>;
 }) {
   const session = await auth();
   const params = await searchParams;
   const statusFilter = params.status;
   const searchQuery = params.search;
   const activeCategory = params.category || "all";
+  const sortBy: SortKey = VALID_SORT_KEYS.includes(params.sortBy as SortKey)
+    ? (params.sortBy as SortKey)
+    : "name";
+  const sortDir: SortDir = params.sortDir === "desc" ? "desc" : "asc";
 
   const where: Record<string, unknown> = {};
   if (statusFilter && statusFilter !== "all") {
@@ -84,24 +93,104 @@ export default async function EquipmentPage({
   // Compute counts per category
   const categoryCounts: Record<string, number> = { all: allEquipment.length };
   for (const item of allEquipment) {
-    const cat = categorizeEquipment(item.type);
+    const cat = categorizeEquipment(item);
     categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
   }
 
   // Filter equipment by active tab
-  const equipment =
+  const filtered =
     activeCategory === "all"
       ? allEquipment
-      : allEquipment.filter((item) => categorizeEquipment(item.type) === activeCategory);
+      : allEquipment.filter((item) => categorizeEquipment(item) === activeCategory);
 
-  // Build tab href preserving existing search/status params
+  // In-memory sort — supports all columns uniformly, including related fields
+  const equipment = [...filtered].sort((a, b) => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    let av: string | number = "";
+    let bv: string | number = "";
+    switch (sortBy) {
+      case "name":
+        av = a.name.toLowerCase();
+        bv = b.name.toLowerCase();
+        break;
+      case "type":
+        av = a.type.toLowerCase();
+        bv = b.type.toLowerCase();
+        break;
+      case "location":
+        av = a.location.toLowerCase();
+        bv = b.location.toLowerCase();
+        break;
+      case "serialNumber":
+        av = a.serialNumber.toLowerCase();
+        bv = b.serialNumber.toLowerCase();
+        break;
+      case "criticality":
+        av = a.criticality;
+        bv = b.criticality;
+        break;
+      case "technician":
+        av = a.assignedTechnician?.name.toLowerCase() ?? "";
+        bv = b.assignedTechnician?.name.toLowerCase() ?? "";
+        break;
+      case "status":
+        av = a.status;
+        bv = b.status;
+        break;
+      case "openWos":
+        av = a._count.workOrders;
+        bv = b._count.workOrders;
+        break;
+    }
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return 0;
+  });
+
+  // Build tab href preserving existing search/status/sort params
   function tabHref(categoryId: string) {
     const p = new URLSearchParams();
     if (searchQuery) p.set("search", searchQuery);
     if (statusFilter && statusFilter !== "all") p.set("status", statusFilter);
     if (categoryId !== "all") p.set("category", categoryId);
+    if (sortBy !== "name") p.set("sortBy", sortBy);
+    if (sortDir !== "asc") p.set("sortDir", sortDir);
     const qs = p.toString();
     return `/equipment${qs ? `?${qs}` : ""}`;
+  }
+
+  // Build a sort header href — toggles direction if clicking the active column,
+  // otherwise switches to the new column with ascending direction.
+  function sortHref(key: SortKey) {
+    const nextDir: SortDir =
+      sortBy === key ? (sortDir === "asc" ? "desc" : "asc") : "asc";
+    const p = new URLSearchParams();
+    if (searchQuery) p.set("search", searchQuery);
+    if (statusFilter && statusFilter !== "all") p.set("status", statusFilter);
+    if (activeCategory !== "all") p.set("category", activeCategory);
+    if (key !== "name") p.set("sortBy", key);
+    if (nextDir !== "asc") p.set("sortDir", nextDir);
+    const qs = p.toString();
+    return `/equipment${qs ? `?${qs}` : ""}`;
+  }
+
+  function SortHeader({ label, sortKey }: { label: string; sortKey: SortKey }) {
+    const isActive = sortBy === sortKey;
+    const Icon = isActive ? (sortDir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+    return (
+      <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+        <Link
+          href={sortHref(sortKey)}
+          className={`inline-flex items-center gap-1 hover:text-gray-700 transition-colors ${
+            isActive ? "text-gray-900" : ""
+          }`}
+          scroll={false}
+        >
+          {label}
+          <Icon size={12} className={isActive ? "" : "opacity-40"} />
+        </Link>
+      </th>
+    );
   }
 
   return (
@@ -109,9 +198,6 @@ export default async function EquipmentPage({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Equipment Registry</h1>
         <div className="flex items-center gap-3">
-          {session?.user.role === "admin" && (
-            <CriticalityMigrateButton />
-          )}
           {session?.user.role === "admin" && (
             <Link
               href="/equipment/new"
@@ -128,6 +214,8 @@ export default async function EquipmentPage({
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
         <form className="flex flex-col sm:flex-row gap-3">
           <input type="hidden" name="category" value={activeCategory} />
+          {sortBy !== "name" && <input type="hidden" name="sortBy" value={sortBy} />}
+          {sortDir !== "asc" && <input type="hidden" name="sortDir" value={sortDir} />}
           <div className="relative flex-1">
             <Search
               size={16}
@@ -211,30 +299,14 @@ export default async function EquipmentPage({
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Location
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Serial #
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Criticality
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Technician
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Open WOs
-                </th>
+                <SortHeader label="Name" sortKey="name" />
+                <SortHeader label="Type" sortKey="type" />
+                <SortHeader label="Location" sortKey="location" />
+                <SortHeader label="Serial #" sortKey="serialNumber" />
+                <SortHeader label="Criticality" sortKey="criticality" />
+                <SortHeader label="Technician" sortKey="technician" />
+                <SortHeader label="Status" sortKey="status" />
+                <SortHeader label="Open WOs" sortKey="openWos" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">

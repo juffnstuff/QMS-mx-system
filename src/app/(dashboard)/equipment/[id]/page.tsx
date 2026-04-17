@@ -7,6 +7,14 @@ import { DeleteRecordButton } from "@/components/delete-record-button";
 import Link from "next/link";
 import { Pencil, ShieldAlert, Shield, ShieldCheck, Link2 } from "lucide-react";
 
+const EQUIPMENT_CLASS_LABELS: Record<string, string> = {
+  extruders: "Extruders & Production",
+  presses: "Compression Molding",
+  forklifts: "Forklifts & Material Handling",
+  utilities: "Utilities & Support",
+  other: "Other",
+};
+
 function CriticalityBadge({ criticality }: { criticality: string }) {
   const config: Record<string, { label: string; desc: string; bg: string; text: string; border: string; icon: typeof ShieldAlert }> = {
     A: { label: "Class A — Production Critical", desc: "Downtime directly stops production", bg: "bg-red-50", text: "text-red-800", border: "border-red-200", icon: ShieldAlert },
@@ -131,6 +139,14 @@ export default async function EquipmentDetailPage({
           <div>
             <dt className="text-sm text-gray-500">Criticality</dt>
             <dd className="mt-1"><CriticalityBadge criticality={equipment.criticality} /></dd>
+          </div>
+          <div>
+            <dt className="text-sm text-gray-500">Equipment Class</dt>
+            <dd className="text-gray-900">
+              {equipment.equipmentClass
+                ? EQUIPMENT_CLASS_LABELS[equipment.equipmentClass] || equipment.equipmentClass
+                : <span className="text-gray-400">Uncategorized</span>}
+            </dd>
           </div>
           <div>
             <dt className="text-sm text-gray-500">Assigned Technician</dt>
