@@ -41,6 +41,61 @@ export interface AnalyzeContext {
   schedules?: ActiveSchedule[];
 }
 
+export type SuggestionKind =
+  | "maintenance"
+  | "project"
+  | "equipment"
+  | "child_component";
+
+// Per-kind proposed fields the reviewer can edit before approval.
+export interface MaintenanceProposedFields {
+  equipmentId?: string | null;
+  title?: string;
+  description?: string;
+  frequency?: "daily" | "weekly" | "monthly" | "quarterly" | "annual";
+  nextDue?: string; // ISO date (YYYY-MM-DD)
+}
+
+export interface ProjectProposedFields {
+  title?: string;
+  description?: string;
+  priority?: "low" | "medium" | "high" | "critical";
+  status?: "planning" | "in_progress" | "on_hold" | "completed";
+  dueDate?: string; // ISO date
+  budget?: string;
+  keywords?: string;
+}
+
+export interface EquipmentProposedFields {
+  name?: string;
+  type?: string;
+  location?: string;
+  serialNumber?: string;
+  status?: "operational" | "needs_service" | "down";
+  criticality?: "A" | "B" | "C";
+  equipmentClass?: string;
+  groupName?: string;
+  parentEquipmentId?: string | null; // optional parent equipment guess
+  notes?: string;
+}
+
+export interface ChildComponentProposedFields {
+  name?: string;
+  type?: string; // e.g. "pump" | "motor" | "charger" | "vfd"
+  location?: string;
+  serialNumber?: string;
+  status?: "operational" | "needs_service" | "down";
+  parentEquipmentId: string; // required for child_component
+  notes?: string;
+  autoCreateWorkOrder?: boolean;
+}
+
+export type ProposedFields =
+  | MaintenanceProposedFields
+  | ProjectProposedFields
+  | EquipmentProposedFields
+  | ChildComponentProposedFields;
+
 interface SuggestedAction {
   type:
     | "create_work_order"
@@ -50,6 +105,10 @@ interface SuggestedAction {
     | "create_project"
     | "progress_existing"
     | "create_auxiliary_equipment";
+  // AI classification of which record type this suggestion should produce.
+  kind?: SuggestionKind;
+  // Per-kind proposed values (populated when kind is set).
+  proposedFields?: ProposedFields;
   equipmentId: string;
   equipmentName: string;
   title: string;
@@ -74,6 +133,115 @@ export interface AIAnalysisResult {
   confidence: number;
   reasoning: string;
   suggestedActions: SuggestedAction[];
+}
+
+// Map a suggestion action's `type` to its record `kind` when the model didn't
+// supply one (back-compat for older flows).
+function inferKindFromType(type: SuggestedAction["type"]): SuggestionKind {
+  switch (type) {
+    case "create_project":
+      return "project";
+    case "create_maintenance_log":
+      return "maintenance";
+    case "create_auxiliary_equipment":
+      return "child_component";
+    case "create_work_order":
+    case "update_equipment_status":
+      return "equipment";
+    default:
+      return "project";
+  }
+}
+
+// Build a best-effort proposedFields object from whatever the model gave us
+// (either as a dedicated proposedFields blob, or fallback to the legacy
+// top-level SuggestedAction fields). Also scrubs any parentEquipmentId that
+// does not match a real equipment id.
+function normalizeProposedFields(
+  kind: SuggestionKind,
+  action: SuggestedAction,
+  validEquipmentIds: Set<string>
+): ProposedFields {
+  const incoming = (action.proposedFields ?? {}) as Record<string, unknown>;
+  const validEqId = (id: unknown): string | null => {
+    if (typeof id === "string" && id && id !== "unknown" && validEquipmentIds.has(id)) {
+      return id;
+    }
+    return null;
+  };
+
+  if (kind === "project") {
+    return {
+      title: (incoming.title as string) || action.title || "",
+      description: (incoming.description as string) || action.description || "",
+      priority: (incoming.priority as ProjectProposedFields["priority"]) ||
+        action.priority || "medium",
+      status: (incoming.status as ProjectProposedFields["status"]) || "planning",
+      dueDate: (incoming.dueDate as string) || "",
+      budget: (incoming.budget as string) || action.budget || "",
+      keywords: (incoming.keywords as string) || "",
+    };
+  }
+
+  if (kind === "maintenance") {
+    return {
+      equipmentId:
+        validEqId(incoming.equipmentId) ?? validEqId(action.equipmentId) ?? null,
+      title: (incoming.title as string) || action.title || "",
+      description:
+        (incoming.description as string) || action.description || "",
+      frequency:
+        (incoming.frequency as MaintenanceProposedFields["frequency"]) ||
+        "monthly",
+      nextDue: (incoming.nextDue as string) || "",
+    };
+  }
+
+  if (kind === "equipment") {
+    return {
+      name: (incoming.name as string) || action.equipmentName || "",
+      type: (incoming.type as string) || "",
+      location: (incoming.location as string) || "",
+      serialNumber: (incoming.serialNumber as string) || "",
+      status:
+        (incoming.status as EquipmentProposedFields["status"]) ||
+        action.newStatus ||
+        "needs_service",
+      criticality:
+        (incoming.criticality as EquipmentProposedFields["criticality"]) || "C",
+      equipmentClass: (incoming.equipmentClass as string) || "",
+      groupName: (incoming.groupName as string) || "",
+      parentEquipmentId:
+        validEqId(incoming.parentEquipmentId) ??
+        validEqId(action.parentEquipmentId) ??
+        null,
+      notes: (incoming.notes as string) || action.description || "",
+    };
+  }
+
+  // child_component
+  const parent =
+    validEqId(incoming.parentEquipmentId) ??
+    validEqId(action.parentEquipmentId) ??
+    "";
+  return {
+    name:
+      (incoming.name as string) ||
+      action.equipmentName ||
+      (action.auxiliaryType ? `${action.auxiliaryType}` : ""),
+    type: (incoming.type as string) || action.auxiliaryType || "Component",
+    location: (incoming.location as string) || "",
+    serialNumber: (incoming.serialNumber as string) || "",
+    status:
+      (incoming.status as ChildComponentProposedFields["status"]) ||
+      "needs_service",
+    parentEquipmentId: parent,
+    notes: (incoming.notes as string) || action.description || "",
+    autoCreateWorkOrder:
+      typeof incoming.autoCreateWorkOrder === "boolean"
+        ? (incoming.autoCreateWorkOrder as boolean)
+        : action.autoCreateWorkOrder ?? false,
+  };
 }
 
 const client = new Anthropic();
@@ -231,6 +399,63 @@ When an email describes a component (pump, motor, charger, VFD) being ordered/in
 ### Confidence
 0.0–1.0. Be generous — flag (0.5+) over miss (<0.3).
 
+## Record-kind classification (REQUIRED)
+For every suggestion you emit, also classify which **record kind** the reviewer will create when they approve it. Set \`kind\` to one of:
+- **maintenance** — a recurring \`MaintenanceSchedule\` (PM, inspection due, calibration due, "every 30 days").
+- **project** — a \`Project\` (capital purchase, multi-step install, facility improvement, estimate/quote threads).
+- **equipment** — a new standalone \`Equipment\` record (press, grinder, forklift, truck, compressor). Work orders tied to existing equipment also fall under this kind — the work order is the action, the equipment is the primary record.
+- **child_component** — an auxiliary/child \`Equipment\` record with a required parent (pump for a press, charger for a forklift, VFD for an extruder).
+
+For each kind you must also populate \`proposedFields\` with the best values you can infer from the email. Leave fields you can't infer as null/empty — the reviewer will fill them in. Required shape per kind:
+
+### kind = "maintenance"
+\`proposedFields\` = {
+  "equipmentId": "<existing equipment id, or null>",
+  "title": "Short schedule title",
+  "description": "What the schedule covers",
+  "frequency": "daily" | "weekly" | "monthly" | "quarterly" | "annual",
+  "nextDue": "YYYY-MM-DD"
+}
+
+### kind = "project"
+\`proposedFields\` = {
+  "title": "Project title",
+  "description": "Scope / goals",
+  "priority": "low" | "medium" | "high" | "critical",
+  "status": "planning" | "in_progress" | "on_hold" | "completed",
+  "dueDate": "YYYY-MM-DD or null",
+  "budget": "$ amount or null",
+  "keywords": "comma-separated synonyms for future email matching"
+}
+
+### kind = "equipment"
+\`proposedFields\` = {
+  "name": "Equipment name",
+  "type": "Press | Grinder | Forklift | Vehicle | Pump | etc.",
+  "location": "where in the facility",
+  "serialNumber": "serial if known, else null",
+  "status": "operational" | "needs_service" | "down",
+  "criticality": "A" | "B" | "C",
+  "equipmentClass": "extruders | presses | forklifts | utilities | other",
+  "groupName": "group label or null",
+  "parentEquipmentId": "<existing equipment id if this is logically under a parent, else null>",
+  "notes": "anything useful from the email"
+}
+
+### kind = "child_component"
+\`proposedFields\` = {
+  "name": "Component name (e.g. 'Main hydraulic pump')",
+  "type": "pump | motor | charger | vfd | gearbox | etc.",
+  "location": "typically inherit from parent if unknown",
+  "serialNumber": "if known, else null",
+  "status": "operational" | "needs_service" | "down",
+  "parentEquipmentId": "<REQUIRED — existing equipment id of the parent>",
+  "notes": "what the email said about it",
+  "autoCreateWorkOrder": true/false
+}
+
+Use the Equipment Registry list above to pick real equipment IDs when referencing a parent or a maintenance target. If no good match exists, set the id to null (maintenance / equipment) or flag the suggestion instead of guessing (child_component).
+
 ## Response Format
 Respond with ONLY valid JSON, no markdown, no prose:
 {
@@ -240,6 +465,8 @@ Respond with ONLY valid JSON, no markdown, no prose:
   "suggestedActions": [
     {
       "type": "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review" | "create_project" | "progress_existing" | "create_auxiliary_equipment",
+      "kind": "maintenance" | "project" | "equipment" | "child_component",
+      "proposedFields": { /* per-kind shape from above */ },
       "equipmentId": "registry id or 'unknown'",
       "equipmentName": "equipment name or description",
       "title": "Short descriptive title",
@@ -312,6 +539,18 @@ If not relevant: {"relevant": false, "confidence": 0.9, "reasoning": "Not releva
         action.equipmentId = "unknown";
       }
       return true;
+    });
+
+    // Ensure every action has a `kind` and a `proposedFields` object so the
+    // review UI can render a per-kind editor even when the model skipped it.
+    result.suggestedActions = result.suggestedActions.map((action) => {
+      const kind: SuggestionKind = action.kind ?? inferKindFromType(action.type);
+      const proposedFields = normalizeProposedFields(
+        kind,
+        action,
+        validEquipmentIds
+      );
+      return { ...action, kind, proposedFields };
     });
 
     return result;
