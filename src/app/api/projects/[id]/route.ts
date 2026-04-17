@@ -47,6 +47,7 @@ export async function PUT(
       potentialVendors, salesMarketingActions, engineeringActions,
       releaseChecklist, actualBudget, plannedSchedule, actualSchedule,
       isComplete, contingentDetails, projectLeadId, secondaryLeadId,
+      parentProjectId,
     } = body;
 
     if (!title) {
@@ -54,9 +55,38 @@ export async function PUT(
     }
 
     // Handle completedAt based on status
-    const existing = await prisma.project.findUnique({ where: { id } });
+    const existing = await prisma.project.findUnique({
+      where: { id },
+      include: { _count: { select: { children: true } } },
+    });
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // Enforce 2-level hierarchy.
+    if (parentProjectId) {
+      if (parentProjectId === id) {
+        return NextResponse.json({ error: "Project cannot be its own parent" }, { status: 400 });
+      }
+      if (existing._count.children > 0) {
+        return NextResponse.json(
+          { error: "A project with sub-projects cannot itself become a sub-project" },
+          { status: 400 },
+        );
+      }
+      const parent = await prisma.project.findUnique({
+        where: { id: parentProjectId },
+        select: { parentProjectId: true },
+      });
+      if (!parent) {
+        return NextResponse.json({ error: "Parent project not found" }, { status: 400 });
+      }
+      if (parent.parentProjectId) {
+        return NextResponse.json(
+          { error: "Parent must be a top-level project" },
+          { status: 400 },
+        );
+      }
     }
 
     let completedAt = existing.completedAt;
@@ -79,6 +109,7 @@ export async function PUT(
         completedAt,
         projectLeadId: projectLeadId !== undefined ? (projectLeadId || null) : existing.projectLeadId,
         secondaryLeadId: secondaryLeadId !== undefined ? (secondaryLeadId || null) : existing.secondaryLeadId,
+        parentProjectId: parentProjectId !== undefined ? (parentProjectId || null) : existing.parentProjectId,
         phase: phase || existing.phase,
         projectJustification: projectJustification !== undefined ? (projectJustification || null) : existing.projectJustification,
         designObjectives: designObjectives !== undefined ? (designObjectives || null) : existing.designObjectives,

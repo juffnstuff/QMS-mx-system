@@ -12,11 +12,15 @@ export default async function EditProjectPage({
   const session = await auth();
   if (session?.user.role !== "admin") redirect("/projects");
 
-  const [project, users] = await Promise.all([
+  const [project, users, allProjects] = await Promise.all([
     prisma.project.findUnique({ where: { id } }),
     prisma.user.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true, role: true },
+    }),
+    prisma.project.findMany({
+      orderBy: { title: "asc" },
+      select: { id: true, title: true, parentProjectId: true },
     }),
   ]);
   if (!project) notFound();
@@ -30,6 +34,7 @@ export default async function EditProjectPage({
           dueDate: project.dueDate ? project.dueDate.toISOString() : null,
         }}
         users={users}
+        allProjects={allProjects}
       />
     </div>
   );

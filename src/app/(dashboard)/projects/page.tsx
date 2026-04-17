@@ -31,6 +31,8 @@ export default async function ProjectsPage({
     include: {
       createdBy: { select: { id: true, name: true } },
       projectLead: { select: { id: true, name: true } },
+      parent: { select: { id: true, title: true } },
+      _count: { select: { children: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -128,12 +130,29 @@ export default async function ProjectsPage({
               {projects.map((project) => (
                 <tr key={project.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
+                    {project.parent && (
+                      <div className="text-xs text-gray-400 mb-0.5">
+                        ↳ sub-project of{" "}
+                        <Link
+                          href={`/projects/${project.parent.id}`}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          {project.parent.title}
+                        </Link>
+                      </div>
+                    )}
                     <Link
                       href={`/projects/${project.id}`}
                       className="text-blue-600 hover:text-blue-800 font-medium"
                     >
                       {project.title}
                     </Link>
+                    {project._count.children > 0 && (
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700">
+                        {project._count.children} sub-project
+                        {project._count.children === 1 ? "" : "s"}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={project.status} />

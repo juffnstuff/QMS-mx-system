@@ -24,6 +24,7 @@ interface ActiveProject {
   status: string;
   phase: string;
   keywords?: string | null;
+  parentProjectId?: string | null;
 }
 
 interface ActiveSchedule {
@@ -61,9 +62,28 @@ export interface ProjectProposedFields {
   description?: string;
   priority?: "low" | "medium" | "high" | "critical";
   status?: "planning" | "in_progress" | "on_hold" | "completed";
+  phase?: "concept" | "design" | "production_release" | "complete";
   dueDate?: string; // ISO date
   budget?: string;
   keywords?: string;
+  // Hierarchy: existing top-level project this sub-project/task belongs to
+  parentProjectId?: string | null;
+  projectLeadId?: string | null;
+  secondaryLeadId?: string | null;
+  // Phase 1
+  projectJustification?: string;
+  designObjectives?: string;
+  designRequirements?: string;
+  potentialVendors?: string;
+  // Phase 2
+  salesMarketingActions?: string;
+  engineeringActions?: string;
+  // Phase 3
+  actualBudget?: string;
+  plannedSchedule?: string;
+  actualSchedule?: string;
+  isComplete?: "yes" | "no" | "contingent" | "";
+  contingentDetails?: string;
 }
 
 export interface EquipmentProposedFields {
@@ -160,11 +180,18 @@ function inferKindFromType(type: SuggestedAction["type"]): SuggestionKind {
 function normalizeProposedFields(
   kind: SuggestionKind,
   action: SuggestedAction,
-  validEquipmentIds: Set<string>
+  validEquipmentIds: Set<string>,
+  validProjectIds: Set<string>,
 ): ProposedFields {
   const incoming = (action.proposedFields ?? {}) as Record<string, unknown>;
   const validEqId = (id: unknown): string | null => {
     if (typeof id === "string" && id && id !== "unknown" && validEquipmentIds.has(id)) {
+      return id;
+    }
+    return null;
+  };
+  const validProjectId = (id: unknown): string | null => {
+    if (typeof id === "string" && id && id !== "unknown" && validProjectIds.has(id)) {
       return id;
     }
     return null;
@@ -177,9 +204,24 @@ function normalizeProposedFields(
       priority: (incoming.priority as ProjectProposedFields["priority"]) ||
         action.priority || "medium",
       status: (incoming.status as ProjectProposedFields["status"]) || "planning",
+      phase: (incoming.phase as ProjectProposedFields["phase"]) || "concept",
       dueDate: (incoming.dueDate as string) || "",
       budget: (incoming.budget as string) || action.budget || "",
       keywords: (incoming.keywords as string) || "",
+      parentProjectId: validProjectId(incoming.parentProjectId),
+      projectLeadId: null,
+      secondaryLeadId: null,
+      projectJustification: (incoming.projectJustification as string) || "",
+      designObjectives: (incoming.designObjectives as string) || "",
+      designRequirements: (incoming.designRequirements as string) || "",
+      potentialVendors: (incoming.potentialVendors as string) || "",
+      salesMarketingActions: (incoming.salesMarketingActions as string) || "",
+      engineeringActions: (incoming.engineeringActions as string) || "",
+      actualBudget: (incoming.actualBudget as string) || "",
+      plannedSchedule: (incoming.plannedSchedule as string) || "",
+      actualSchedule: (incoming.actualSchedule as string) || "",
+      isComplete: (incoming.isComplete as ProjectProposedFields["isComplete"]) || "",
+      contingentDetails: (incoming.contingentDetails as string) || "",
     };
   }
 
@@ -264,12 +306,26 @@ function formatWorkOrders(list: OpenWorkOrder[]): string {
 
 function formatProjects(list: ActiveProject[]): string {
   if (!list.length) return "(none active)";
-  return list
-    .map((p) => {
-      const kw = p.keywords?.trim() ? ` | Keywords: ${p.keywords.trim()}` : "";
-      return `- ID: ${p.id} | "${p.title}" | Status: ${p.status} | Phase: ${p.phase}${kw}`;
-    })
-    .join("\n");
+  // Group: top-level projects first, then their sub-projects indented.
+  const byId = new Map(list.map((p) => [p.id, p]));
+  const tops = list.filter((p) => !p.parentProjectId || !byId.has(p.parentProjectId));
+  const childrenOf = (parentId: string) =>
+    list.filter((p) => p.parentProjectId === parentId);
+
+  const lines: string[] = [];
+  for (const top of tops) {
+    const kw = top.keywords?.trim() ? ` | Keywords: ${top.keywords.trim()}` : "";
+    lines.push(
+      `- ID: ${top.id} | "${top.title}" | Status: ${top.status} | Phase: ${top.phase}${kw}`,
+    );
+    for (const child of childrenOf(top.id)) {
+      const ckw = child.keywords?.trim() ? ` | Keywords: ${child.keywords.trim()}` : "";
+      lines.push(
+        `    ↳ sub-project ID: ${child.id} | "${child.title}" | Status: ${child.status} | Phase: ${child.phase}${ckw} | parentProjectId: ${top.id}`,
+      );
+    }
+  }
+  return lines.join("\n");
 }
 
 function formatSchedules(list: ActiveSchedule[]): string {
@@ -369,6 +425,15 @@ Before creating anything new, check the Open Work Orders, Active Projects, and A
 
 **Project keywords are authoritative.** Each Active Project may list Keywords — synonyms, facility areas, or shorthand terms that map to that project. If an email mentions any of those keywords (even loosely — e.g. "upstairs", "2nd floor", "new floor", "flooring estimate"), strongly prefer **progress_existing** against that project over creating a new one or flagging for review.
 
+### Parent/child projects — match to a parent before creating new
+Projects form a 2-level hierarchy: a main project can have sub-projects/tasks rolled up under it. Sub-projects are shown indented with "↳ sub-project" in the Active Projects list.
+
+When analyzing an email about project-like work:
+1. **First, try to match an existing Active Project (top-level or sub-project) by keywords / title / description.** If matched, use **progress_existing** with that project's ID.
+2. **If the email describes a NEW piece of work that clearly belongs under an existing main project** (e.g. email says "flooring for the 2nd floor" and there's an active main project "New Sales Office / 2nd Floor Space"), create a **sub-project** under it: use **create_project** with kind="project" and set \`proposedFields.parentProjectId\` to the parent project's ID.
+3. **Only create a brand-new top-level project** if the email describes work that does not fit under any existing main project. Leave \`proposedFields.parentProjectId\` as null.
+4. When unsure whether the email warrants a sub-project vs progress note, prefer **progress_existing** on the matched parent.
+
 ### Auxiliary equipment (child components)
 When an email describes a component (pump, motor, charger, VFD) being ordered/installed/serviced for an existing piece of equipment in the registry, use **create_auxiliary_equipment** with parentEquipmentId set to the parent. Optionally set autoCreateWorkOrder=true if service/install work is described.
 - Example: "Ordered new hydraulic pump for the Dake press" → create_auxiliary_equipment, parentEquipmentId=<Dake press id>, auxiliaryType="pump", autoCreateWorkOrder=true.
@@ -423,9 +488,20 @@ For each kind you must also populate \`proposedFields\` with the best values you
   "description": "Scope / goals",
   "priority": "low" | "medium" | "high" | "critical",
   "status": "planning" | "in_progress" | "on_hold" | "completed",
+  "phase": "concept" | "design" | "production_release" | "complete",
   "dueDate": "YYYY-MM-DD or null",
   "budget": "$ amount or null",
-  "keywords": "comma-separated synonyms for future email matching"
+  "keywords": "comma-separated synonyms for future email matching",
+  "parentProjectId": "<existing top-level project id if this is a sub-project/task, else null>",
+  "projectJustification": "why this is needed (fill from email if stated, else empty)",
+  "designObjectives": "design objectives from the email, else empty",
+  "designRequirements": "specs/requirements from the email, else empty",
+  "potentialVendors": "vendors mentioned in the email, else empty",
+  "salesMarketingActions": "",
+  "engineeringActions": "",
+  "actualBudget": "",
+  "plannedSchedule": "",
+  "actualSchedule": ""
 }
 
 ### kind = "equipment"
@@ -548,7 +624,8 @@ If not relevant: {"relevant": false, "confidence": 0.9, "reasoning": "Not releva
       const proposedFields = normalizeProposedFields(
         kind,
         action,
-        validEquipmentIds
+        validEquipmentIds,
+        validProjectIds,
       );
       return { ...action, kind, proposedFields };
     });
