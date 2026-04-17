@@ -59,6 +59,26 @@ const statusBadgeColors: Record<string, string> = {
   auto_applied: "bg-purple-100 text-purple-700",
 };
 
+// Shape of the AI-proposed payload stored on the suggestion. All fields are
+// optional because the AI only emits the ones relevant to the suggestion type.
+interface SuggestionPayload {
+  title?: string;
+  description?: string;
+  equipmentId?: string;
+  equipmentName?: string;
+  priority?: string;
+  newStatus?: string;
+  partsUsed?: string;
+  budget?: string;
+  isNewEquipment?: boolean;
+  progressNote?: string;
+  existingRecordType?: string;
+  existingRecordId?: string;
+  parentEquipmentId?: string;
+  auxiliaryType?: string;
+  autoCreateWorkOrder?: boolean;
+}
+
 // Editable fields tracked in local state — sent as `overrides` on approve.
 interface EditableFields {
   title: string;
@@ -72,17 +92,17 @@ interface EditableFields {
   equipmentId: string;
 }
 
-function initialEdits(payload: Record<string, unknown>): EditableFields {
+function initialEdits(payload: SuggestionPayload): EditableFields {
   return {
-    title: (payload.title as string) || "",
-    description: (payload.description as string) || "",
-    priority: (payload.priority as string) || "medium",
-    budget: (payload.budget as string) || "",
-    newStatus: (payload.newStatus as string) || "",
-    partsUsed: (payload.partsUsed as string) || "",
-    equipmentName: (payload.equipmentName as string) || "",
-    progressNote: (payload.progressNote as string) || "",
-    equipmentId: (payload.equipmentId as string) || "",
+    title: payload.title || "",
+    description: payload.description || "",
+    priority: payload.priority || "medium",
+    budget: payload.budget || "",
+    newStatus: payload.newStatus || "",
+    partsUsed: payload.partsUsed || "",
+    equipmentName: payload.equipmentName || "",
+    progressNote: payload.progressNote || "",
+    equipmentId: payload.equipmentId || "",
   };
 }
 
@@ -96,7 +116,7 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
   const [loading, setLoading] = useState(false);
   const [parentEquipmentId, setParentEquipmentId] = useState<string>("");
   const [equipmentList, setEquipmentList] = useState<EquipmentOption[]>([]);
-  const payload: Record<string, unknown> = JSON.parse(suggestion.payload);
+  const payload: SuggestionPayload = JSON.parse(suggestion.payload);
   const [edits, setEdits] = useState<EditableFields>(() => initialEdits(payload));
 
   const isNewEquipment = payload.isNewEquipment && payload.equipmentId === "unknown";
@@ -209,7 +229,7 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
                 </span>
               )}
             </div>
-            <p className="font-medium text-gray-900 mt-1">{edits.title || (payload.title as string)}</p>
+            <p className="font-medium text-gray-900 mt-1">{edits.title || payload.title}</p>
             <p className="text-sm text-gray-500 mt-0.5">
               From: {suggestion.processedMessage.senderName || "Unknown"} &middot;{" "}
               {suggestion.processedMessage.sourceType === "email" ? "Email" : "Teams"} &middot;{" "}
@@ -367,40 +387,40 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
                 <div className="space-y-1">
                   <p>
                     <span className="text-gray-500">Title:</span>{" "}
-                    <span className="text-gray-900 font-medium">{payload.title as string}</span>
+                    <span className="text-gray-900 font-medium">{payload.title}</span>
                   </p>
-                  {(payload.equipmentName as string) && !isProject && (
+                  {payload.equipmentName && !isProject && (
                     <p>
                       <span className="text-gray-500">Equipment:</span>{" "}
-                      <span className="text-gray-900">{payload.equipmentName as string}</span>
+                      <span className="text-gray-900">{payload.equipmentName}</span>
                     </p>
                   )}
                   <p>
                     <span className="text-gray-500">Description:</span>{" "}
-                    <span className="text-gray-900">{payload.description as string}</span>
+                    <span className="text-gray-900">{payload.description}</span>
                   </p>
-                  {(payload.priority as string) && (
+                  {payload.priority && (
                     <p>
                       <span className="text-gray-500">Priority:</span>{" "}
-                      <span className="text-gray-900 capitalize">{payload.priority as string}</span>
+                      <span className="text-gray-900 capitalize">{payload.priority}</span>
                     </p>
                   )}
-                  {(payload.newStatus as string) && (
+                  {payload.newStatus && (
                     <p>
                       <span className="text-gray-500">New Status:</span>{" "}
-                      <span className="text-gray-900">{(payload.newStatus as string).replace("_", " ")}</span>
+                      <span className="text-gray-900">{payload.newStatus.replace("_", " ")}</span>
                     </p>
                   )}
-                  {(payload.partsUsed as string) && (
+                  {payload.partsUsed && (
                     <p>
                       <span className="text-gray-500">Parts:</span>{" "}
-                      <span className="text-gray-900">{payload.partsUsed as string}</span>
+                      <span className="text-gray-900">{payload.partsUsed}</span>
                     </p>
                   )}
-                  {(payload.budget as string) && (
+                  {payload.budget && (
                     <p>
                       <span className="text-gray-500">Budget:</span>{" "}
-                      <span className="text-gray-900">{payload.budget as string}</span>
+                      <span className="text-gray-900">{payload.budget}</span>
                     </p>
                   )}
                 </div>
