@@ -396,8 +396,12 @@ async function processMessages(
           data: {
             processedMessageId: processed.id,
             suggestionType: action.type,
+            kind: action.kind ?? "project",
             status: "pending",
             payload: JSON.stringify(action),
+            proposedFields: action.proposedFields
+              ? (action.proposedFields as object)
+              : undefined,
           },
         });
         result.suggestionsCreated++;

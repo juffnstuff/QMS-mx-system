@@ -213,8 +213,10 @@ model AISuggestion {
   id                 String    @id @default(cuid())
   processedMessageId String
   suggestionType     String    // "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review"
+  kind               String    @default("project") // "maintenance" | "project" | "equipment" | "child_component"
   status             String    @default("pending") // "pending" | "approved" | "rejected" | "auto_applied"
   payload            String    // JSON with proposed action details
+  proposedFields     Json?     // Per-kind proposed field values the reviewer can edit before approval
   createdRecordType  String?   // "WorkOrder" | "MaintenanceLog" | "Equipment"
   createdRecordId    String?
   sharePointDocId    String?   // optional link to SharePointDocument
@@ -227,6 +229,7 @@ model AISuggestion {
   reviewer         User?            @relation("SuggestionReviewer", fields: [reviewedBy], references: [id])
 
   @@index([status])
+  @@index([kind])
 }
 
 model M365SharePointSite {

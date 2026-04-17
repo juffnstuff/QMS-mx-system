@@ -3,6 +3,17 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 
+type SuggestionKind = "maintenance" | "project" | "equipment" | "child_component";
+
+function isSuggestionKind(value: unknown): value is SuggestionKind {
+  return (
+    value === "maintenance" ||
+    value === "project" ||
+    value === "equipment" ||
+    value === "child_component"
+  );
+}
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -14,11 +25,20 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { action, reviewNote, parentEquipmentId, overrides } = body as {
+  const {
+    action,
+    reviewNote,
+    parentEquipmentId,
+    overrides,
+    kind: kindOverride,
+    proposedFields: proposedFieldsOverride,
+  } = body as {
     action: "approve" | "reject";
     reviewNote?: string;
     parentEquipmentId?: string;
     overrides?: Record<string, string>;
+    kind?: SuggestionKind;
+    proposedFields?: Record<string, unknown>;
   };
 
   if (!["approve", "reject"].includes(action)) {
@@ -51,7 +71,9 @@ export async function PUT(
   }
 
   // Approve: create the actual record — now visible to everyone.
-  // Reviewer edits in the UI arrive as `overrides` and take precedence over AI-proposed values.
+  // Reviewer edits in the UI arrive as `overrides` (legacy top-level fields)
+  // and `proposedFields` (new per-kind edit payload) and take precedence over
+  // AI-proposed values.
   const rawPayload = JSON.parse(suggestion.payload);
   const payload = { ...rawPayload };
   if (overrides) {
@@ -78,10 +100,59 @@ export async function PUT(
       }
     }
   }
+
+  // Resolve which record-kind we're creating. Reviewer can override the AI's
+  // classification via the dropdown in the UI.
+  const kind: SuggestionKind = isSuggestionKind(kindOverride)
+    ? kindOverride
+    : isSuggestionKind(suggestion.kind)
+      ? (suggestion.kind as SuggestionKind)
+      : "project";
+
+  // Merge AI-proposed fields with reviewer edits. Reviewer values win.
+  const aiProposed =
+    (suggestion.proposedFields as Record<string, unknown> | null) ?? {};
+  const mergedFields: Record<string, unknown> = {
+    ...aiProposed,
+    ...(proposedFieldsOverride ?? {}),
+  };
+
   let createdRecordType: string | null = null;
   let createdRecordId: string | null = null;
 
   try {
+    // When the reviewer supplied proposedFields, take the kind-driven path:
+    // build the right record from those fields and skip the legacy branch.
+    if (proposedFieldsOverride || suggestion.proposedFields) {
+      const result = await createRecordForKind({
+        kind,
+        fields: mergedFields,
+        userId: session.user.id,
+      });
+      if ("error" in result) {
+        return NextResponse.json({ error: result.error }, { status: 400 });
+      }
+      createdRecordType = result.type;
+      createdRecordId = result.id;
+
+      const updated = await prisma.aISuggestion.update({
+        where: { id },
+        data: {
+          status: "approved",
+          reviewedBy: session.user.id,
+          reviewedAt: new Date(),
+          reviewNote: reviewNote || null,
+          kind,
+          proposedFields: mergedFields as object,
+          createdRecordType,
+          createdRecordId,
+        },
+      });
+
+      return NextResponse.json(updated);
+    }
+
+    // ----- Legacy fallback path (no proposedFields) -----
     // Auto-create equipment if unknown and isNewEquipment (skip for projects)
     let equipmentId = payload.equipmentId;
     const needsEquipment = suggestion.suggestionType !== "create_project";
@@ -252,4 +323,122 @@ export async function PUT(
     console.error("[Suggestion Approve] Error creating record:", error);
     return NextResponse.json({ error: "Failed to create record" }, { status: 500 });
   }
+}
+
+// Create the record type for the given suggestion kind using reviewer-edited
+// proposedFields. Returns the created record's type + id, or an error.
+async function createRecordForKind({
+  kind,
+  fields,
+  userId,
+}: {
+  kind: SuggestionKind;
+  fields: Record<string, unknown>;
+  userId: string;
+}): Promise<{ type: string; id: string } | { error: string }> {
+  const str = (k: string): string | undefined => {
+    const v = fields[k];
+    return typeof v === "string" && v.length > 0 ? v : undefined;
+  };
+  const strOrNull = (k: string): string | null => str(k) ?? null;
+
+  if (kind === "project") {
+    const title = str("title");
+    if (!title) return { error: "Project title is required" };
+    const project = await prisma.project.create({
+      data: {
+        title,
+        description: strOrNull("description"),
+        priority: str("priority") ?? "medium",
+        status: str("status") ?? "planning",
+        budget: strOrNull("budget"),
+        keywords: strOrNull("keywords"),
+        dueDate: str("dueDate") ? new Date(str("dueDate")!) : null,
+        createdById: userId,
+      },
+    });
+    return { type: "Project", id: project.id };
+  }
+
+  if (kind === "maintenance") {
+    const title = str("title");
+    const equipmentId = str("equipmentId");
+    if (!title) return { error: "Maintenance title is required" };
+    if (!equipmentId) {
+      return { error: "Select the equipment this schedule applies to" };
+    }
+    const equipment = await prisma.equipment.findUnique({ where: { id: equipmentId } });
+    if (!equipment) return { error: "Equipment not found" };
+    const nextDue = str("nextDue") ? new Date(str("nextDue")!) : new Date();
+    const schedule = await prisma.maintenanceSchedule.create({
+      data: {
+        equipmentId,
+        title,
+        description: strOrNull("description"),
+        frequency: str("frequency") ?? "monthly",
+        nextDue,
+      },
+    });
+    return { type: "MaintenanceSchedule", id: schedule.id };
+  }
+
+  if (kind === "equipment") {
+    const name = str("name");
+    if (!name) return { error: "Equipment name is required" };
+    const rand = crypto.randomBytes(3).toString("hex").toUpperCase();
+    const serialNumber = str("serialNumber") ?? `AUTO-${Date.now()}-${rand}`;
+    const equipment = await prisma.equipment.create({
+      data: {
+        name,
+        type: str("type") ?? "General",
+        location: str("location") ?? "TBD",
+        serialNumber,
+        status: str("status") ?? "needs_service",
+        criticality: str("criticality") ?? "C",
+        equipmentClass: strOrNull("equipmentClass"),
+        groupName: strOrNull("groupName"),
+        parentId: strOrNull("parentEquipmentId"),
+        notes: strOrNull("notes"),
+      },
+    });
+    return { type: "Equipment", id: equipment.id };
+  }
+
+  // child_component
+  const parentEquipmentId = str("parentEquipmentId");
+  if (!parentEquipmentId) {
+    return { error: "Parent equipment is required for child components" };
+  }
+  const parent = await prisma.equipment.findUnique({ where: { id: parentEquipmentId } });
+  if (!parent) return { error: "Parent equipment not found" };
+  const name = str("name");
+  if (!name) return { error: "Component name is required" };
+  const rand = crypto.randomBytes(3).toString("hex").toUpperCase();
+  const serialNumber = str("serialNumber") ?? `AUX-${Date.now()}-${rand}`;
+  const child = await prisma.equipment.create({
+    data: {
+      name,
+      type: str("type") ?? "Component",
+      location: str("location") ?? parent.location,
+      serialNumber,
+      status: str("status") ?? "needs_service",
+      parentId: parent.id,
+      notes: strOrNull("notes"),
+    },
+  });
+
+  // If the reviewer wants us to also open a work order for the new component.
+  if (fields["autoCreateWorkOrder"] === true) {
+    await prisma.workOrder.create({
+      data: {
+        equipmentId: child.id,
+        createdById: userId,
+        title: `Service ${child.name}`,
+        description: `[Auto-created with child component from AI suggestion]\n\n${str("notes") ?? ""}`,
+        priority: "medium",
+      },
+    });
+  }
+
+  return { type: "Equipment", id: child.id };
 }
