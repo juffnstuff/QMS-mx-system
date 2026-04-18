@@ -37,6 +37,30 @@ export default async function ProjectsPage({
     orderBy: { createdAt: "desc" },
   });
 
+  // Group sub-projects directly under their parent in the rendered list,
+  // preserving the createdAt-desc order within each group. Sub-projects whose
+  // parent isn't in the visible set bubble up to the top level so they don't
+  // disappear when the user filters/searches.
+  const visibleProjectIds = new Set(projects.map((p) => p.id));
+  const childrenByParent = new Map<string, typeof projects>();
+  const topLevelProjects: typeof projects = [];
+  for (const p of projects) {
+    if (p.parentProjectId && visibleProjectIds.has(p.parentProjectId)) {
+      const list = childrenByParent.get(p.parentProjectId) ?? [];
+      list.push(p);
+      childrenByParent.set(p.parentProjectId, list);
+    } else {
+      topLevelProjects.push(p);
+    }
+  }
+  const grouped: Array<(typeof projects)[number] & { _depth: number }> = [];
+  for (const top of topLevelProjects) {
+    grouped.push({ ...top, _depth: 0 });
+    for (const child of childrenByParent.get(top.id) ?? []) {
+      grouped.push({ ...child, _depth: 1 });
+    }
+  }
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -127,32 +151,38 @@ export default async function ProjectsPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {projects.map((project) => (
-                <tr key={project.id} className="hover:bg-gray-50 transition-colors">
+              {grouped.map((project) => (
+                <tr
+                  key={project.id}
+                  className={`hover:bg-gray-50 transition-colors ${
+                    project._depth > 0 ? "bg-gray-50/50" : ""
+                  }`}
+                >
                   <td className="px-4 py-3">
-                    {project.parent && (
-                      <div className="text-xs text-gray-400 mb-0.5">
-                        ↳ sub-project of{" "}
-                        <Link
-                          href={`/projects/${project.parent.id}`}
-                          className="text-gray-500 hover:text-gray-700"
-                        >
-                          {project.parent.title}
-                        </Link>
-                      </div>
-                    )}
-                    <Link
-                      href={`/projects/${project.id}`}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
+                    <div
+                      className="flex items-center"
+                      style={{ paddingLeft: project._depth * 24 }}
                     >
-                      {project.title}
-                    </Link>
-                    {project._count.children > 0 && (
-                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700">
-                        {project._count.children} sub-project
-                        {project._count.children === 1 ? "" : "s"}
-                      </span>
-                    )}
+                      {project._depth > 0 && (
+                        <span className="text-gray-400 mr-2 select-none">↳</span>
+                      )}
+                      <Link
+                        href={`/projects/${project.id}`}
+                        className={`hover:text-blue-800 ${
+                          project._depth > 0
+                            ? "text-gray-700"
+                            : "text-blue-600 font-medium"
+                        }`}
+                      >
+                        {project.title}
+                      </Link>
+                      {project._depth === 0 && project._count.children > 0 && (
+                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700">
+                          {project._count.children} sub-project
+                          {project._count.children === 1 ? "" : "s"}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={project.status} />
@@ -179,15 +209,23 @@ export default async function ProjectsPage({
 
         {/* Mobile cards */}
         <div className="md:hidden divide-y divide-gray-100">
-          {projects.map((project) => (
+          {grouped.map((project) => (
             <Link
               key={project.id}
               href={`/projects/${project.id}`}
-              className="block p-4 hover:bg-gray-50"
+              className={`block p-4 hover:bg-gray-50 ${
+                project._depth > 0 ? "bg-gray-50/50" : ""
+              }`}
+              style={{ paddingLeft: 16 + project._depth * 20 }}
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="font-medium text-gray-900">{project.title}</p>
+                  <p className="font-medium text-gray-900">
+                    {project._depth > 0 && (
+                      <span className="text-gray-400 mr-1">↳</span>
+                    )}
+                    {project.title}
+                  </p>
                   <p className="text-sm text-gray-500 mt-0.5">
                     {project.budget || "No budget"} • {project.createdBy.name}
                   </p>
@@ -206,7 +244,7 @@ export default async function ProjectsPage({
           ))}
         </div>
 
-        {projects.length === 0 && (
+        {grouped.length === 0 && (
           <div className="p-8 text-center text-gray-500">
             <FolderKanban size={40} className="mx-auto mb-3 text-gray-300" />
             <p>No projects found.</p>
