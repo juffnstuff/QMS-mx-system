@@ -1,6 +1,13 @@
 import { Client } from "@microsoft/microsoft-graph-client";
 import { prisma } from "@/lib/prisma";
 
+export interface RawAttachment {
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  contentBase64: string; // Empty if Graph didn't return contentBytes (e.g. itemAttachment).
+}
+
 export interface RawMessage {
   externalId: string;
   subject: string;
@@ -9,6 +16,7 @@ export interface RawMessage {
   bodyPreview: string;
   bodyContent: string;
   receivedAt: Date;
+  attachments?: RawAttachment[];
 }
 
 export async function pollMailbox(

@@ -38,6 +38,7 @@ export default async function SuggestionsPage({
         createdAt: true,
         processedMessage: {
           select: {
+            id: true,
             subject: true,
             senderName: true,
             senderEmail: true,
@@ -45,6 +46,19 @@ export default async function SuggestionsPage({
             sourceType: true,
             receivedAt: true,
             confidence: true,
+            attachments: {
+              select: {
+                id: true,
+                filename: true,
+                contentType: true,
+                sizeBytes: true,
+                extractedText: true,
+                extractionError: true,
+                excluded: true,
+                userEditedText: true,
+              },
+              orderBy: { createdAt: "asc" },
+            },
           },
         },
         reviewer: { select: { name: true } },

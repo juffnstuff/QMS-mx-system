@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
+import { AttachmentsSection } from "./attachments-section";
 
 type SuggestionKind = "maintenance" | "project" | "equipment" | "child_component";
 
@@ -19,6 +20,7 @@ interface Suggestion {
   reviewNote: string | null;
   createdAt: Date | string;
   processedMessage: {
+    id: string;
     subject: string | null;
     senderName: string | null;
     senderEmail: string | null;
@@ -26,8 +28,20 @@ interface Suggestion {
     sourceType: string;
     receivedAt: Date | string;
     confidence: number | null;
+    attachments?: Attachment[];
   };
   reviewer: { name: string } | null;
+}
+
+interface Attachment {
+  id: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  extractedText: string | null;
+  extractionError: string | null;
+  excluded: boolean;
+  userEditedText: string | null;
 }
 
 interface EquipmentOption {
@@ -430,9 +444,9 @@ export function SuggestionCard({
 
       {expanded && (
         <div className="border-t border-gray-100 p-4 bg-gray-50">
-          {/* Original Message */}
+          {/* Email Body */}
           <div className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-1">Original Message</h4>
+            <h4 className="text-sm font-medium text-gray-700 mb-1">Email Body</h4>
             <div className="bg-white p-3 rounded border border-gray-200 text-sm text-gray-600">
               {suggestion.processedMessage.subject && (
                 <p className="font-medium mb-1">{suggestion.processedMessage.subject}</p>
@@ -440,6 +454,17 @@ export function SuggestionCard({
               <p className="whitespace-pre-wrap">{suggestion.processedMessage.bodyPreview}</p>
             </div>
           </div>
+
+          {/* Attachments */}
+          {suggestion.processedMessage.attachments &&
+            suggestion.processedMessage.attachments.length > 0 && (
+              <AttachmentsSection
+                processedMessageId={suggestion.processedMessage.id}
+                suggestionId={suggestion.id}
+                attachments={suggestion.processedMessage.attachments}
+                editable={isPending}
+              />
+            )}
 
           {/* Proposed Action — editable when pending */}
           <div className="mb-4">
