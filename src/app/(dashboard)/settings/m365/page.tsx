@@ -147,7 +147,7 @@ export default async function M365SettingsPage({
 
       {/* Quick Stats */}
       {connection && (
-        <div className="grid grid-cols-3 gap-4 mt-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
           <Link
             href="/settings/m365/suggestions"
             className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"

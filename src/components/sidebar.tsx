@@ -117,8 +117,9 @@ export function Sidebar({ userName, userRole, unreadCount = 0 }: { userName: str
           </div>
           <button
             onClick={() => signOut({ callbackUrl: `${window.location.origin}/login` })}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors inline-flex items-center justify-center min-w-[44px] min-h-[44px]"
             title="Sign out"
+            aria-label="Sign out"
           >
             <LogOut size={18} />
           </button>
@@ -132,7 +133,8 @@ export function Sidebar({ userName, userRole, unreadCount = 0 }: { userName: str
       {/* Mobile hamburger */}
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 bg-gray-800 text-white p-2 rounded-md"
+        className="lg:hidden fixed top-4 left-4 z-50 bg-gray-800 text-white rounded-md inline-flex items-center justify-center min-w-[44px] min-h-[44px]"
+        aria-label={mobileOpen ? "Close menu" : "Open menu"}
       >
         {mobileOpen ? <X size={20} /> : <Menu size={20} />}
       </button>

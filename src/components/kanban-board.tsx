@@ -438,8 +438,8 @@ function CompletionDialog({
   const label = entityType === "workOrder" ? "Work order" : "Maintenance";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[calc(100vh-2rem)] flex flex-col">
         <div className="p-5 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Complete {label}</h3>
           <p className="text-sm text-gray-500 mt-1 line-clamp-2">{cardTitle}</p>
@@ -450,7 +450,7 @@ function CompletionDialog({
             setSubmitting(true);
             onConfirm(notes, parts);
           }}
-          className="p-5 space-y-4"
+          className="p-5 space-y-4 overflow-y-auto"
         >
           <div>
             <label htmlFor="completion-notes" className="block text-sm font-medium text-gray-700 mb-1">
