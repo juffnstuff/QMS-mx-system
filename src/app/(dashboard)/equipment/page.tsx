@@ -82,6 +82,7 @@ export default async function EquipmentPage({
     orderBy: { name: "asc" },
     include: {
       assignedTechnician: { select: { id: true, name: true } },
+      parent: { select: { id: true, name: true } },
       _count: {
         select: {
           workOrders: { where: { status: { in: ["open", "in_progress"] } } },
@@ -146,6 +147,31 @@ export default async function EquipmentPage({
     if (av > bv) return 1 * dir;
     return 0;
   });
+
+  // Group children directly under their parent in the rendered list. We keep
+  // the user's column sort: top-level items sort by the chosen column, and
+  // each parent's children are slotted in (in their own sort order) right
+  // after the parent. Children whose parent isn't visible (filtered/searched
+  // out) bubble up to the top level so they don't disappear.
+  const visibleIds = new Set(equipment.map((e) => e.id));
+  const childrenByParent = new Map<string, typeof equipment>();
+  const topLevel: typeof equipment = [];
+  for (const item of equipment) {
+    if (item.parentId && visibleIds.has(item.parentId)) {
+      const list = childrenByParent.get(item.parentId) ?? [];
+      list.push(item);
+      childrenByParent.set(item.parentId, list);
+    } else {
+      topLevel.push(item);
+    }
+  }
+  const grouped: Array<(typeof equipment)[number] & { _depth: number }> = [];
+  for (const parent of topLevel) {
+    grouped.push({ ...parent, _depth: 0 });
+    for (const child of childrenByParent.get(parent.id) ?? []) {
+      grouped.push({ ...child, _depth: 1 });
+    }
+  }
 
   // Build tab href preserving existing search/status/sort params
   function tabHref(categoryId: string) {
@@ -310,18 +336,32 @@ export default async function EquipmentPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {equipment.map((item) => (
+              {grouped.map((item) => (
                 <tr
                   key={item.id}
-                  className="hover:bg-gray-50 transition-colors"
+                  className={`hover:bg-gray-50 transition-colors ${
+                    item._depth > 0 ? "bg-gray-50/50" : ""
+                  }`}
                 >
                   <td className="px-4 py-3">
-                    <Link
-                      href={`/equipment/${item.id}`}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
+                    <div
+                      className="flex items-center"
+                      style={{ paddingLeft: item._depth * 24 }}
                     >
-                      {item.name}
-                    </Link>
+                      {item._depth > 0 && (
+                        <span className="text-gray-400 mr-2 select-none">↳</span>
+                      )}
+                      <Link
+                        href={`/equipment/${item.id}`}
+                        className={`hover:text-blue-800 ${
+                          item._depth > 0
+                            ? "text-gray-700"
+                            : "text-blue-600 font-medium"
+                        }`}
+                      >
+                        {item.name}
+                      </Link>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
                     {item.type}
@@ -361,15 +401,23 @@ export default async function EquipmentPage({
 
         {/* Mobile cards */}
         <div className="md:hidden divide-y divide-gray-100">
-          {equipment.map((item) => (
+          {grouped.map((item) => (
             <Link
               key={item.id}
               href={`/equipment/${item.id}`}
-              className="block p-4 hover:bg-gray-50"
+              className={`block p-4 hover:bg-gray-50 ${
+                item._depth > 0 ? "bg-gray-50/50" : ""
+              }`}
+              style={{ paddingLeft: 16 + item._depth * 20 }}
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="font-medium text-gray-900">{item.name}</p>
+                  <p className="font-medium text-gray-900">
+                    {item._depth > 0 && (
+                      <span className="text-gray-400 mr-1">↳</span>
+                    )}
+                    {item.name}
+                  </p>
                   <p className="text-sm text-gray-500 mt-0.5">
                     {item.type} • {item.location}
                   </p>
@@ -388,7 +436,7 @@ export default async function EquipmentPage({
           ))}
         </div>
 
-        {equipment.length === 0 && (
+        {grouped.length === 0 && (
           <div className="p-8 text-center text-gray-500">
             <p>No equipment found{activeCategory !== "all" ? " in this category" : ""}.</p>
             {session?.user.role === "admin" && (
