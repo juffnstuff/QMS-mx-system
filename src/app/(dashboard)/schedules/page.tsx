@@ -2,9 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { Calendar, Plus } from "lucide-react";
 import Link from "next/link";
+import { ScheduleRowActions } from "@/components/schedule-row-actions";
 
 export default async function SchedulesPage() {
   const session = await auth();
+  const isAdmin = session?.user.role === "admin";
 
   const schedules = await prisma.maintenanceSchedule.findMany({
     orderBy: { nextDue: "asc" },
@@ -51,9 +53,11 @@ export default async function SchedulesPage() {
               <div className="bg-white rounded-lg shadow-sm border border-red-200">
                 <div className="divide-y divide-red-100">
                   {overdueSchedules.map((schedule) => (
-                    <Link key={schedule.id} href={`/schedules/${schedule.id}`} className="block p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-red-50/50 hover:bg-red-100/50 transition-colors">
-                      <div>
-                        <p className="font-medium text-blue-600 hover:text-blue-800">{schedule.title}</p>
+                    <div key={schedule.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-red-50/50">
+                      <div className="flex-1 min-w-0">
+                        <Link href={`/schedules/${schedule.id}`} className="font-medium text-blue-600 hover:text-blue-800 block">
+                          {schedule.title}
+                        </Link>
                         <p className="text-sm text-gray-500">
                           <Link href={`/equipment/${schedule.equipmentId}`} className="text-blue-600 hover:text-blue-800">
                             {schedule.equipment.name}
@@ -65,13 +69,22 @@ export default async function SchedulesPage() {
                           <p className="text-sm text-gray-400 mt-0.5">{schedule.description}</p>
                         )}
                       </div>
-                      <div className="text-left sm:text-right shrink-0">
-                        <p className="text-sm font-semibold text-red-600">OVERDUE</p>
-                        <p className="text-sm text-red-500">
-                          Was due {new Date(schedule.nextDue).toLocaleDateString()}
-                        </p>
+                      <div className="flex flex-col sm:items-end gap-2 shrink-0">
+                        <div className="text-left sm:text-right">
+                          <p className="text-sm font-semibold text-red-600">OVERDUE</p>
+                          <p className="text-sm text-red-500">
+                            Was due {new Date(schedule.nextDue).toLocaleDateString()}
+                          </p>
+                        </div>
+                        {isAdmin && (
+                          <ScheduleRowActions
+                            scheduleId={schedule.id}
+                            scheduleTitle={schedule.title}
+                            currentStatus={schedule.boardStatus}
+                          />
+                        )}
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -91,9 +104,11 @@ export default async function SchedulesPage() {
                       (new Date(schedule.nextDue).getTime() - now.getTime()) / 86400000
                     );
                     return (
-                      <Link key={schedule.id} href={`/schedules/${schedule.id}`} className="block p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-gray-50 transition-colors">
-                        <div>
-                          <p className="font-medium text-blue-600 hover:text-blue-800">{schedule.title}</p>
+                      <div key={schedule.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <Link href={`/schedules/${schedule.id}`} className="font-medium text-blue-600 hover:text-blue-800 block">
+                            {schedule.title}
+                          </Link>
                           <p className="text-sm text-gray-500">
                             <Link href={`/equipment/${schedule.equipmentId}`} className="text-blue-600 hover:text-blue-800">
                               {schedule.equipment.name}
@@ -104,15 +119,24 @@ export default async function SchedulesPage() {
                             <p className="text-sm text-gray-400 mt-0.5">{schedule.description}</p>
                           )}
                         </div>
-                        <div className="text-left sm:text-right shrink-0">
-                          <p className={`text-sm font-medium ${daysUntil <= 3 ? "text-orange-600" : "text-gray-600"}`}>
-                            {daysUntil === 0 ? "Due today" : daysUntil === 1 ? "Due tomorrow" : `Due in ${daysUntil} days`}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {new Date(schedule.nextDue).toLocaleDateString()}
-                          </p>
+                        <div className="flex flex-col sm:items-end gap-2 shrink-0">
+                          <div className="text-left sm:text-right">
+                            <p className={`text-sm font-medium ${daysUntil <= 3 ? "text-orange-600" : "text-gray-600"}`}>
+                              {daysUntil === 0 ? "Due today" : daysUntil === 1 ? "Due tomorrow" : `Due in ${daysUntil} days`}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {new Date(schedule.nextDue).toLocaleDateString()}
+                            </p>
+                          </div>
+                          {isAdmin && (
+                            <ScheduleRowActions
+                              scheduleId={schedule.id}
+                              scheduleTitle={schedule.title}
+                              currentStatus={schedule.boardStatus}
+                            />
+                          )}
                         </div>
-                      </Link>
+                      </div>
                     );
                   })}
                 </div>
