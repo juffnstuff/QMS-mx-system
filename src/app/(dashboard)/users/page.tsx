@@ -152,8 +152,8 @@ export default async function UsersPage() {
                 </div>
               </div>
 
-              {/* Assignment stats grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
+              {/* Assignment stats grid — collapses nicely on phones */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2 sm:gap-3 mb-4">
                 <Link
                   href={`/equipment?assignee=${user.id}`}
                   className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-blue-50 transition-colors"
