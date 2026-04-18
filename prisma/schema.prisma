@@ -206,8 +206,26 @@ model ProcessedMessage {
 
   scannedByUser User? @relation("ScannedMessages", fields: [scannedByUserId], references: [id])
   suggestions   AISuggestion[]
+  attachments   MessageAttachment[]
 
   @@index([scannedByUserId])
+}
+
+model MessageAttachment {
+  id                 String   @id @default(cuid())
+  processedMessageId String
+  filename           String
+  contentType        String   // MIME type from MS Graph
+  sizeBytes          Int
+  extractedText      String?  // Text extracted from the file (PDF/Word/Excel/text)
+  extractionError    String?  // Reason extraction failed (oversize, unsupported, parse error)
+  excluded           Boolean  @default(false) // Reviewer-toggled: skip this attachment when re-analyzing
+  userEditedText     String?  // Reviewer's edited version of extractedText, used by re-analyze
+  createdAt          DateTime @default(now())
+
+  processedMessage ProcessedMessage @relation(fields: [processedMessageId], references: [id], onDelete: Cascade)
+
+  @@index([processedMessageId])
 }
 
 model AISuggestion {

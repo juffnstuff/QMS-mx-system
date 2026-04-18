@@ -339,7 +339,13 @@ function formatSchedules(list: ActiveSchedule[]): string {
 }
 
 export async function analyzeMessage(
-  message: { subject?: string; body: string; senderName: string; senderEmail: string },
+  message: {
+    subject?: string;
+    body: string;
+    senderName: string;
+    senderEmail: string;
+    attachments?: Array<{ filename: string; text: string }>;
+  },
   context: AnalyzeContext | Equipment[]
 ): Promise<AIAnalysisResult> {
   // Back-compat: allow bare equipment array
@@ -391,6 +397,18 @@ From: ${message.senderName} (${message.senderEmail})
 Subject: ${message.subject || "(No subject)"}
 Body:
 ${message.body.slice(0, 4000)}
+${
+  message.attachments && message.attachments.length > 0
+    ? `\n## Attachments (extracted text)\n` +
+      message.attachments
+        .map(
+          (a, i) =>
+            `### Attachment ${i + 1}: ${a.filename}\n${a.text.slice(0, 6000)}`,
+        )
+        .join("\n\n") +
+      `\n\nWhen using attachment content (quotes, parts lists, specs), cite which attachment in the suggestion description (e.g. "per attachment 1: PDF quote — $4,200").`
+    : ""
+}
 
 ## Instructions
 
