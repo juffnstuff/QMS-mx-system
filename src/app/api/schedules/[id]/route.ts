@@ -35,7 +35,17 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { title, description, frequency, nextDue, assignedToId, secondaryAssignedToId } = body;
+  const {
+    title, description, frequency, nextDue,
+    assignedToId, secondaryAssignedToId, boardStatus,
+  } = body;
+
+  if (boardStatus !== undefined) {
+    const allowed = ["backlog", "in_progress", "needs_parts", "scheduled", "done"];
+    if (!allowed.includes(boardStatus)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+  }
 
   const schedule = await prisma.maintenanceSchedule.update({
     where: { id },
@@ -46,6 +56,7 @@ export async function PUT(
       ...(nextDue !== undefined && { nextDue: new Date(nextDue) }),
       ...(assignedToId !== undefined && { assignedToId: assignedToId || null }),
       ...(secondaryAssignedToId !== undefined && { secondaryAssignedToId: secondaryAssignedToId || null }),
+      ...(boardStatus !== undefined && { boardStatus }),
     },
   });
 
