@@ -25,11 +25,11 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, email, password, role } = body;
+    const { firstName, lastName, email, password, role } = body;
 
-    if (!name || !email || !password) {
+    if (!firstName || !lastName || !email || !password) {
       return NextResponse.json(
-        { error: "Name, email, and password are required" },
+        { error: "First name, last name, email, and password are required" },
         { status: 400 }
       );
     }
@@ -57,10 +57,15 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
+    const cleanFirst = String(firstName).trim();
+    const cleanLast = String(lastName).trim();
+    const fullName = `${cleanFirst} ${cleanLast}`.trim();
 
     const user = await prisma.user.create({
       data: {
-        name,
+        name: fullName,
+        firstName: cleanFirst,
+        lastName: cleanLast,
         email,
         passwordHash,
         role: role === "admin" ? "admin" : "operator",
