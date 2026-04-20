@@ -19,9 +19,11 @@ import {
 } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { UserNotificationsEditor } from "@/components/user-notifications-editor";
+import { UserProfileEditor } from "@/components/user-profile-editor";
 import { UserRoleToggle } from "@/components/user-role-toggle";
 import { ResetPasswordButton } from "@/components/reset-password-button";
 import { DeleteUserButton } from "@/components/delete-user-button";
+import { User as UserIcon } from "lucide-react";
 
 export default async function UserDetailPage({
   params,
@@ -239,6 +241,23 @@ export default async function UserDetailPage({
             <DeleteUserButton userId={user.id} userName={user.name} />
           )}
         </div>
+      </div>
+
+      {/* Profile editor */}
+      <div id="profile" className={sectionClass}>
+        <div className={sectionHeader}>
+          <h2 className={sectionTitle}>
+            <UserIcon size={16} /> Profile
+          </h2>
+        </div>
+        <UserProfileEditor
+          userId={user.id}
+          initial={{
+            firstName: user.firstName ?? user.name.split(" ")[0] ?? "",
+            lastName: user.lastName ?? user.name.split(" ").slice(1).join(" ") ?? "",
+            email: user.email,
+          }}
+        />
       </div>
 
       {/* Notifications editor */}
