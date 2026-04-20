@@ -103,7 +103,12 @@ export default async function UsersPage() {
                       .toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900">{user.name}</p>
+                    <Link
+                      href={`/users/${user.id}`}
+                      className="font-semibold text-blue-600 hover:text-blue-800"
+                    >
+                      {user.name}
+                    </Link>
                     <p className="text-sm text-gray-500">{user.email}</p>
                   </div>
                 </div>
@@ -152,10 +157,10 @@ export default async function UsersPage() {
                 </div>
               </div>
 
-              {/* Assignment stats grid — collapses nicely on phones */}
+              {/* Assignment stats grid — every tile links to the user detail page */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2 sm:gap-3 mb-4">
                 <Link
-                  href={`/equipment?assignee=${user.id}`}
+                  href={`/users/${user.id}#equipment`}
                   className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-blue-50 transition-colors"
                 >
                   <Wrench size={14} className="text-blue-500 shrink-0" />
@@ -165,7 +170,7 @@ export default async function UsersPage() {
                   </div>
                 </Link>
                 <Link
-                  href={`/work-orders?assignee=${user.id}`}
+                  href={`/users/${user.id}#work-orders`}
                   className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-blue-50 transition-colors"
                 >
                   <ClipboardList size={14} className="text-purple-500 shrink-0" />
@@ -174,41 +179,56 @@ export default async function UsersPage() {
                     <p className="text-[10px] text-gray-500 leading-tight">Work Orders</p>
                   </div>
                 </Link>
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
+                <Link
+                  href={`/users/${user.id}#schedules`}
+                  className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-blue-50 transition-colors"
+                >
                   <Wrench size={14} className="text-green-500 shrink-0" />
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{user._count.assignedSchedules}</p>
                     <p className="text-[10px] text-gray-500 leading-tight">Schedules</p>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
+                </Link>
+                <Link
+                  href={`/users/${user.id}#ncrs`}
+                  className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-blue-50 transition-colors"
+                >
                   <AlertOctagon size={14} className="text-red-500 shrink-0" />
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{user._count.investigatedNCRs}</p>
                     <p className="text-[10px] text-gray-500 leading-tight">NCRs</p>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
+                </Link>
+                <Link
+                  href={`/users/${user.id}#capas`}
+                  className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-blue-50 transition-colors"
+                >
                   <FileWarning size={14} className="text-orange-500 shrink-0" />
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{user._count.assignedCAPAs}</p>
                     <p className="text-[10px] text-gray-500 leading-tight">CAPAs</p>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
+                </Link>
+                <Link
+                  href={`/users/${user.id}#complaints`}
+                  className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-blue-50 transition-colors"
+                >
                   <MessageSquare size={14} className="text-teal-500 shrink-0" />
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{user._count.assignedComplaints}</p>
                     <p className="text-[10px] text-gray-500 leading-tight">Complaints</p>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
+                </Link>
+                <Link
+                  href={`/users/${user.id}#projects`}
+                  className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-blue-50 transition-colors"
+                >
                   <FolderKanban size={14} className="text-indigo-500 shrink-0" />
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{user._count.ledProjects}</p>
                     <p className="text-[10px] text-gray-500 leading-tight">Projects</p>
                   </div>
-                </div>
+                </Link>
               </div>
 
               {/* Footer: actions */}
