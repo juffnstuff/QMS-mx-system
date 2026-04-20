@@ -23,6 +23,7 @@ import { UserProfileEditor } from "@/components/user-profile-editor";
 import { UserRoleToggle } from "@/components/user-role-toggle";
 import { ResetPasswordButton } from "@/components/reset-password-button";
 import { DeleteUserButton } from "@/components/delete-user-button";
+import { AssignExistingPicker, type AssignableRecord } from "@/components/assign-existing-picker";
 import { User as UserIcon } from "lucide-react";
 
 export default async function UserDetailPage({
@@ -132,6 +133,124 @@ export default async function UserDetailPage({
   });
 
   if (!user) notFound();
+
+  // Load lightweight lists of every record type so the reviewer can assign
+  // this user to an existing record (primary or secondary). We display the
+  // record name + currently-assigned user names so the reviewer knows what
+  // they'd be replacing.
+  const [
+    allEquipment,
+    allSchedules,
+    allWorkOrders,
+    allProjects,
+    allNCRs,
+    allCAPAs,
+    allComplaints,
+  ] = await Promise.all([
+    prisma.equipment.findMany({
+      select: {
+        id: true, name: true, serialNumber: true,
+        assignedTechnician: { select: { name: true } },
+        secondaryTechnician: { select: { name: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
+    prisma.maintenanceSchedule.findMany({
+      select: {
+        id: true, title: true,
+        assignedTo: { select: { name: true } },
+        secondaryAssignedTo: { select: { name: true } },
+      },
+      orderBy: { nextDue: "asc" },
+    }),
+    prisma.workOrder.findMany({
+      select: {
+        id: true, title: true,
+        assignedTo: { select: { name: true } },
+        secondaryAssignedTo: { select: { name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
+    prisma.project.findMany({
+      select: {
+        id: true, title: true,
+        projectLead: { select: { name: true } },
+        secondaryLead: { select: { name: true } },
+      },
+      orderBy: { title: "asc" },
+    }),
+    prisma.nonConformance.findMany({
+      select: {
+        id: true, ncrNumber: true, partNumber: true,
+        assignedInvestigator: { select: { name: true } },
+        secondaryInvestigator: { select: { name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
+    prisma.cAPA.findMany({
+      select: {
+        id: true, capaNumber: true,
+        assignedTo: { select: { name: true } },
+        secondaryAssignedTo: { select: { name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
+    prisma.customerComplaint.findMany({
+      select: {
+        id: true, complaintNumber: true,
+        assignedTo: { select: { name: true } },
+        secondaryAssignedTo: { select: { name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
+  ]);
+
+  const equipmentAssignable: AssignableRecord[] = allEquipment.map((e) => ({
+    id: e.id,
+    label: `${e.name} (${e.serialNumber})`,
+    currentPrimary: e.assignedTechnician?.name ?? null,
+    currentSecondary: e.secondaryTechnician?.name ?? null,
+  }));
+  const scheduleAssignable: AssignableRecord[] = allSchedules.map((s) => ({
+    id: s.id,
+    label: s.title,
+    currentPrimary: s.assignedTo?.name ?? null,
+    currentSecondary: s.secondaryAssignedTo?.name ?? null,
+  }));
+  const workOrderAssignable: AssignableRecord[] = allWorkOrders.map((w) => ({
+    id: w.id,
+    label: w.title,
+    currentPrimary: w.assignedTo?.name ?? null,
+    currentSecondary: w.secondaryAssignedTo?.name ?? null,
+  }));
+  const projectAssignable: AssignableRecord[] = allProjects.map((p) => ({
+    id: p.id,
+    label: p.title,
+    currentPrimary: p.projectLead?.name ?? null,
+    currentSecondary: p.secondaryLead?.name ?? null,
+  }));
+  const ncrAssignable: AssignableRecord[] = allNCRs.map((n) => ({
+    id: n.id,
+    label: `${n.ncrNumber}${n.partNumber ? ` · ${n.partNumber}` : ""}`,
+    currentPrimary: n.assignedInvestigator?.name ?? null,
+    currentSecondary: n.secondaryInvestigator?.name ?? null,
+  }));
+  const capaAssignable: AssignableRecord[] = allCAPAs.map((c) => ({
+    id: c.id,
+    label: c.capaNumber,
+    currentPrimary: c.assignedTo?.name ?? null,
+    currentSecondary: c.secondaryAssignedTo?.name ?? null,
+  }));
+  const complaintAssignable: AssignableRecord[] = allComplaints.map((c) => ({
+    id: c.id,
+    label: c.complaintNumber,
+    currentPrimary: c.assignedTo?.name ?? null,
+    currentSecondary: c.secondaryAssignedTo?.name ?? null,
+  }));
 
   // Combined helpers: dedupe primary + secondary so a user isn't double-counted
   // when they're both primary and secondary on the same record.
@@ -284,9 +403,17 @@ export default async function UserDetailPage({
           <h2 className={sectionTitle}>
             <Wrench size={16} /> Equipment ({equipment.length})
           </h2>
-          <Link href="/equipment/new" className={addBtn}>
-            <Plus size={12} /> Assign to new equipment
-          </Link>
+          <AssignExistingPicker
+            userId={user.id}
+            userName={user.name}
+            records={equipmentAssignable}
+            primaryField="assignedTechnicianId"
+            secondaryField="secondaryTechnicianId"
+            primaryLabel="Primary Technician"
+            secondaryLabel="Secondary Technician"
+            apiBase="/api/equipment"
+            recordLabel="equipment"
+          />
         </div>
         {equipment.length === 0 ? (
           <p className="text-sm text-gray-500">No equipment assigned.</p>
@@ -313,9 +440,17 @@ export default async function UserDetailPage({
           <h2 className={sectionTitle}>
             <Calendar size={16} /> Maintenance Schedules ({schedules.length})
           </h2>
-          <Link href="/schedules/new" className={addBtn}>
-            <Plus size={12} /> Assign to new schedule
-          </Link>
+          <AssignExistingPicker
+            userId={user.id}
+            userName={user.name}
+            records={scheduleAssignable}
+            primaryField="assignedToId"
+            secondaryField="secondaryAssignedToId"
+            primaryLabel="Primary Assignee"
+            secondaryLabel="Secondary Assignee"
+            apiBase="/api/schedules"
+            recordLabel="schedule"
+          />
         </div>
         {schedules.length === 0 ? (
           <p className="text-sm text-gray-500">No schedules assigned.</p>
@@ -347,9 +482,17 @@ export default async function UserDetailPage({
           <h2 className={sectionTitle}>
             <ClipboardList size={16} /> Work Orders ({workOrders.length})
           </h2>
-          <Link href="/work-orders/new" className={addBtn}>
-            <Plus size={12} /> Assign to new work order
-          </Link>
+          <AssignExistingPicker
+            userId={user.id}
+            userName={user.name}
+            records={workOrderAssignable}
+            primaryField="assignedToId"
+            secondaryField="secondaryAssignedToId"
+            primaryLabel="Primary Assignee"
+            secondaryLabel="Secondary Assignee"
+            apiBase="/api/work-orders"
+            recordLabel="work order"
+          />
         </div>
         {workOrders.length === 0 ? (
           <p className="text-sm text-gray-500">No work orders assigned.</p>
@@ -407,9 +550,17 @@ export default async function UserDetailPage({
           <h2 className={sectionTitle}>
             <FolderKanban size={16} /> Projects ({projects.length})
           </h2>
-          <Link href="/projects/new" className={addBtn}>
-            <Plus size={12} /> Assign to new project
-          </Link>
+          <AssignExistingPicker
+            userId={user.id}
+            userName={user.name}
+            records={projectAssignable}
+            primaryField="projectLeadId"
+            secondaryField="secondaryLeadId"
+            primaryLabel="Project Lead"
+            secondaryLabel="Secondary Lead"
+            apiBase="/api/projects"
+            recordLabel="project"
+          />
         </div>
         {projects.length === 0 ? (
           <p className="text-sm text-gray-500">No projects.</p>
@@ -433,9 +584,17 @@ export default async function UserDetailPage({
           <h2 className={sectionTitle}>
             <AlertOctagon size={16} /> NCRs ({ncrs.length})
           </h2>
-          <Link href="/ncrs/new" className={addBtn}>
-            <Plus size={12} /> New NCR
-          </Link>
+          <AssignExistingPicker
+            userId={user.id}
+            userName={user.name}
+            records={ncrAssignable}
+            primaryField="assignedInvestigatorId"
+            secondaryField="secondaryInvestigatorId"
+            primaryLabel="Primary Investigator"
+            secondaryLabel="Secondary Investigator"
+            apiBase="/api/ncrs"
+            recordLabel="NCR"
+          />
         </div>
         {ncrs.length === 0 ? (
           <p className="text-sm text-gray-500">No NCRs.</p>
@@ -459,9 +618,17 @@ export default async function UserDetailPage({
           <h2 className={sectionTitle}>
             <FileWarning size={16} /> CAPAs ({capas.length})
           </h2>
-          <Link href="/capas/new" className={addBtn}>
-            <Plus size={12} /> New CAPA
-          </Link>
+          <AssignExistingPicker
+            userId={user.id}
+            userName={user.name}
+            records={capaAssignable}
+            primaryField="assignedToId"
+            secondaryField="secondaryAssignedToId"
+            primaryLabel="Primary Assignee"
+            secondaryLabel="Secondary Assignee"
+            apiBase="/api/capas"
+            recordLabel="CAPA"
+          />
         </div>
         {capas.length === 0 ? (
           <p className="text-sm text-gray-500">No CAPAs.</p>
@@ -485,9 +652,17 @@ export default async function UserDetailPage({
           <h2 className={sectionTitle}>
             <MessageSquare size={16} /> Complaints ({complaints.length})
           </h2>
-          <Link href="/complaints/new" className={addBtn}>
-            <Plus size={12} /> New complaint
-          </Link>
+          <AssignExistingPicker
+            userId={user.id}
+            userName={user.name}
+            records={complaintAssignable}
+            primaryField="assignedToId"
+            secondaryField="secondaryAssignedToId"
+            primaryLabel="Primary Assignee"
+            secondaryLabel="Secondary Assignee"
+            apiBase="/api/complaints"
+            recordLabel="complaint"
+          />
         </div>
         {complaints.length === 0 ? (
           <p className="text-sm text-gray-500">No complaints.</p>

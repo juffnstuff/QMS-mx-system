@@ -57,6 +57,7 @@ export async function PUT(
       referenceNcrId,
       targetCloseDate,
       assignedToId,
+      secondaryAssignedToId,
       source,
       sourceOther,
       severityLevel,
@@ -89,6 +90,7 @@ export async function PUT(
     if (referenceNcrId !== undefined) updateData.referenceNcrId = referenceNcrId || null;
     if (targetCloseDate !== undefined) updateData.targetCloseDate = targetCloseDate ? new Date(targetCloseDate) : null;
     if (assignedToId !== undefined) updateData.assignedToId = assignedToId || null;
+    if (secondaryAssignedToId !== undefined) updateData.secondaryAssignedToId = secondaryAssignedToId || null;
     if (source !== undefined) updateData.source = source;
     if (sourceOther !== undefined) updateData.sourceOther = sourceOther || null;
     if (severityLevel !== undefined) updateData.severityLevel = severityLevel;

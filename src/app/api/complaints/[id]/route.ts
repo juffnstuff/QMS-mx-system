@@ -79,6 +79,7 @@ export async function PUT(
       linkedCapaId,
       status,
       assignedToId,
+      secondaryAssignedToId,
     } = body;
 
     const isAdmin = session.user.role === "admin";
@@ -102,6 +103,7 @@ export async function PUT(
     if (complaintType !== undefined) updateData.complaintType = complaintType;
     if (complaintDescription !== undefined) updateData.complaintDescription = complaintDescription;
     if (assignedToId !== undefined) updateData.assignedToId = assignedToId || null;
+    if (secondaryAssignedToId !== undefined) updateData.secondaryAssignedToId = secondaryAssignedToId || null;
 
     // Admin-only fields: disposition, status, management fields
     if (isAdmin) {
