@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 
@@ -40,6 +40,7 @@ export function AssignExistingPicker({
   const [slot, setSlot] = useState<"primary" | "secondary">("primary");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [, startTransition] = useTransition();
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -70,10 +71,18 @@ export function AssignExistingPicker({
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error || "Assignment failed");
       }
-      setOpen(false);
-      setRecordId("");
-      setSlot("primary");
-      router.refresh();
+      // Drain the response so the HTTP request is fully settled before we
+      // trigger a server re-fetch (prevents a race where the refreshed server
+      // components miss the just-written row).
+      await res.json().catch(() => ({}));
+      // Wrap the refresh + state resets in a transition so React waits for
+      // the server render to complete before collapsing the picker.
+      startTransition(() => {
+        router.refresh();
+        setOpen(false);
+        setRecordId("");
+        setSlot("primary");
+      });
     } catch (err) {
       setMessage(`Error: ${err instanceof Error ? err.message : "unknown"}`);
     } finally {
