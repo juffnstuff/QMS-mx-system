@@ -22,39 +22,60 @@ export async function PUT(
 
     const { id } = await params;
     const body = await req.json();
-    const { name, type, location, serialNumber, status, criticality, equipmentClass, groupName, parentId, assignedTechnicianId, secondaryTechnicianId, notes } = body;
+    const {
+      name, type, location, serialNumber, status, criticality,
+      equipmentClass, groupName, parentId,
+      assignedTechnicianId, secondaryTechnicianId, notes,
+    } = body;
 
-    if (!name || !type || !location || !serialNumber) {
-      return NextResponse.json(
-        { error: "Name, type, location, and serial number are required" },
-        { status: 400 }
-      );
+    // Required fields are only validated when the caller is *changing* them.
+    // Partial updates (e.g. just assigning a technician) leave them undefined
+    // so the existing values stay in place.
+    if (name !== undefined && !name) {
+      return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 });
+    }
+    if (type !== undefined && !type) {
+      return NextResponse.json({ error: "Type cannot be empty" }, { status: 400 });
+    }
+    if (location !== undefined && !location) {
+      return NextResponse.json({ error: "Location cannot be empty" }, { status: 400 });
+    }
+    if (serialNumber !== undefined && !serialNumber) {
+      return NextResponse.json({ error: "Serial number cannot be empty" }, { status: 400 });
     }
 
-    const existing = await prisma.equipment.findFirst({
-      where: { serialNumber, NOT: { id } },
-    });
-    if (existing) {
-      return NextResponse.json(
-        { error: "Another equipment with this serial number already exists" },
-        { status: 400 }
-      );
+    if (serialNumber !== undefined) {
+      const duplicate = await prisma.equipment.findFirst({
+        where: { serialNumber, NOT: { id } },
+      });
+      if (duplicate) {
+        return NextResponse.json(
+          { error: "Another equipment with this serial number already exists" },
+          { status: 400 }
+        );
+      }
     }
 
     const prior = await prisma.equipment.findUnique({ where: { id } });
 
+    // Build the update payload so unset keys are skipped rather than nulled.
+    const data: Record<string, unknown> = {};
+    if (name !== undefined) data.name = name;
+    if (type !== undefined) data.type = type;
+    if (location !== undefined) data.location = location;
+    if (serialNumber !== undefined) data.serialNumber = serialNumber;
+    if (status !== undefined) data.status = status;
+    if (criticality !== undefined) data.criticality = criticality || "C";
+    if (equipmentClass !== undefined) data.equipmentClass = equipmentClass || null;
+    if (groupName !== undefined) data.groupName = groupName || null;
+    if (parentId !== undefined) data.parentId = parentId || null;
+    if (assignedTechnicianId !== undefined) data.assignedTechnicianId = assignedTechnicianId || null;
+    if (secondaryTechnicianId !== undefined) data.secondaryTechnicianId = secondaryTechnicianId || null;
+    if (notes !== undefined) data.notes = notes;
+
     const equipment = await prisma.equipment.update({
       where: { id },
-      data: {
-        name, type, location, serialNumber, status,
-        criticality: criticality || "C",
-        equipmentClass: equipmentClass || null,
-        groupName: groupName || null,
-        parentId: parentId || null,
-        assignedTechnicianId: assignedTechnicianId || null,
-        secondaryTechnicianId: secondaryTechnicianId || null,
-        notes,
-      },
+      data,
     });
 
     // Status transitions: "down" fires an immediate org-wide alert. All other
