@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
 
 export async function GET(req: NextRequest) {
   const secret = req.headers.get("x-cron-secret") || req.nextUrl.searchParams.get("key");
@@ -11,26 +10,14 @@ export async function GET(req: NextRequest) {
   const full = req.nextUrl.searchParams.get("full") === "true";
 
   try {
-    const adminPassword = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD || "changeme", 12);
-    const operatorPassword = await bcrypt.hash(process.env.SEED_OPERATOR_PASSWORD || "changeme", 12);
-
-    await prisma.user.upsert({
-      where: { email: "admin@rubberform.com" },
-      update: { passwordHash: adminPassword, role: "admin" },
-      create: { email: "admin@rubberform.com", name: "Plant Manager", passwordHash: adminPassword, role: "admin" },
-    });
-
-    await prisma.user.upsert({
-      where: { email: "anthony@rubberform.com" },
-      update: { passwordHash: operatorPassword },
-      create: { email: "anthony@rubberform.com", name: "Anthony", passwordHash: operatorPassword, role: "operator" },
-    });
-
     if (!full) {
-      return NextResponse.json({ success: true, message: "Passwords reset." });
+      return NextResponse.json({
+        success: true,
+        message: "No-op. User seeding has been removed — create users from the Users page. Use ?full=true to reseed equipment + schedules.",
+      });
     }
 
-    // Full seed: clear existing data
+    // Full seed: clear and reseed equipment + schedules.
     await prisma.maintenanceSchedule.deleteMany();
     await prisma.maintenanceLog.deleteMany();
     await prisma.workOrder.deleteMany();

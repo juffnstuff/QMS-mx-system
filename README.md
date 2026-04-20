@@ -111,10 +111,11 @@ npm run db:seed
 npm run dev
 ```
 
-### Default Credentials
+### Initial Admin
 
-After seeding:
-- **Admin:** `admin@rubberform.com` / `admin123`
+The seed no longer creates default credentials. Provision the first admin
+directly in the database (or via a one-off script) and create additional
+users from the Users page after signing in.
 
 ### Railway Deployment
 
