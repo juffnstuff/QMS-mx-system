@@ -15,7 +15,10 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { status, assignedToId, priority, title, description, dueDate } = body;
+  const {
+    status, assignedToId, secondaryAssignedToId,
+    priority, title, description, dueDate,
+  } = body;
 
   // Fetch existing to detect changes
   const existing = await prisma.workOrder.findUnique({ where: { id } });
@@ -31,6 +34,9 @@ export async function PUT(
     }
   }
   if (assignedToId !== undefined) updateData.assignedToId = assignedToId || null;
+  if (secondaryAssignedToId !== undefined) {
+    updateData.secondaryAssignedToId = secondaryAssignedToId || null;
+  }
   if (priority !== undefined) updateData.priority = priority;
   if (title !== undefined) updateData.title = title;
   if (description !== undefined) updateData.description = description;
