@@ -1,6 +1,5 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import bcrypt from "bcryptjs";
 import "dotenv/config";
 import { accessNCRs } from "../src/data/access-import/ncrs";
 
@@ -10,31 +9,17 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log("Seeding database...");
 
-  // Create users
-  const adminPassword = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD || 'changeme', 12);
-  const operatorPassword = await bcrypt.hash(process.env.SEED_OPERATOR_PASSWORD || 'changeme', 12);
-
-  const admin = await prisma.user.upsert({
-    where: { email: "admin@rubberform.com" },
-    update: { passwordHash: adminPassword },
-    create: {
-      email: "admin@rubberform.com",
-      name: "Plant Manager",
-      passwordHash: adminPassword,
-      role: "admin",
-    },
+  // NCRs need an authoring user. The seed no longer creates users — it relies
+  // on a real admin account having been created through the UI first.
+  const admin = await prisma.user.findFirst({
+    where: { role: "admin" },
+    orderBy: { createdAt: "asc" },
   });
-
-  const operator1 = await prisma.user.upsert({
-    where: { email: "anthony@rubberform.com" },
-    update: { passwordHash: operatorPassword },
-    create: {
-      email: "anthony@rubberform.com",
-      name: "Anthony",
-      passwordHash: operatorPassword,
-      role: "operator",
-    },
-  });
+  if (!admin) {
+    throw new Error(
+      "No admin user found. Create an admin through the Users page before running the seed.",
+    );
+  }
 
   // Delete existing records to avoid duplicates on re-seed
   await prisma.maintenanceSchedule.deleteMany();
