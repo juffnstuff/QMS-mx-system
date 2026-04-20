@@ -2,6 +2,80 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// Update editable profile fields on a user. First/last name, email. Admins can
+// edit any user; users can only edit themselves. The `name` column is kept as
+// the combined display name so existing UI that reads user.name stays correct.
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const isSelf = id === session.user.id;
+  const isAdmin = session.user.role === "admin";
+  if (!isSelf && !isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await req.json();
+  const firstName = typeof body.firstName === "string" ? body.firstName.trim() : undefined;
+  const lastName = typeof body.lastName === "string" ? body.lastName.trim() : undefined;
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : undefined;
+
+  if (firstName !== undefined && !firstName) {
+    return NextResponse.json({ error: "First name cannot be empty" }, { status: 400 });
+  }
+  if (lastName !== undefined && !lastName) {
+    return NextResponse.json({ error: "Last name cannot be empty" }, { status: 400 });
+  }
+  if (email !== undefined) {
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!emailOk) {
+      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+    }
+    const taken = await prisma.user.findFirst({
+      where: { email, NOT: { id } },
+      select: { id: true },
+    });
+    if (taken) {
+      return NextResponse.json({ error: "Email already in use" }, { status: 400 });
+    }
+  }
+
+  const current = await prisma.user.findUnique({
+    where: { id },
+    select: { firstName: true, lastName: true, name: true, email: true },
+  });
+  if (!current) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  const nextFirst = firstName ?? current.firstName ?? "";
+  const nextLast = lastName ?? current.lastName ?? "";
+  const nextName = `${nextFirst} ${nextLast}`.trim() || current.name;
+
+  try {
+    const updated = await prisma.user.update({
+      where: { id },
+      data: {
+        firstName: firstName ?? undefined,
+        lastName: lastName ?? undefined,
+        email: email ?? undefined,
+        name: nextName,
+      },
+      select: {
+        id: true, firstName: true, lastName: true, name: true, email: true,
+      },
+    });
+    return NextResponse.json(updated);
+  } catch (err) {
+    console.error("[User PUT]", err);
+    return NextResponse.json({ error: "Update failed" }, { status: 500 });
+  }
+}
+
 // Super-admin-only user deletion. We don't want to cascade-delete records the
 // user has authored (work orders, projects, NCRs, CAPAs, complaints, logs) —
 // those belong to the business, not to the user. So we reassign "creator" /
