@@ -13,11 +13,10 @@ interface UserOption {
 }
 
 interface Props {
-  isAdmin: boolean;
   users?: UserOption[];
 }
 
-export function ComplaintForm({ isAdmin, users }: Props) {
+export function ComplaintForm({ users }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -49,19 +48,14 @@ export function ComplaintForm({ isAdmin, users }: Props) {
       complaintType: formData.get("complaintType"),
       complaintDescription: formData.get("complaintDescription"),
       otherInfo: formData.get("otherInfo") || null,
-      // Admin-only management disposition fields
-      ...(isAdmin
-        ? {
-            disposition: formData.get("disposition") || null,
-            rmaNumber: formData.get("rmaNumber") || null,
-            customerFacingAction: formData.get("customerFacingAction") || null,
-            internalAction: formData.get("internalAction") || null,
-            ncrRequired: formData.get("ncrRequired") === "on",
-            capaRequired: formData.get("capaRequired") === "on",
-            affectsOtherOrders: formData.get("affectsOtherOrders") === "on",
-            rootCauseRequired: formData.get("rootCauseRequired") === "on",
-          }
-        : {}),
+      disposition: formData.get("disposition") || null,
+      rmaNumber: formData.get("rmaNumber") || null,
+      customerFacingAction: formData.get("customerFacingAction") || null,
+      internalAction: formData.get("internalAction") || null,
+      ncrRequired: formData.get("ncrRequired") === "on",
+      capaRequired: formData.get("capaRequired") === "on",
+      affectsOtherOrders: formData.get("affectsOtherOrders") === "on",
+      rootCauseRequired: formData.get("rootCauseRequired") === "on",
     };
 
     const res = await fetch("/api/complaints", {
@@ -337,10 +331,8 @@ export function ComplaintForm({ isAdmin, users }: Props) {
         )}
       </div>
 
-      {/* Section: Management Disposition (admin-only) */}
-      {isAdmin && (
-        <>
-          <div className="border-t border-gray-200 mt-6 pt-6">
+      {/* Section: Management Disposition */}
+      <div className="border-t border-gray-200 mt-6 pt-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Management Disposition</h2>
             <div className="space-y-4">
               <div>
@@ -435,8 +427,6 @@ export function ComplaintForm({ isAdmin, users }: Props) {
               </div>
             </div>
           </div>
-        </>
-      )}
 
       <FormActions
         loading={loading}

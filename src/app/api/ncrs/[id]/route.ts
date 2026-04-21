@@ -66,8 +66,6 @@ export async function PUT(
       secondaryInvestigatorId,
     } = body;
 
-    // Only admin can change status, disposition, or approval
-    const isAdmin = session.user.role === "admin";
     const updateData: Record<string, unknown> = {};
 
     if (partNumber !== undefined) updateData.partNumber = partNumber || null;
@@ -85,15 +83,12 @@ export async function PUT(
     if (assignedInvestigatorId !== undefined) updateData.assignedInvestigatorId = assignedInvestigatorId || null;
     if (secondaryInvestigatorId !== undefined) updateData.secondaryInvestigatorId = secondaryInvestigatorId || null;
 
-    // Admin-only fields
-    if (isAdmin) {
-      if (status !== undefined) updateData.status = status;
-      if (disposition !== undefined) updateData.disposition = disposition || null;
-      if (approvedById !== undefined) {
-        updateData.approvedById = approvedById || null;
-        if (approvedById) {
-          updateData.approvedAt = new Date();
-        }
+    if (status !== undefined) updateData.status = status;
+    if (disposition !== undefined) updateData.disposition = disposition || null;
+    if (approvedById !== undefined) {
+      updateData.approvedById = approvedById || null;
+      if (approvedById) {
+        updateData.approvedAt = new Date();
       }
     }
 

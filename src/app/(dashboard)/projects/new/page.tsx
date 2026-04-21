@@ -9,7 +9,7 @@ export default async function NewProjectPage({
   searchParams: Promise<{ fromMessageId?: string }>;
 }) {
   const session = await auth();
-  if (session?.user.role !== "admin") redirect("/projects");
+  if (!session) redirect("/login");
 
   const { fromMessageId } = await searchParams;
 

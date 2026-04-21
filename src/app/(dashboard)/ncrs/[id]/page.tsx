@@ -91,16 +91,14 @@ export default async function NCRDetailPage({
             </div>
           )}
 
-          {isAdmin && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="font-semibold text-gray-900 mb-4">Update Status & Disposition</h2>
-              <NCRStatusUpdate
-                ncrId={ncr.id}
-                currentStatus={ncr.status}
-                currentDisposition={ncr.disposition}
-              />
-            </div>
-          )}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="font-semibold text-gray-900 mb-4">Update Status & Disposition</h2>
+            <NCRStatusUpdate
+              ncrId={ncr.id}
+              currentStatus={ncr.status}
+              currentDisposition={ncr.disposition}
+            />
+          </div>
 
           <AttachmentsSection
             recordType="ncr"

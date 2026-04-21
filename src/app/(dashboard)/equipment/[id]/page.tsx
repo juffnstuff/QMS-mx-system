@@ -98,23 +98,23 @@ export default async function EquipmentDetailPage({
             )}
           </p>
         </div>
-        {session?.user.role === "admin" && (
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/equipment/${id}/edit`}
-              className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
-            >
-              <Pencil size={14} />
-              Edit
-            </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/equipment/${id}/edit`}
+            className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
+          >
+            <Pencil size={14} />
+            Edit
+          </Link>
+          {session?.user.role === "admin" && (
             <DeleteRecordButton
               recordId={id}
               recordType="equipment"
               recordLabel={equipment.name}
               redirectTo="/equipment"
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Details Card */}
