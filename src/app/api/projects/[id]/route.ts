@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { statusToBoardStatus } from "@/lib/board-sync";
 
 export async function GET(
   _req: NextRequest,
@@ -106,6 +107,8 @@ export async function PUT(
       } else if (status !== "completed") {
         data.completedAt = null;
       }
+      const boardStatus = statusToBoardStatus("project", status);
+      if (boardStatus) data.boardStatus = boardStatus;
     }
     if (priority !== undefined) data.priority = priority;
     if (budget !== undefined) data.budget = budget || null;

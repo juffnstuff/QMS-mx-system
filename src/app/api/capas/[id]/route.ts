@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { statusToBoardStatus } from "@/lib/board-sync";
 
 export async function GET(
   _req: NextRequest,
@@ -113,7 +114,11 @@ export async function PUT(
     if (lessonsLearned !== undefined) updateData.lessonsLearned = lessonsLearned || null;
     if (preventiveActions !== undefined) updateData.preventiveActions = preventiveActions || null;
     if (finalDisposition !== undefined) updateData.finalDisposition = finalDisposition || null;
-    if (status !== undefined) updateData.status = status;
+    if (status !== undefined) {
+      updateData.status = status;
+      const boardStatus = statusToBoardStatus("capa", status);
+      if (boardStatus) updateData.boardStatus = boardStatus;
+    }
 
     // If actions array provided, delete existing and recreate
     if (actions !== undefined) {

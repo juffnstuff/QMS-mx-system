@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { statusToBoardStatus } from "@/lib/board-sync";
 
 export async function GET(
   _req: NextRequest,
@@ -83,7 +84,11 @@ export async function PUT(
     if (assignedInvestigatorId !== undefined) updateData.assignedInvestigatorId = assignedInvestigatorId || null;
     if (secondaryInvestigatorId !== undefined) updateData.secondaryInvestigatorId = secondaryInvestigatorId || null;
 
-    if (status !== undefined) updateData.status = status;
+    if (status !== undefined) {
+      updateData.status = status;
+      const boardStatus = statusToBoardStatus("nonConformance", status);
+      if (boardStatus) updateData.boardStatus = boardStatus;
+    }
     if (disposition !== undefined) updateData.disposition = disposition || null;
     if (approvedById !== undefined) {
       updateData.approvedById = approvedById || null;
