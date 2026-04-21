@@ -20,6 +20,7 @@ import {
   Shield,
   MessageSquareWarning,
   User,
+  ClipboardCheck,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/equipment", label: "Equipment", icon: Wrench },
   { href: "/schedules", label: "Schedules", icon: Calendar },
+  { href: "/checklists", label: "PM Checklists", icon: ClipboardCheck },
   { href: "/maintenance", label: "Maintenance Log", icon: FileText },
   { href: "/work-orders", label: "Work Orders", icon: ClipboardList },
   { href: "/ncrs", label: "NCRs", icon: AlertTriangle },

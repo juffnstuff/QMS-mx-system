@@ -60,6 +60,11 @@ export default async function EquipmentDetailPage({
         orderBy: { createdAt: "desc" },
         include: { assignedTo: true },
       },
+      checklistCompletions: {
+        take: 8,
+        orderBy: [{ status: "asc" }, { scheduledFor: "desc" }],
+        include: { template: { select: { name: true, frequency: true } } },
+      },
     },
   });
 
@@ -277,6 +282,52 @@ export default async function EquipmentDetailPage({
           )}
         </div>
       </div>
+
+      {/* PM Checklists */}
+      {equipment.checklistCompletions.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">PM Checklists</h2>
+            <Link href="/checklists" className="text-sm text-blue-600 hover:text-blue-800">
+              All checklists →
+            </Link>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {equipment.checklistCompletions.map((completion) => {
+              const statusColor =
+                completion.status === "completed"
+                  ? "text-green-700"
+                  : completion.status === "superseded"
+                  ? "text-gray-500"
+                  : completion.status === "in_progress"
+                  ? "text-blue-700"
+                  : new Date(completion.scheduledFor) < new Date()
+                  ? "text-red-600"
+                  : "text-amber-700";
+              return (
+                <Link
+                  key={completion.id}
+                  href={`/checklists/${completion.id}`}
+                  className="block p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
+                  <div>
+                    <p className="font-medium text-blue-600 hover:text-blue-800">
+                      {completion.template?.name ?? "—"}
+                    </p>
+                    <p className="text-sm text-gray-500 capitalize">
+                      {completion.template?.frequency} · Scheduled{" "}
+                      {new Date(completion.scheduledFor).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className={`text-sm font-medium capitalize ${statusColor}`}>
+                    {completion.status.replace("_", " ")}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Recent Work Orders */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
