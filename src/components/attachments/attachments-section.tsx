@@ -238,7 +238,7 @@ export function AttachmentsSection({ recordType, recordId, currentUserId, isAdmi
                       </p>
                     </div>
                     {(canEditCaption(a) || canDelete(a)) && editingId !== a.id && (
-                      <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute top-1 right-1 flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                         {canEditCaption(a) && (
                           <button
                             type="button"
