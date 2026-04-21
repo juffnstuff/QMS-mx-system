@@ -6,6 +6,7 @@ import { WorkOrderStatusUpdate } from "@/components/work-order-status-update";
 import { MakeRecurringButton } from "@/components/make-recurring-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
+import { AttachmentsSection } from "@/components/attachments/attachments-section";
 import Link from "next/link";
 
 export default async function WorkOrderDetailPage({
@@ -79,6 +80,13 @@ export default async function WorkOrderDetailPage({
               </p>
             )}
           </div>
+
+          <AttachmentsSection
+            recordType="work_order"
+            recordId={id}
+            currentUserId={session?.user.id ?? ""}
+            isAdmin={session?.user.role === "admin"}
+          />
 
           {/* Recurring Maintenance */}
           {session?.user.role === "admin" && (

@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { NCRStatusUpdate } from "@/components/ncr-status-update";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
+import { AttachmentsSection } from "@/components/attachments/attachments-section";
 import Link from "next/link";
 
 const dispositionLabels: Record<string, string> = {
@@ -100,6 +101,13 @@ export default async function NCRDetailPage({
               />
             </div>
           )}
+
+          <AttachmentsSection
+            recordType="ncr"
+            recordId={id}
+            currentUserId={session?.user.id ?? ""}
+            isAdmin={isAdmin}
+          />
         </div>
 
         <div className="space-y-6">

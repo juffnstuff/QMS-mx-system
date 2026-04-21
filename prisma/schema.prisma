@@ -49,6 +49,7 @@ model User {
   secondaryProjects  Project[]          @relation("ProjectSecondary")
   secondaryOrders    WorkOrder[]        @relation("SecondaryAssignee")
   secondaryCAPAs     CAPA[]             @relation("CAPASecondary")
+  uploadedAttachments Attachment[]      @relation("UploadedAttachments")
 }
 
 model Equipment {
@@ -498,4 +499,22 @@ model CustomerComplaint {
   @@index([status])
   @@index([complaintType])
   @@index([assignedToId])
+}
+
+model Attachment {
+  id           String   @id @default(cuid())
+  recordType   String   // "equipment" | "ncr" | "work_order" | "project" | "capa" | "complaint" | "maintenance_schedule" | "maintenance_log"
+  recordId     String
+  filename     String   // Original filename as uploaded
+  mimeType     String
+  sizeBytes    Int
+  storageKey   String   @unique // Relative path under ATTACHMENTS_DIR (e.g. "ab/cd/<id>.bin")
+  caption      String?
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  uploadedBy User @relation("UploadedAttachments", fields: [uploadedById], references: [id])
+
+  @@index([recordType, recordId])
+  @@index([uploadedById])
 }

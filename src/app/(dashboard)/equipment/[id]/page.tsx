@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
+import { AttachmentsSection } from "@/components/attachments/attachments-section";
 import Link from "next/link";
 import { Pencil, ShieldAlert, Shield, ShieldCheck, Link2, ClipboardList, Plus } from "lucide-react";
 
@@ -171,6 +172,16 @@ export default async function EquipmentDetailPage({
             </div>
           )}
         </dl>
+      </div>
+
+      {/* Attachments */}
+      <div className="mb-6">
+        <AttachmentsSection
+          recordType="equipment"
+          recordId={id}
+          currentUserId={session?.user.id ?? ""}
+          isAdmin={session?.user.role === "admin"}
+        />
       </div>
 
       {/* Equipment Relationships */}
