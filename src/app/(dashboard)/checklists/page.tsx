@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { ClipboardCheck, AlertTriangle, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { startOfEasternDay, easternYmd, EASTERN_TZ } from "@/lib/pm-checklists/eastern-time";
 
 export default async function ChecklistsPage() {
   const session = await auth();
@@ -39,7 +40,8 @@ export default async function ChecklistsPage() {
   ]);
 
   const now = new Date();
-  const overdue = pendingToday.filter((c) => new Date(c.scheduledFor) < startOfDay(now));
+  const easternToday = startOfEasternDay(now);
+  const overdue = pendingToday.filter((c) => new Date(c.scheduledFor) < easternToday);
   const dueToday = pendingToday.filter((c) => !overdue.includes(c));
 
   return (
@@ -74,7 +76,7 @@ export default async function ChecklistsPage() {
       <Section title={`Due today (${dueToday.length})`} tone="gray">
         {dueToday.length === 0 ? (
           <div className="p-6 text-center text-gray-500 text-sm">
-            No checklists pending. The nightly cron will create tomorrow&apos;s at 05:00 UTC.
+            No checklists pending. The nightly cron will create tomorrow&apos;s at 05:00 Eastern.
           </div>
         ) : (
           dueToday.map((c) => <CompletionRow key={c.id} completion={c} />)
@@ -95,7 +97,7 @@ export default async function ChecklistsPage() {
 
       {session?.user.role === "admin" && (
         <div className="mt-8 text-xs text-gray-500">
-          Admin: templates seeded via <code>/api/seed-pm-checklists?key=...</code>. Daily generator runs at 05:00 UTC via the cron scheduler.
+          Admin: templates seeded via <code>/api/seed-pm-checklists?key=...</code>. Daily generator runs at 05:00 Eastern via the cron scheduler.
         </div>
       )}
     </div>
@@ -175,7 +177,7 @@ function CompletionRow({ completion, isOverdue, compact }: CompletionRowProps) {
         <div className="text-right shrink-0">
           <div className={`text-sm ${isOverdue ? "text-red-600 font-medium" : "text-gray-500"}`}>
             {compact && completion.completedAt
-              ? new Date(completion.completedAt).toLocaleString()
+              ? new Date(completion.completedAt).toLocaleString("en-US", { timeZone: EASTERN_TZ })
               : formatDue(completion.scheduledFor)}
           </div>
           {!compact && (
@@ -190,13 +192,6 @@ function CompletionRow({ completion, isOverdue, compact }: CompletionRowProps) {
 function formatDue(d: Date | string): string {
   const date = new Date(d);
   const now = new Date();
-  const sameDay = date.toDateString() === now.toDateString();
-  if (sameDay) return "Today";
-  return date.toLocaleDateString();
-}
-
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
+  if (easternYmd(date) === easternYmd(now)) return "Today";
+  return date.toLocaleDateString("en-US", { timeZone: EASTERN_TZ });
 }

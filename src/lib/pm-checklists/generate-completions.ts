@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
+import { startOfEasternDay, endOfEasternDay } from "./eastern-time";
 
 // Generate today's pending ChecklistCompletion rows for each active
 // MaintenanceSchedule that has a checklistTemplate and is due. Idempotent —
-// uses the date (day-level) as part of the uniqueness check so re-running
-// in the same day is a no-op.
+// uses the Eastern calendar day as the uniqueness boundary so re-running
+// within the same Eastern day is a no-op.
 export interface GenerateResult {
   scheduled: number;
   created: number;
@@ -13,8 +14,8 @@ export interface GenerateResult {
 export async function generateChecklistCompletionsForDate(
   targetDate: Date = new Date(),
 ): Promise<GenerateResult> {
-  const dayStart = startOfDay(targetDate);
-  const dayEnd = endOfDay(targetDate);
+  const dayStart = startOfEasternDay(targetDate);
+  const dayEnd = endOfEasternDay(targetDate);
 
   // Find schedules that are due today or earlier and have a template.
   const schedules = await prisma.maintenanceSchedule.findMany({
@@ -74,16 +75,4 @@ export async function generateChecklistCompletionsForDate(
   }
 
   return result;
-}
-
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-function endOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(23, 59, 59, 999);
-  return x;
 }

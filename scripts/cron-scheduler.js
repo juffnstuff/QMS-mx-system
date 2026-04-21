@@ -69,12 +69,16 @@ cron.schedule("10 3 * * *", () => {
   runCleanup();
 });
 
-// Daily PM checklist generation at 05:00 UTC (~midnight Eastern, before first shift)
-cron.schedule("0 5 * * *", () => {
-  runGenerateChecklists();
-});
+// Daily PM checklist generation at 05:00 Eastern (before first shift)
+cron.schedule(
+  "0 5 * * *",
+  () => {
+    runGenerateChecklists();
+  },
+  { timezone: "America/New_York" },
+);
 
-console.log("[Cron] Scheduler started — checks every 6 hours, cleanup + PM generation daily");
+console.log("[Cron] Scheduler started — checks every 6 hours, cleanup + PM generation daily (05:00 Eastern)");
 
 // Also run once 60 seconds after startup (gives server time to be ready)
 setTimeout(() => {

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChecklistForm } from "@/components/checklist-form";
 import { ArrowLeft, CheckCircle2, AlertTriangle } from "lucide-react";
+import { EASTERN_TZ } from "@/lib/pm-checklists/eastern-time";
 
 export default async function ChecklistDetailPage({
   params,
@@ -110,7 +111,7 @@ export default async function ChecklistDetailPage({
             {completion.equipment.name}
           </Link>{" "}
           · {completion.equipment.serialNumber} · Scheduled{" "}
-          {new Date(completion.scheduledFor).toLocaleDateString()}
+          {new Date(completion.scheduledFor).toLocaleDateString("en-US", { timeZone: EASTERN_TZ })}
         </p>
         {completion.template.description && (
           <p className="text-sm text-gray-500 mt-2">{completion.template.description}</p>
@@ -140,7 +141,7 @@ export default async function ChecklistDetailPage({
           <div>
             Completed{" "}
             {completion.completedAt &&
-              new Date(completion.completedAt).toLocaleString()}{" "}
+              new Date(completion.completedAt).toLocaleString("en-US", { timeZone: EASTERN_TZ })}{" "}
             by {completion.technician?.name ?? "—"}
             {completion.supervisor && (
               <> · Supervisor: {completion.supervisor.name}</>

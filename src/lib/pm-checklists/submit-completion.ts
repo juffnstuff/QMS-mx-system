@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendNotification } from "@/lib/notifications/send-notification";
+import { advanceEasternNextDue } from "./eastern-time";
 
 // Result payload the tech submits for a single item.
 export interface ItemResultInput {
@@ -236,23 +237,5 @@ async function createEscalationWorkOrders(
 }
 
 function advanceNextDue(frequency: string, from: Date): Date {
-  const x = new Date(from);
-  switch (frequency) {
-    case "daily":
-      x.setDate(x.getDate() + 1);
-      break;
-    case "weekly":
-      x.setDate(x.getDate() + 7);
-      break;
-    case "monthly":
-      x.setMonth(x.getMonth() + 1);
-      break;
-    case "quarterly":
-      x.setMonth(x.getMonth() + 3);
-      break;
-    default:
-      x.setDate(x.getDate() + 1);
-  }
-  x.setHours(23, 59, 59, 999);
-  return x;
+  return advanceEasternNextDue(frequency, from);
 }

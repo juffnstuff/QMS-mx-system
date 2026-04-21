@@ -316,7 +316,7 @@ export default async function EquipmentDetailPage({
                     </p>
                     <p className="text-sm text-gray-500 capitalize">
                       {completion.template?.frequency} · Scheduled{" "}
-                      {new Date(completion.scheduledFor).toLocaleDateString()}
+                      {new Date(completion.scheduledFor).toLocaleDateString("en-US", { timeZone: "America/New_York" })}
                     </p>
                   </div>
                   <div className={`text-sm font-medium capitalize ${statusColor}`}>

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { EQUIPMENT_TEMPLATE_MAP, TEMPLATES, type TemplateSeed } from "./seed-data";
+import { advanceEasternNextDue, endOfEasternDay } from "./eastern-time";
 
 export interface SeedResult {
   templatesUpserted: number;
@@ -168,30 +169,8 @@ async function upsertScheduleForTemplate(
 
 function computeInitialNextDue(frequency: string): Date {
   const now = new Date();
-  // Initial nextDue: end of today (daily) through end of quarter. The cron
-  // generator advances these as completions roll in.
-  switch (frequency) {
-    case "daily":
-      return endOfDay(now);
-    case "weekly":
-      return addDays(now, 7);
-    case "monthly":
-      return addDays(now, 30);
-    case "quarterly":
-      return addDays(now, 90);
-    default:
-      return endOfDay(now);
-  }
-}
-
-function endOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(23, 59, 59, 999);
-  return x;
-}
-
-function addDays(d: Date, n: number): Date {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
+  // Initial nextDue is end-of-day Eastern for dailies (so today's completion
+  // still counts as on-time), and one full period out for the rest.
+  if (frequency === "daily") return endOfEasternDay(now);
+  return advanceEasternNextDue(frequency, now);
 }
