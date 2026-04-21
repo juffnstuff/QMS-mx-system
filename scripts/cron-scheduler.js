@@ -44,6 +44,11 @@ async function runM365Scan() {
   await callEndpoint("M365 Poll", "/api/cron/m365-poll", "header");
 }
 
+async function runCleanup() {
+  console.log(`[Cron] Running message cleanup at ${new Date().toISOString()}`);
+  await callEndpoint("Cleanup Messages", "/api/cron/cleanup-messages", "header");
+}
+
 // Schedule: "0 */6 * * *" = every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
 cron.schedule("0 */6 * * *", () => {
   runAllChecks();
@@ -54,7 +59,12 @@ cron.schedule("5 */6 * * *", () => {
   runM365Scan();
 });
 
-console.log("[Cron] Scheduler started — checks every 6 hours");
+// Daily message retention cleanup at 03:10 UTC (off-peak)
+cron.schedule("10 3 * * *", () => {
+  runCleanup();
+});
+
+console.log("[Cron] Scheduler started — checks every 6 hours, cleanup daily");
 
 // Also run once 60 seconds after startup (gives server time to be ready)
 setTimeout(() => {

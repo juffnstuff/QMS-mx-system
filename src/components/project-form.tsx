@@ -68,6 +68,13 @@ interface ParentProjectOption {
   parentProjectId?: string | null;
 }
 
+interface PrefillData {
+  title?: string;
+  description?: string;
+  keywords?: string;
+  fromMessageId?: string;
+}
+
 function parseChecklist(json: string | null | undefined): Record<string, string> {
   if (!json) return {};
   try {
@@ -81,10 +88,12 @@ export function ProjectForm({
   project,
   users,
   allProjects,
+  prefill,
 }: {
   project?: ProjectData;
   users?: UserOption[];
   allProjects?: ParentProjectOption[];
+  prefill?: PrefillData;
 }) {
   const router = useRouter();
   const [error, setError] = useState("");
@@ -126,6 +135,8 @@ export function ProjectForm({
       title: formData.get("title") as string,
       description: (formData.get("description") as string) || null,
       keywords: (formData.get("keywords") as string) || null,
+      // Only sent on create-from-email so the server can mark the source message promoted.
+      fromMessageId: !isEdit && prefill?.fromMessageId ? prefill.fromMessageId : undefined,
       status: formData.get("status") as string,
       priority: formData.get("priority") as string,
       budget: plannedBudget || topBudget || null,
@@ -202,7 +213,7 @@ export function ProjectForm({
             id="title"
             name="title"
             required
-            defaultValue={project?.title}
+            defaultValue={project?.title ?? prefill?.title ?? ""}
             className={inputClass}
             placeholder="e.g., New Grinder Installation"
           />
@@ -216,7 +227,7 @@ export function ProjectForm({
             id="description"
             name="description"
             rows={3}
-            defaultValue={project?.description || ""}
+            defaultValue={project?.description ?? prefill?.description ?? ""}
             className={inputClass}
             placeholder="Project details, scope, goals..."
           />
@@ -254,7 +265,7 @@ export function ProjectForm({
             id="keywords"
             name="keywords"
             type="text"
-            defaultValue={project?.keywords || ""}
+            defaultValue={project?.keywords ?? prefill?.keywords ?? ""}
             className={inputClass}
             placeholder='e.g., "2nd floor, upstairs, mezzanine, flooring estimate"'
           />

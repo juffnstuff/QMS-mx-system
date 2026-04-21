@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       potentialVendors, salesMarketingActions, engineeringActions,
       releaseChecklist, actualBudget, plannedSchedule, actualSchedule,
       isComplete, contingentDetails, projectLeadId, secondaryLeadId,
-      parentProjectId,
+      parentProjectId, fromMessageId,
     } = body;
 
     if (!title) {
@@ -105,6 +105,30 @@ export async function POST(req: NextRequest) {
         contingentDetails: contingentDetails || null,
       },
     });
+
+    // If this project was promoted from an email, mark the source message so
+    // the activity feed links to the created project and cleanup skips it.
+    if (fromMessageId && typeof fromMessageId === "string") {
+      await prisma.processedMessage.updateMany({
+        where: { id: fromMessageId },
+        data: { actionTaken: "promoted_to_project" },
+      }).catch((e) => console.error("[Projects] Failed to mark source message:", e));
+
+      await prisma.aISuggestion.create({
+        data: {
+          processedMessageId: fromMessageId,
+          suggestionType: "create_project",
+          kind: "project",
+          status: "approved",
+          payload: JSON.stringify({ title, description, source: "email_promotion" }),
+          createdRecordType: "Project",
+          createdRecordId: project.id,
+          reviewedBy: session.user.id,
+          reviewedAt: new Date(),
+          reviewNote: "Promoted from email by operator",
+        },
+      }).catch((e) => console.error("[Projects] Failed to log promotion suggestion:", e));
+    }
 
     // Notify lead + secondary lead on assignment (deduped, skip creator).
     const assigneeRoles: Array<{ id: string; role: "lead" | "secondary" }> = [];
