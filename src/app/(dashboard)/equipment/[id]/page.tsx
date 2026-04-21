@@ -348,7 +348,11 @@ export default async function EquipmentDetailPage({
             <p className="p-4 text-sm text-gray-500">No maintenance history recorded.</p>
           ) : (
             equipment.maintenanceLogs.map((log) => (
-              <div key={log.id} className="p-4">
+              <Link
+                key={log.id}
+                href={`/maintenance/${log.id}`}
+                className="block p-4 hover:bg-gray-50 transition-colors"
+              >
                 <p className="text-gray-900">{log.description}</p>
                 {log.partsUsed && (
                   <p className="text-sm text-gray-500 mt-0.5">
@@ -356,9 +360,9 @@ export default async function EquipmentDetailPage({
                   </p>
                 )}
                 <p className="text-xs text-gray-400 mt-1">
-                  <Link href={`/users?highlight=${log.user.id}`} className="text-blue-500 hover:text-blue-700">{log.user.name}</Link> • {new Date(log.performedAt).toLocaleDateString()}
+                  <span className="text-blue-500">{log.user.name}</span> • {new Date(log.performedAt).toLocaleDateString()}
                 </p>
-              </div>
+              </Link>
             ))
           )}
         </div>
