@@ -66,7 +66,11 @@ export default async function EquipmentMaintenanceLogPage({
         ) : (
           <div className="divide-y divide-gray-100">
             {logs.map((log) => (
-              <div key={log.id} className="p-4">
+              <Link
+                key={log.id}
+                href={`/maintenance/${log.id}`}
+                className="block p-4 hover:bg-gray-50 transition-colors"
+              >
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                   <div className="flex-1">
                     <p className="text-gray-900">{log.description}</p>
@@ -75,16 +79,11 @@ export default async function EquipmentMaintenanceLogPage({
                     )}
                   </div>
                   <div className="text-left sm:text-right text-sm text-gray-500 whitespace-nowrap">
-                    <Link
-                      href={`/users?highlight=${log.user.id}`}
-                      className="font-medium text-blue-600 hover:text-blue-800"
-                    >
-                      {log.user.name}
-                    </Link>
+                    <span className="font-medium text-blue-600">{log.user.name}</span>
                     <p>{new Date(log.performedAt).toLocaleDateString()}</p>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

@@ -13,7 +13,14 @@ export default async function ActivityPage() {
   const messages = await prisma.processedMessage.findMany({
     include: {
       suggestions: {
-        include: { reviewer: { select: { name: true } } },
+        select: {
+          id: true,
+          suggestionType: true,
+          status: true,
+          createdRecordType: true,
+          createdRecordId: true,
+          reviewer: { select: { name: true } },
+        },
       },
     },
     orderBy: { processedAt: "desc" },

@@ -49,6 +49,8 @@ model User {
   secondaryProjects  Project[]          @relation("ProjectSecondary")
   secondaryOrders    WorkOrder[]        @relation("SecondaryAssignee")
   secondaryCAPAs     CAPA[]             @relation("CAPASecondary")
+  uploadedAttachments Attachment[]      @relation("UploadedAttachments")
+  statusChanges      StatusChangeLog[]  @relation("UserStatusChanges")
 }
 
 model Equipment {
@@ -498,4 +500,39 @@ model CustomerComplaint {
   @@index([status])
   @@index([complaintType])
   @@index([assignedToId])
+}
+
+model Attachment {
+  id           String   @id @default(cuid())
+  recordType   String   // "equipment" | "ncr" | "work_order" | "project" | "capa" | "complaint" | "maintenance_schedule" | "maintenance_log"
+  recordId     String
+  filename     String   // Original filename as uploaded
+  mimeType     String
+  sizeBytes    Int
+  storageKey   String   @unique // Relative path under ATTACHMENTS_DIR (e.g. "ab/cd/<id>.bin")
+  caption      String?
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  uploadedBy User @relation("UploadedAttachments", fields: [uploadedById], references: [id])
+
+  @@index([recordType, recordId])
+  @@index([uploadedById])
+}
+
+model StatusChangeLog {
+  id          String   @id @default(cuid())
+  entityType  String   // "workOrder" | "nonConformance" | "capa" | "project" | "maintenanceSchedule"
+  entityId    String
+  field       String   // "status" or "boardStatus"
+  fromValue   String?
+  toValue     String
+  note        String?
+  changedById String
+  changedAt   DateTime @default(now())
+
+  changedBy User @relation("UserStatusChanges", fields: [changedById], references: [id])
+
+  @@index([entityType, entityId, changedAt])
+  @@index([changedById])
 }

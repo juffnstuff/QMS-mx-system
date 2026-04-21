@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logStatusChange, type StatusEntityType } from "@/lib/status-log";
 
 const VALID_BOARD_STATUSES = ["backlog", "in_progress", "needs_parts", "scheduled", "done"];
 const VALID_ENTITY_TYPES = ["workOrder", "nonConformance", "capa", "project", "maintenanceSchedule"] as const;
@@ -119,6 +120,48 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  // Capture prior boardStatus / status so we can log the change after the
+  // update succeeds. Each entity stores boardStatus; only maintenanceSchedule
+  // has no native status field.
+  type PriorValues = { boardStatus: string; status?: string | null };
+  let prior: PriorValues | null = null;
+  try {
+    switch (entityType as EntityType) {
+      case "workOrder":
+        prior = await prisma.workOrder.findUnique({
+          where: { id: entityId },
+          select: { boardStatus: true, status: true },
+        });
+        break;
+      case "maintenanceSchedule":
+        prior = await prisma.maintenanceSchedule.findUnique({
+          where: { id: entityId },
+          select: { boardStatus: true },
+        });
+        break;
+      case "nonConformance":
+        prior = await prisma.nonConformance.findUnique({
+          where: { id: entityId },
+          select: { boardStatus: true, status: true },
+        });
+        break;
+      case "capa":
+        prior = await prisma.cAPA.findUnique({
+          where: { id: entityId },
+          select: { boardStatus: true, status: true },
+        });
+        break;
+      case "project":
+        prior = await prisma.project.findUnique({
+          where: { id: entityId },
+          select: { boardStatus: true, status: true },
+        });
+        break;
+    }
+  } catch {
+    prior = null;
+  }
+
   try {
     const now = new Date();
     let result;
@@ -214,6 +257,33 @@ export async function PATCH(req: NextRequest) {
           data: updateData,
         });
         break;
+    }
+
+    // Audit the board move. For maintenanceSchedule the native status
+    // doesn't exist, so we log boardStatus. For the rest, log status when
+    // we actually cascaded a native-status change; otherwise log boardStatus.
+    const changedBy = session.user.id;
+    const priorBoard = prior?.boardStatus ?? null;
+    const priorStatus = prior?.status ?? null;
+    if (nativeStatus && priorStatus !== nativeStatus) {
+      await logStatusChange({
+        entityType: entityType as StatusEntityType,
+        entityId,
+        field: "status",
+        fromValue: priorStatus,
+        toValue: nativeStatus,
+        changedById: changedBy,
+        note: `via kanban → ${boardStatus}`,
+      });
+    } else if (priorBoard !== boardStatus) {
+      await logStatusChange({
+        entityType: entityType as StatusEntityType,
+        entityId,
+        field: "boardStatus",
+        fromValue: priorBoard,
+        toValue: boardStatus,
+        changedById: changedBy,
+      });
     }
 
     return NextResponse.json({ ...result, maintenanceLogId });

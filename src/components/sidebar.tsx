@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Shield,
   MessageSquareWarning,
+  User,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -33,6 +34,7 @@ const navItems = [
   { href: "/complaints", label: "Complaints", icon: MessageSquareWarning },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/notifications", label: "Notifications", icon: Bell, showBadge: true },
+  { href: "/profile", label: "My Profile", icon: User },
   { href: "/settings/m365", label: "My Email Scanner", icon: Mail },
 ];
 

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { AlertTriangle, CheckCircle, Clock, Wrench, Sparkles, FolderKanban } from "lucide-react";
 import Link from "next/link";
 import { KanbanBoard } from "@/components/kanban-board";
@@ -7,6 +8,18 @@ import type { KanbanCardData, EntityType } from "@/components/kanban-card";
 type ColumnId = "backlog" | "in_progress" | "needs_parts" | "scheduled" | "done";
 
 export default async function DashboardPage() {
+  const session = await auth();
+  const userId = session?.user?.id;
+  const isAdmin = session?.user?.role === "admin";
+
+  // Operators only see board items where they are primary or secondary on the
+  // record (creator counts for projects too, since projects don't always have
+  // an assignee set). Admins see everything.
+  const mineOr = (fields: string[]) =>
+    isAdmin || !userId
+      ? {}
+      : { OR: fields.map((f) => ({ [f]: userId })) };
+
   const [
     totalEquipment,
     operationalCount,
@@ -33,33 +46,49 @@ export default async function DashboardPage() {
     }),
     prisma.aISuggestion.count({ where: { status: "pending" } }).catch(() => 0),
     prisma.project.count({ where: { status: { in: ["planning", "in_progress"] } } }),
-    // Fetch active items for the Kanban board
+    // Fetch active items for the Kanban board. Operators only see items
+    // where they are a primary or secondary assignee.
     prisma.workOrder.findMany({
-      where: { status: { in: ["open", "in_progress"] } },
+      where: {
+        status: { in: ["open", "in_progress"] },
+        ...mineOr(["assignedToId", "secondaryAssignedToId"]),
+      },
       orderBy: { createdAt: "desc" },
       take: 100,
       include: { equipment: true, assignedTo: true },
     }),
     prisma.maintenanceSchedule.findMany({
-      where: { nextDue: { lt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) } },
+      where: {
+        nextDue: { lt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) },
+        ...mineOr(["assignedToId", "secondaryAssignedToId"]),
+      },
       orderBy: { nextDue: "asc" },
       take: 50,
       include: { equipment: true, assignedTo: true },
     }),
     prisma.nonConformance.findMany({
-      where: { status: { in: ["open", "under_review", "dispositioned"] } },
+      where: {
+        status: { in: ["open", "under_review", "dispositioned"] },
+        ...mineOr(["assignedInvestigatorId", "secondaryInvestigatorId"]),
+      },
       orderBy: { createdAt: "desc" },
       take: 50,
       include: { submittedBy: true, assignedInvestigator: true },
     }),
     prisma.cAPA.findMany({
-      where: { status: { in: ["open", "in_progress", "pending_verification"] } },
+      where: {
+        status: { in: ["open", "in_progress", "pending_verification"] },
+        ...mineOr(["assignedToId", "secondaryAssignedToId"]),
+      },
       orderBy: { createdAt: "desc" },
       take: 50,
       include: { originator: true, assignedTo: true },
     }),
     prisma.project.findMany({
-      where: { status: { in: ["planning", "in_progress", "on_hold"] } },
+      where: {
+        status: { in: ["planning", "in_progress", "on_hold"] },
+        ...mineOr(["projectLeadId", "secondaryLeadId"]),
+      },
       orderBy: { createdAt: "desc" },
       take: 50,
       include: { createdBy: true, projectLead: true },

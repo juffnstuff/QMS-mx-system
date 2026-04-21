@@ -5,6 +5,8 @@ import { StatusBadge } from "@/components/status-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
 import { ScheduleCompleteButton } from "@/components/schedule-complete-button";
+import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { StatusHistory } from "@/components/status-history";
 import Link from "next/link";
 import { Pencil, Calendar, AlertTriangle } from "lucide-react";
 
@@ -119,6 +121,15 @@ export default async function ScheduleDetailPage({
             </div>
           )}
 
+          <AttachmentsSection
+            recordType="maintenance_schedule"
+            recordId={id}
+            currentUserId={session?.user.id ?? ""}
+            isAdmin={session?.user.role === "admin"}
+          />
+
+          <StatusHistory entityType="maintenanceSchedule" entityId={id} />
+
           {/* Completion History */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="p-4 border-b border-gray-200">
@@ -129,18 +140,20 @@ export default async function ScheduleDetailPage({
                 <p className="p-4 text-sm text-gray-500">No completions logged yet.</p>
               ) : (
                 recentLogs.map((log) => (
-                  <div key={log.id} className="p-4">
+                  <Link
+                    key={log.id}
+                    href={`/maintenance/${log.id}`}
+                    className="block p-4 hover:bg-gray-50 transition-colors"
+                  >
                     <p className="text-sm text-gray-900">{log.description}</p>
                     {log.partsUsed && (
                       <p className="text-xs text-gray-500 mt-0.5">Parts: {log.partsUsed}</p>
                     )}
                     <p className="text-xs text-gray-400 mt-1">
-                      <Link href={`/users?highlight=${log.user.id}`} className="text-blue-500 hover:text-blue-700">
-                        {log.user.name}
-                      </Link>
+                      <span className="text-blue-500">{log.user.name}</span>
                       {" "}&bull; {new Date(log.performedAt).toLocaleDateString()}
                     </p>
-                  </div>
+                  </Link>
                 ))
               )}
             </div>

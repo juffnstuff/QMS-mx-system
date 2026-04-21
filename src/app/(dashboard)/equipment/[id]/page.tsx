@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
+import { AttachmentsSection } from "@/components/attachments/attachments-section";
 import Link from "next/link";
 import { Pencil, ShieldAlert, Shield, ShieldCheck, Link2, ClipboardList, Plus } from "lucide-react";
 
@@ -97,23 +98,23 @@ export default async function EquipmentDetailPage({
             )}
           </p>
         </div>
-        {session?.user.role === "admin" && (
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/equipment/${id}/edit`}
-              className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
-            >
-              <Pencil size={14} />
-              Edit
-            </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/equipment/${id}/edit`}
+            className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
+          >
+            <Pencil size={14} />
+            Edit
+          </Link>
+          {session?.user.role === "admin" && (
             <DeleteRecordButton
               recordId={id}
               recordType="equipment"
               recordLabel={equipment.name}
               redirectTo="/equipment"
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Details Card */}
@@ -171,6 +172,16 @@ export default async function EquipmentDetailPage({
             </div>
           )}
         </dl>
+      </div>
+
+      {/* Attachments */}
+      <div className="mb-6">
+        <AttachmentsSection
+          recordType="equipment"
+          recordId={id}
+          currentUserId={session?.user.id ?? ""}
+          isAdmin={session?.user.role === "admin"}
+        />
       </div>
 
       {/* Equipment Relationships */}
@@ -337,7 +348,11 @@ export default async function EquipmentDetailPage({
             <p className="p-4 text-sm text-gray-500">No maintenance history recorded.</p>
           ) : (
             equipment.maintenanceLogs.map((log) => (
-              <div key={log.id} className="p-4">
+              <Link
+                key={log.id}
+                href={`/maintenance/${log.id}`}
+                className="block p-4 hover:bg-gray-50 transition-colors"
+              >
                 <p className="text-gray-900">{log.description}</p>
                 {log.partsUsed && (
                   <p className="text-sm text-gray-500 mt-0.5">
@@ -345,9 +360,9 @@ export default async function EquipmentDetailPage({
                   </p>
                 )}
                 <p className="text-xs text-gray-400 mt-1">
-                  <Link href={`/users?highlight=${log.user.id}`} className="text-blue-500 hover:text-blue-700">{log.user.name}</Link> • {new Date(log.performedAt).toLocaleDateString()}
+                  <span className="text-blue-500">{log.user.name}</span> • {new Date(log.performedAt).toLocaleDateString()}
                 </p>
-              </div>
+              </Link>
             ))
           )}
         </div>

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { statusToBoardStatus } from "@/lib/board-sync";
+import { logStatusChange } from "@/lib/status-log";
 
 export async function GET(
   _req: NextRequest,
@@ -35,8 +37,8 @@ export async function PUT(
 ) {
   try {
     const session = await auth();
-    if (!session || session.user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
@@ -106,6 +108,8 @@ export async function PUT(
       } else if (status !== "completed") {
         data.completedAt = null;
       }
+      const boardStatus = statusToBoardStatus("project", status);
+      if (boardStatus) data.boardStatus = boardStatus;
     }
     if (priority !== undefined) data.priority = priority;
     if (budget !== undefined) data.budget = budget || null;
@@ -131,6 +135,17 @@ export async function PUT(
       where: { id },
       data,
     });
+
+    if (status !== undefined && status !== existing.status) {
+      await logStatusChange({
+        entityType: "project",
+        entityId: id,
+        field: "status",
+        fromValue: existing.status,
+        toValue: status,
+        changedById: session.user.id,
+      });
+    }
 
     return NextResponse.json(project);
   } catch (error) {

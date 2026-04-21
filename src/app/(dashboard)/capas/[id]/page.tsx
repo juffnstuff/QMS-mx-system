@@ -1,8 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
+import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { StatusHistory } from "@/components/status-history";
 import Link from "next/link";
 
 const sourceLabels: Record<string, string> = {
@@ -52,6 +55,7 @@ export default async function CAPADetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const session = await auth();
 
   const capa = await prisma.cAPA.findUnique({
     where: { id },
@@ -321,6 +325,19 @@ export default async function CAPADetailPage({
             </div>
           </div>
         )}
+
+        <div className="mt-6">
+          <AttachmentsSection
+            recordType="capa"
+            recordId={id}
+            currentUserId={session?.user.id ?? ""}
+            isAdmin={session?.user.role === "admin"}
+          />
+        </div>
+
+        <div className="mt-6">
+          <StatusHistory entityType="capa" entityId={id} />
+        </div>
       </div>
     </div>
   );

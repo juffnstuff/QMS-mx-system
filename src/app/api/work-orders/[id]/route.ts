@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendNotification } from "@/lib/notifications/send-notification";
 import { statusChanged, workOrderAssigned } from "@/lib/notifications/email-templates";
+import { statusToBoardStatus } from "@/lib/board-sync";
+import { logStatusChange } from "@/lib/status-log";
 
 export async function PUT(
   req: NextRequest,
@@ -32,6 +34,8 @@ export async function PUT(
     if (status === "completed") {
       updateData.completedAt = new Date();
     }
+    const boardStatus = statusToBoardStatus("workOrder", status);
+    if (boardStatus) updateData.boardStatus = boardStatus;
   }
   if (assignedToId !== undefined) updateData.assignedToId = assignedToId || null;
   if (secondaryAssignedToId !== undefined) {
@@ -46,6 +50,17 @@ export async function PUT(
     where: { id },
     data: updateData,
   });
+
+  if (status && status !== existing.status) {
+    await logStatusChange({
+      entityType: "workOrder",
+      entityId: id,
+      field: "status",
+      fromValue: existing.status,
+      toValue: status,
+      changedById: session.user.id,
+    });
+  }
 
   // Notify on status change
   if (status && status !== existing.status) {

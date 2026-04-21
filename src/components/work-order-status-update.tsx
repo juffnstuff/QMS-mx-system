@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 interface Props {
   workOrderId: string;
   currentStatus: string;
-  isAdmin: boolean;
 }
 
 const statusTransitions: Record<string, { label: string; value: string; color: string }[]> = {
@@ -24,17 +23,12 @@ const statusTransitions: Record<string, { label: string; value: string; color: s
   ],
 };
 
-export function WorkOrderStatusUpdate({ workOrderId, currentStatus, isAdmin }: Props) {
+export function WorkOrderStatusUpdate({ workOrderId, currentStatus }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const actions = statusTransitions[currentStatus] || [];
-  // Only admin can cancel or reopen
-  const filteredActions = isAdmin
-    ? actions
-    : actions.filter((a) => a.value !== "cancelled" && a.value !== "open");
-
-  if (filteredActions.length === 0) return null;
+  if (actions.length === 0) return null;
 
   async function updateStatus(newStatus: string) {
     setLoading(true);
@@ -49,7 +43,7 @@ export function WorkOrderStatusUpdate({ workOrderId, currentStatus, isAdmin }: P
 
   return (
     <div className="flex gap-2 flex-wrap">
-      {filteredActions.map((action) => (
+      {actions.map((action) => (
         <button
           key={action.value}
           onClick={() => updateStatus(action.value)}
