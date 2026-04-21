@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logStatusChange } from "@/lib/status-log";
 
 export async function GET(
   _req: NextRequest,
@@ -47,6 +48,10 @@ export async function PUT(
     }
   }
 
+  const existing = boardStatus !== undefined
+    ? await prisma.maintenanceSchedule.findUnique({ where: { id }, select: { boardStatus: true } })
+    : null;
+
   const schedule = await prisma.maintenanceSchedule.update({
     where: { id },
     data: {
@@ -59,6 +64,17 @@ export async function PUT(
       ...(boardStatus !== undefined && { boardStatus }),
     },
   });
+
+  if (existing && boardStatus !== undefined && boardStatus !== existing.boardStatus) {
+    await logStatusChange({
+      entityType: "maintenanceSchedule",
+      entityId: id,
+      field: "boardStatus",
+      fromValue: existing.boardStatus,
+      toValue: boardStatus,
+      changedById: session.user.id,
+    });
+  }
 
   return NextResponse.json(schedule);
 }

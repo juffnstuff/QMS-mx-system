@@ -7,6 +7,7 @@ import { MakeRecurringButton } from "@/components/make-recurring-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
 import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { StatusHistory } from "@/components/status-history";
 import Link from "next/link";
 
 export default async function WorkOrderDetailPage({
@@ -103,6 +104,8 @@ export default async function WorkOrderDetailPage({
             currentUserId={session?.user.id ?? ""}
             isAdmin={session?.user.role === "admin"}
           />
+
+          <StatusHistory entityType="workOrder" entityId={id} />
 
           {/* Recurring Maintenance */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

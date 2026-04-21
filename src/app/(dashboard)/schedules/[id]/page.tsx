@@ -6,6 +6,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
 import { ScheduleCompleteButton } from "@/components/schedule-complete-button";
 import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { StatusHistory } from "@/components/status-history";
 import Link from "next/link";
 import { Pencil, Calendar, AlertTriangle } from "lucide-react";
 
@@ -126,6 +127,8 @@ export default async function ScheduleDetailPage({
             currentUserId={session?.user.id ?? ""}
             isAdmin={session?.user.role === "admin"}
           />
+
+          <StatusHistory entityType="maintenanceSchedule" entityId={id} />
 
           {/* Completion History */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">

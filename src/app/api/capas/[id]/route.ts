@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { statusToBoardStatus } from "@/lib/board-sync";
+import { logStatusChange } from "@/lib/status-log";
 
 export async function GET(
   _req: NextRequest,
@@ -153,6 +154,17 @@ export async function PUT(
       data: updateData,
       include: { actions: true },
     });
+
+    if (status !== undefined && status !== existing.status) {
+      await logStatusChange({
+        entityType: "capa",
+        entityId: id,
+        field: "status",
+        fromValue: existing.status,
+        toValue: status,
+        changedById: session.user.id,
+      });
+    }
 
     return NextResponse.json(capa);
   } catch (error) {

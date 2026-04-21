@@ -50,6 +50,7 @@ model User {
   secondaryOrders    WorkOrder[]        @relation("SecondaryAssignee")
   secondaryCAPAs     CAPA[]             @relation("CAPASecondary")
   uploadedAttachments Attachment[]      @relation("UploadedAttachments")
+  statusChanges      StatusChangeLog[]  @relation("UserStatusChanges")
 }
 
 model Equipment {
@@ -517,4 +518,21 @@ model Attachment {
 
   @@index([recordType, recordId])
   @@index([uploadedById])
+}
+
+model StatusChangeLog {
+  id          String   @id @default(cuid())
+  entityType  String   // "workOrder" | "nonConformance" | "capa" | "project" | "maintenanceSchedule"
+  entityId    String
+  field       String   // "status" or "boardStatus"
+  fromValue   String?
+  toValue     String
+  note        String?
+  changedById String
+  changedAt   DateTime @default(now())
+
+  changedBy User @relation("UserStatusChanges", fields: [changedById], references: [id])
+
+  @@index([entityType, entityId, changedAt])
+  @@index([changedById])
 }

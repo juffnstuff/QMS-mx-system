@@ -6,6 +6,7 @@ import { NCRStatusUpdate } from "@/components/ncr-status-update";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
 import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { StatusHistory } from "@/components/status-history";
 import Link from "next/link";
 
 const dispositionLabels: Record<string, string> = {
@@ -106,6 +107,8 @@ export default async function NCRDetailPage({
             currentUserId={session?.user.id ?? ""}
             isAdmin={isAdmin}
           />
+
+          <StatusHistory entityType="nonConformance" entityId={id} />
         </div>
 
         <div className="space-y-6">

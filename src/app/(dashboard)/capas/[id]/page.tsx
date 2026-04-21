@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
 import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { StatusHistory } from "@/components/status-history";
 import Link from "next/link";
 
 const sourceLabels: Record<string, string> = {
@@ -332,6 +333,10 @@ export default async function CAPADetailPage({
             currentUserId={session?.user.id ?? ""}
             isAdmin={session?.user.role === "admin"}
           />
+        </div>
+
+        <div className="mt-6">
+          <StatusHistory entityType="capa" entityId={id} />
         </div>
       </div>
     </div>

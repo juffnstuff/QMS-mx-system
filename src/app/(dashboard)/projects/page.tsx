@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { StatusBadge } from "@/components/status-badge";
 import Link from "next/link";
-import { Plus, Search, FolderKanban } from "lucide-react";
+import { Plus, Search, FolderKanban, History } from "lucide-react";
 
 export default async function ProjectsPage({
   searchParams,
@@ -65,15 +65,24 @@ export default async function ProjectsPage({
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
-        {session?.user.role === "admin" && (
+        <div className="flex items-center gap-2">
           <Link
-            href="/projects/new"
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+            href="/projects/log"
+            className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
           >
-            <Plus size={16} />
-            New Project
+            <History size={16} />
+            Project Log
           </Link>
-        )}
+          {session?.user && (
+            <Link
+              href="/projects/new"
+              className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
+              <Plus size={16} />
+              New Project
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
