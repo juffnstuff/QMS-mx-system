@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
 import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { NotesSection } from "@/components/notes/notes-section";
 import Link from "next/link";
 
 const dispositionLabels: Record<string, string> = {
@@ -280,6 +281,15 @@ export default async function ComplaintDetailPage({
           </dl>
         </div>
       )}
+
+      <div className="mt-6">
+        <NotesSection
+          recordType="complaint"
+          recordId={id}
+          currentUserId={session?.user.id ?? ""}
+          isAdmin={session?.user.role === "admin"}
+        />
+      </div>
 
       <div className="mt-6">
         <AttachmentsSection

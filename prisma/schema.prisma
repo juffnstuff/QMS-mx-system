@@ -53,6 +53,7 @@ model User {
   statusChanges      StatusChangeLog[]  @relation("UserStatusChanges")
   checklistsAsTechnician ChecklistCompletion[] @relation("ChecklistTechnician")
   checklistsAsSupervisor ChecklistCompletion[] @relation("ChecklistSupervisor")
+  authoredNotes      Note[]             @relation("AuthoredNotes")
 }
 
 model Equipment {
@@ -641,4 +642,21 @@ model StatusChangeLog {
 
   @@index([entityType, entityId, changedAt])
   @@index([changedById])
+}
+
+// Freeform operator notes on any record. Same recordType vocabulary as
+// Attachment. Editable/deletable by the author or any admin.
+model Note {
+  id          String   @id @default(cuid())
+  recordType  String   // "equipment" | "ncr" | "work_order" | "project" | "capa" | "complaint" | "maintenance_schedule" | "maintenance_log"
+  recordId    String
+  body        String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User @relation("AuthoredNotes", fields: [createdById], references: [id])
+
+  @@index([recordType, recordId, createdAt])
+  @@index([createdById])
 }

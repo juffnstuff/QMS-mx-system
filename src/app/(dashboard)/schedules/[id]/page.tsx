@@ -6,6 +6,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
 import { ScheduleCompleteButton } from "@/components/schedule-complete-button";
 import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { NotesSection } from "@/components/notes/notes-section";
 import { StatusHistory } from "@/components/status-history";
 import Link from "next/link";
 import { Pencil, Calendar, AlertTriangle } from "lucide-react";
@@ -120,6 +121,13 @@ export default async function ScheduleDetailPage({
               <p className="text-gray-700 whitespace-pre-wrap">{schedule.description}</p>
             </div>
           )}
+
+          <NotesSection
+            recordType="maintenance_schedule"
+            recordId={id}
+            currentUserId={session?.user.id ?? ""}
+            isAdmin={session?.user.role === "admin"}
+          />
 
           <AttachmentsSection
             recordType="maintenance_schedule"

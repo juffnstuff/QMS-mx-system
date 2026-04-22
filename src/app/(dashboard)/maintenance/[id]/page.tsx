@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { NotesSection } from "@/components/notes/notes-section";
 import Link from "next/link";
 
 export default async function MaintenanceLogDetailPage({
@@ -70,6 +71,15 @@ export default async function MaintenanceLogDetailPage({
             </dd>
           </div>
         </dl>
+      </div>
+
+      <div className="mb-6">
+        <NotesSection
+          recordType="maintenance_log"
+          recordId={id}
+          currentUserId={session?.user.id ?? ""}
+          isAdmin={session?.user.role === "admin"}
+        />
       </div>
 
       <AttachmentsSection
