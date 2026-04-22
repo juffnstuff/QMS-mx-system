@@ -2,7 +2,18 @@
 
 import { format } from "date-fns";
 import Link from "next/link";
-import { FolderPlus } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import {
+  FolderPlus,
+  ChevronDown,
+  FolderKanban,
+  ClipboardList,
+  Wrench,
+  FileText,
+  AlertTriangle,
+  Shield,
+  MessageSquareWarning,
+} from "lucide-react";
 
 interface ActivityMessage {
   id: string;
@@ -43,8 +54,104 @@ const actionColors: Record<string, string> = {
 };
 
 // Any message where no suggestion was ever created is a candidate for manual
-// promotion to a project. Already-promoted messages link to the new project.
+// promotion to one of these record types. Already-promoted messages show the
+// outcome as a suggestion pill below.
 const PROMOTABLE_ACTIONS = new Set(["ignored", "pre_filtered"]);
+
+type PromotionOption = {
+  label: string;
+  href: (messageId: string) => string;
+  icon: React.ComponentType<{ size?: number }>;
+  note?: string;
+};
+
+// Project is first because it has real prefill support. Other types open a
+// blank form today; full prefill + promotion tracking can be added per type.
+const PROMOTION_OPTIONS: PromotionOption[] = [
+  {
+    label: "Project",
+    href: (id) => `/projects/new?fromMessageId=${id}`,
+    icon: FolderKanban,
+  },
+  {
+    label: "Work Order",
+    href: (id) => `/work-orders/new?fromMessageId=${id}`,
+    icon: ClipboardList,
+  },
+  {
+    label: "Equipment",
+    href: (id) => `/equipment/new?fromMessageId=${id}`,
+    icon: Wrench,
+  },
+  {
+    label: "Maintenance Log",
+    href: (id) => `/maintenance/new?fromMessageId=${id}`,
+    icon: FileText,
+  },
+  {
+    label: "NCR",
+    href: (id) => `/ncrs/new?fromMessageId=${id}`,
+    icon: AlertTriangle,
+  },
+  {
+    label: "CAPA",
+    href: (id) => `/capas/new?fromMessageId=${id}`,
+    icon: Shield,
+  },
+  {
+    label: "Complaint",
+    href: (id) => `/complaints/new?fromMessageId=${id}`,
+    icon: MessageSquareWarning,
+  },
+];
+
+function PromoteMenu({ messageId }: { messageId: string }) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onClick(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  return (
+    <div ref={wrapperRef} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-md transition-colors"
+      >
+        <FolderPlus size={12} />
+        Create from this email
+        <ChevronDown size={12} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-10 w-56 bg-white border border-gray-200 rounded-md shadow-lg py-1">
+          {PROMOTION_OPTIONS.map((opt) => {
+            const Icon = opt.icon;
+            return (
+              <Link
+                key={opt.label}
+                href={opt.href(messageId)}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+              >
+                <Icon size={14} />
+                {opt.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ActivityItem({ message }: { message: ActivityMessage }) {
   return (
@@ -122,16 +229,10 @@ export function ActivityItem({ message }: { message: ActivityMessage }) {
         </div>
       )}
 
-      {/* Offer to promote unused messages into a project */}
+      {/* Offer to promote unused messages into any record type */}
       {PROMOTABLE_ACTIONS.has(message.actionTaken) && message.suggestions.length === 0 && (
         <div className="mt-3">
-          <Link
-            href={`/projects/new?fromMessageId=${message.id}`}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md transition-colors"
-          >
-            <FolderPlus size={12} />
-            Create Project from This Email
-          </Link>
+          <PromoteMenu messageId={message.id} />
         </div>
       )}
     </div>
