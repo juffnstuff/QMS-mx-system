@@ -376,6 +376,7 @@ async function processMessages(
           senderName: msg.senderName,
           senderEmail: msg.senderEmail,
           bodyPreview: msg.bodyPreview,
+          bodyContent: msg.bodyContent ?? null,
           receivedAt: msg.receivedAt,
           actionTaken: "pre_filtered",
           confidence: 0,
@@ -468,6 +469,7 @@ async function processMessages(
             senderName: msg.senderName,
             senderEmail: msg.senderEmail,
             bodyPreview: msg.bodyPreview,
+            bodyContent: msg.bodyContent ?? null,
             receivedAt: msg.receivedAt,
             aiAnalysis: JSON.stringify(analysis),
             actionTaken: analysis.relevant
