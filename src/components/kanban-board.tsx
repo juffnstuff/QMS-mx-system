@@ -341,7 +341,7 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
         </DndContext>
 
         <p className="text-center text-xs text-gray-400 mt-2">
-          Drag any card between columns to update status &middot; Click a card to open the record
+          Drag a card between columns, or tap the <span className="inline-block align-middle">⇄</span> icon to pick a status &middot; Click a card to open the record
         </p>
       </div>
 

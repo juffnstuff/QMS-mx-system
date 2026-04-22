@@ -89,7 +89,7 @@ export function KanbanCard({ card, currentColumn, onMoveCard }: KanbanCardProps)
           <span className={`w-2 h-2 rounded-full ${PRIORITY_DOT[card.priority] || "bg-gray-300"}`} title={`Priority: ${card.priority}`} />
         )}
 
-        {/* Mobile move button */}
+        {/* Move button — works on any device. Mouse users can still drag. */}
         {onMoveCard && (
           <button
             onClick={(e) => {
@@ -97,7 +97,7 @@ export function KanbanCard({ card, currentColumn, onMoveCard }: KanbanCardProps)
               setShowMoveMenu(!showMoveMenu);
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="ml-auto sm:hidden p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors"
+            className="ml-auto p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors"
             title="Move to..."
           >
             <ArrowRightLeft size={14} />
@@ -105,9 +105,9 @@ export function KanbanCard({ card, currentColumn, onMoveCard }: KanbanCardProps)
         )}
       </div>
 
-      {/* Mobile move menu */}
+      {/* Move menu — column picker */}
       {showMoveMenu && onMoveCard && (
-        <div className="sm:hidden flex flex-wrap gap-1 mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex flex-wrap gap-1 mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
           {COLUMN_OPTIONS.map((col) => (
             <button
               key={col.id}
