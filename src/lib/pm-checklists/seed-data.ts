@@ -661,3 +661,12 @@ export const EQUIPMENT_TEMPLATE_MAP: EquipmentSeed[] = [
     templateCodes: ["DAILY_COMPRESSOR"],
   },
 ];
+
+// Default technician assignment by equipment class — looked up by first name.
+// Only applied when the equipment has no assigned technician yet (placeholder;
+// can be reassigned on the equipment detail page).
+export const DEFAULT_TECHNICIAN_BY_CLASS: Record<string, string> = {
+  presses: "Anthony", // Compression molding
+  extruders: "Joe", // Extrusion line
+};
+

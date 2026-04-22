@@ -57,12 +57,19 @@ export async function PATCH(
           { status: 400 },
         );
       }
+      // Prefer an explicit technicianId from the form (admin may claim on
+      // behalf of another tech); fall back to the existing assignment or
+      // the current user.
+      const technicianId =
+        (typeof body.technicianId === "string" && body.technicianId) ||
+        completion.technicianId ||
+        session.user.id;
       const updated = await prisma.checklistCompletion.update({
         where: { id },
         data: {
           status: "in_progress",
           startedAt: new Date(),
-          technicianId: session.user.id,
+          technicianId,
         },
       });
       return NextResponse.json(updated);
@@ -73,9 +80,11 @@ export async function PATCH(
         return NextResponse.json({ error: "results array required" }, { status: 400 });
       }
       const results = body.results as ItemResultInput[];
+      const technicianId =
+        (typeof body.technicianId === "string" && body.technicianId) || session.user.id;
       const outcome = await submitCompletion({
         completionId: id,
-        technicianId: session.user.id,
+        technicianId,
         supervisorId: body.supervisorId ?? null,
         notes: body.notes ?? null,
         results,

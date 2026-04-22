@@ -32,8 +32,9 @@ export function ChecklistForm({
   initialItems,
   initialNotes,
   initialSupervisorId,
+  initialTechnicianId,
   users,
-  currentUserName,
+  currentUserId,
 }: {
   completionId: string;
   status: string;
@@ -41,13 +42,15 @@ export function ChecklistForm({
   initialItems: ChecklistFormItem[];
   initialNotes: string;
   initialSupervisorId: string;
+  initialTechnicianId: string;
   users: ChecklistFormUser[];
-  currentUserName: string;
+  currentUserId: string;
 }) {
   const router = useRouter();
   const [items, setItems] = useState(initialItems);
   const [notes, setNotes] = useState(initialNotes);
   const [supervisorId, setSupervisorId] = useState(initialSupervisorId);
+  const [technicianId, setTechnicianId] = useState(initialTechnicianId);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,7 +71,7 @@ export function ChecklistForm({
       const res = await fetch(`/api/checklists/${completionId}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "start" }),
+        body: JSON.stringify({ action: "start", technicianId: technicianId || null }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed to start");
       router.refresh();
@@ -104,6 +107,7 @@ export function ChecklistForm({
             value: i.value || null,
             notes: i.notes || null,
           })),
+          technicianId: technicianId || null,
           supervisorId: supervisorId || null,
           notes: notes || null,
         }),
@@ -173,7 +177,20 @@ export function ChecklistForm({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Technician
             </label>
-            <div className="text-sm text-gray-600 py-2">{currentUserName}</div>
+            <select
+              value={technicianId}
+              onChange={(e) => setTechnicianId(e.target.value)}
+              disabled={readOnly}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm disabled:bg-gray-50"
+            >
+              <option value="">— Select —</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                  {u.id === currentUserId ? " (you)" : ""}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -183,7 +200,7 @@ export function ChecklistForm({
               value={supervisorId}
               onChange={(e) => setSupervisorId(e.target.value)}
               disabled={readOnly || status === "pending"}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm disabled:bg-gray-50"
             >
               <option value="">— Select —</option>
               {users

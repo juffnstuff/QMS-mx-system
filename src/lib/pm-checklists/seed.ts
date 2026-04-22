@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { EQUIPMENT_TEMPLATE_MAP, TEMPLATES, type TemplateSeed } from "./seed-data";
+import {
+  DEFAULT_TECHNICIAN_BY_CLASS,
+  EQUIPMENT_TEMPLATE_MAP,
+  TEMPLATES,
+  type TemplateSeed,
+} from "./seed-data";
 import { advanceEasternNextDue, endOfEasternDay } from "./eastern-time";
 
 export interface SeedResult {
@@ -7,6 +12,9 @@ export interface SeedResult {
   itemsInserted: number;
   equipmentUpserted: number;
   schedulesUpserted: number;
+  equipmentAssigned: number;
+  schedulesBackfilled: number;
+  completionsBackfilled: number;
   skipped: string[];
 }
 
@@ -19,6 +27,9 @@ export async function seedPmChecklists(): Promise<SeedResult> {
     itemsInserted: 0,
     equipmentUpserted: 0,
     schedulesUpserted: 0,
+    equipmentAssigned: 0,
+    schedulesBackfilled: 0,
+    completionsBackfilled: 0,
     skipped: [],
   };
 
@@ -64,7 +75,58 @@ export async function seedPmChecklists(): Promise<SeedResult> {
     }
   }
 
+  // 3. Default-technician assignment by equipment class. Only applied where
+  //    the target slot is currently null — never overwrites an existing
+  //    assignment (placeholders, not forced values).
+  for (const [equipmentClass, firstName] of Object.entries(DEFAULT_TECHNICIAN_BY_CLASS)) {
+    const user = await findUserByFirstName(firstName);
+    if (!user) {
+      result.skipped.push(`${equipmentClass}: no user found with first name ${firstName}`);
+      continue;
+    }
+
+    // a) Equipment primary technician
+    const eqUpdate = await prisma.equipment.updateMany({
+      where: { equipmentClass, assignedTechnicianId: null },
+      data: { assignedTechnicianId: user.id },
+    });
+    result.equipmentAssigned += eqUpdate.count;
+
+    // b) Maintenance schedules for that class that have no assignee yet
+    const schUpdate = await prisma.maintenanceSchedule.updateMany({
+      where: {
+        assignedToId: null,
+        equipment: { equipmentClass },
+      },
+      data: { assignedToId: user.id },
+    });
+    result.schedulesBackfilled += schUpdate.count;
+
+    // c) Pending ChecklistCompletion rows that haven't been claimed yet
+    const compUpdate = await prisma.checklistCompletion.updateMany({
+      where: {
+        status: "pending",
+        technicianId: null,
+        equipment: { equipmentClass },
+      },
+      data: { technicianId: user.id },
+    });
+    result.completionsBackfilled += compUpdate.count;
+  }
+
   return result;
+}
+
+async function findUserByFirstName(firstName: string) {
+  // Prefer exact firstName match; fall back to name starts-with as a safety net
+  // for users created before the first/last split.
+  const byFirstName = await prisma.user.findFirst({
+    where: { firstName: { equals: firstName, mode: "insensitive" } },
+  });
+  if (byFirstName) return byFirstName;
+  return prisma.user.findFirst({
+    where: { name: { startsWith: firstName, mode: "insensitive" } },
+  });
 }
 
 async function upsertTemplate(tpl: TemplateSeed) {

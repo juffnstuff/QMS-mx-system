@@ -157,8 +157,9 @@ export default async function ChecklistDetailPage({
         initialItems={initialItems}
         initialNotes={completion.notes ?? ""}
         initialSupervisorId={completion.supervisorId ?? ""}
+        initialTechnicianId={completion.technicianId ?? session.user.id ?? ""}
         users={users}
-        currentUserName={session.user.name ?? ""}
+        currentUserId={session.user.id ?? ""}
       />
 
       {!readOnly && (
