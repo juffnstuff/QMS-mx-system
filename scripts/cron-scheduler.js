@@ -69,19 +69,22 @@ cron.schedule("10 3 * * *", () => {
   runCleanup();
 });
 
-// Daily PM checklist generation at 05:00 Eastern (before first shift)
+// Daily PM checklist generation at 00:00 Eastern (midnight, before first shift)
 cron.schedule(
-  "0 5 * * *",
+  "0 0 * * *",
   () => {
     runGenerateChecklists();
   },
   { timezone: "America/New_York" },
 );
 
-console.log("[Cron] Scheduler started — checks every 6 hours, cleanup + PM generation daily (05:00 Eastern)");
+console.log("[Cron] Scheduler started — checks every 6 hours, cleanup + PM generation daily (midnight Eastern)");
 
-// Also run once 60 seconds after startup (gives server time to be ready)
+// Also run once 60 seconds after startup (gives server time to be ready).
+// runGenerateChecklists is idempotent — safe to re-run; ensures a deploy at
+// any time picks up today's checklists without waiting for midnight.
 setTimeout(() => {
   console.log("[Cron] Running initial checks after startup...");
   runAllChecks();
+  runGenerateChecklists();
 }, 60000);
