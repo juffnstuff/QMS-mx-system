@@ -12,11 +12,19 @@ interface UserOption {
   role: string;
 }
 
-interface Props {
-  users?: UserOption[];
+interface Prefill {
+  complaintDescription?: string;
+  customerName?: string;
+  contactEmail?: string;
+  fromMessageId?: string;
 }
 
-export function ComplaintForm({ users }: Props) {
+interface Props {
+  users?: UserOption[];
+  prefill?: Prefill;
+}
+
+export function ComplaintForm({ users, prefill }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -56,6 +64,7 @@ export function ComplaintForm({ users }: Props) {
       capaRequired: formData.get("capaRequired") === "on",
       affectsOtherOrders: formData.get("affectsOtherOrders") === "on",
       rootCauseRequired: formData.get("rootCauseRequired") === "on",
+      fromMessageId: prefill?.fromMessageId,
     };
 
     const res = await fetch("/api/complaints", {
@@ -104,6 +113,7 @@ export function ComplaintForm({ users }: Props) {
             id="customerName"
             name="customerName"
             required
+            defaultValue={prefill?.customerName ?? ""}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., Acme Corporation"
           />
@@ -153,6 +163,7 @@ export function ComplaintForm({ users }: Props) {
               id="contactEmail"
               name="contactEmail"
               type="email"
+              defaultValue={prefill?.contactEmail ?? ""}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="contact@example.com"
             />
@@ -293,6 +304,7 @@ export function ComplaintForm({ users }: Props) {
             name="complaintDescription"
             required
             rows={4}
+            defaultValue={prefill?.complaintDescription ?? ""}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Describe the complaint in detail..."
           />

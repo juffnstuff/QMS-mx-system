@@ -12,12 +12,18 @@ interface UserOption {
   role: string;
 }
 
+interface Prefill {
+  nonConformanceDescription?: string;
+  fromMessageId?: string;
+}
+
 interface Props {
   isAdmin: boolean;
   users?: UserOption[];
+  prefill?: Prefill;
 }
 
-export function NCRForm({ isAdmin, users }: Props) {
+export function NCRForm({ isAdmin, users, prefill }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -46,6 +52,7 @@ export function NCRForm({ isAdmin, users }: Props) {
       plantLocation: formData.get("plantLocation") || null,
       assignedInvestigatorId: assignedInvestigatorId || null,
       secondaryInvestigatorId: secondaryInvestigatorId || null,
+      fromMessageId: prefill?.fromMessageId,
     };
 
     const res = await fetch("/api/ncrs", {
@@ -218,6 +225,7 @@ export function NCRForm({ isAdmin, users }: Props) {
             name="nonConformanceDescription"
             required
             rows={4}
+            defaultValue={prefill?.nonConformanceDescription ?? ""}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Describe how the item or process does not conform..."
           />

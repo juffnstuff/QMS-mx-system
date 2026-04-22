@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { markMessagePromoted } from "@/lib/m365/promote-message";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, type, location, serialNumber, status, criticality, equipmentClass, groupName, parentId, assignedTechnicianId, secondaryTechnicianId, notes } = body;
+    const { name, type, location, serialNumber, status, criticality, equipmentClass, groupName, parentId, assignedTechnicianId, secondaryTechnicianId, notes, fromMessageId } = body;
 
     if (!name || !type || !location || !serialNumber) {
       return NextResponse.json(
@@ -48,6 +49,14 @@ export async function POST(req: NextRequest) {
         secondaryTechnicianId: secondaryTechnicianId || null,
         notes,
       },
+    });
+
+    await markMessagePromoted({
+      fromMessageId,
+      kind: "equipment",
+      createdRecordId: equipment.id,
+      reviewerId: session.user.id,
+      payloadSummary: { name, type, location, serialNumber },
     });
 
     return NextResponse.json(equipment, { status: 201 });

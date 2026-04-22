@@ -4,13 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FormActions } from "./form-actions";
 
+interface Prefill {
+  title?: string;
+  description?: string;
+  fromMessageId?: string;
+}
+
 interface Props {
   equipment: { id: string; name: string }[];
   users: { id: string; name: string }[];
   isAdmin: boolean;
+  prefill?: Prefill;
 }
 
-export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
+export function WorkOrderForm({ equipment, users, isAdmin, prefill }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,6 +42,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
       managerNotes: (formData.get("managerNotes") as string) || null,
       estimatedBudget: (formData.get("estimatedBudget") as string) || null,
       estimatedLeadTime: (formData.get("estimatedLeadTime") as string) || null,
+      fromMessageId: prefill?.fromMessageId,
     };
 
     const res = await fetch("/api/work-orders", {
@@ -81,6 +89,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
             id="title"
             name="title"
             required
+            defaultValue={prefill?.title ?? ""}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., Replace hydraulic seals"
           />
@@ -181,6 +190,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
             name="description"
             required
             rows={4}
+            defaultValue={prefill?.description ?? ""}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Describe the work needed..."
           />

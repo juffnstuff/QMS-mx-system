@@ -9,6 +9,7 @@ import {
   workOrderAssigned,
   workOrderCreated,
 } from "@/lib/notifications/email-templates";
+import { markMessagePromoted } from "@/lib/m365/promote-message";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
   const {
     equipmentId, title, description, priority, assignedToId, secondaryAssignedToId, dueDate,
     workOrderType, requirements, managerNotes, estimatedBudget, estimatedLeadTime, plannedStartDate,
+    fromMessageId,
   } = body;
 
   if (!equipmentId || !title || !description) {
@@ -102,6 +104,14 @@ export async function POST(req: NextRequest) {
     },
     [secondaryAssignedToId]
   ).catch((e) => console.error("[Notification] work_order_created digest failed:", e));
+
+  await markMessagePromoted({
+    fromMessageId,
+    kind: "work_order",
+    createdRecordId: workOrder.id,
+    reviewerId: session.user.id,
+    payloadSummary: { title, description, priority },
+  });
 
   return NextResponse.json(workOrder, { status: 201 });
 }

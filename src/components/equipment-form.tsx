@@ -44,7 +44,13 @@ const EQUIPMENT_CLASS_OPTIONS = [
   { value: "other", label: "Other" },
 ] as const;
 
-export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: EquipmentData; allEquipment?: EquipmentOption[]; users?: UserOption[] }) {
+interface Prefill {
+  name?: string;
+  notes?: string;
+  fromMessageId?: string;
+}
+
+export function EquipmentForm({ equipment, allEquipment, users, prefill }: { equipment?: EquipmentData; allEquipment?: EquipmentOption[]; users?: UserOption[]; prefill?: Prefill }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -71,6 +77,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
       assignedTechnicianId: assignedTechnicianId || null,
       secondaryTechnicianId: secondaryTechnicianId || null,
       notes: (formData.get("notes") as string) || null,
+      fromMessageId: !isEdit ? prefill?.fromMessageId : undefined,
     };
 
     const url = isEdit
@@ -125,7 +132,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
             id="name"
             name="name"
             required
-            defaultValue={equipment?.name}
+            defaultValue={equipment?.name ?? prefill?.name ?? ""}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., Granulator #1"
           />
@@ -298,7 +305,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
             id="notes"
             name="notes"
             rows={3}
-            defaultValue={equipment?.notes || ""}
+            defaultValue={equipment?.notes ?? prefill?.notes ?? ""}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Optional notes about this equipment..."
           />

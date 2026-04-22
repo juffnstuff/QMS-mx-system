@@ -12,13 +12,19 @@ interface ActionItem {
   status: string;
 }
 
+interface Prefill {
+  nonconformanceDescription?: string;
+  fromMessageId?: string;
+}
+
 interface Props {
   users: { id: string; name: string }[];
   ncrs: { id: string; ncrNumber: string }[];
   isAdmin: boolean;
+  prefill?: Prefill;
 }
 
-export function CAPAForm({ users, ncrs, isAdmin }: Props) {
+export function CAPAForm({ users, ncrs, isAdmin, prefill }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -73,6 +79,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
       lessonsLearned: formData.get("lessonsLearned") || null,
       preventiveActions: formData.get("preventiveActions") || null,
       actions: actions.filter((a) => a.description.trim() !== ""),
+      fromMessageId: prefill?.fromMessageId,
     };
 
     const res = await fetch("/api/capas", {
@@ -268,6 +275,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
               name="nonconformanceDescription"
               required
               rows={4}
+              defaultValue={prefill?.nonconformanceDescription ?? ""}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Describe the nonconformance — what happened, where, when, and the extent..."
             />

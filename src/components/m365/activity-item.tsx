@@ -42,6 +42,12 @@ const actionLabels: Record<string, string> = {
   ignored: "Not Relevant",
   pre_filtered: "Filtered",
   promoted_to_project: "Converted to Project",
+  promoted_to_work_order: "Converted to Work Order",
+  promoted_to_equipment: "Converted to Equipment",
+  promoted_to_maintenance_log: "Converted to Maintenance Log",
+  promoted_to_ncr: "Converted to NCR",
+  promoted_to_capa: "Converted to CAPA",
+  promoted_to_complaint: "Converted to Complaint",
 };
 
 const actionColors: Record<string, string> = {
@@ -51,6 +57,24 @@ const actionColors: Record<string, string> = {
   ignored: "border-l-gray-300",
   pre_filtered: "border-l-gray-300",
   promoted_to_project: "border-l-purple-500",
+  promoted_to_work_order: "border-l-blue-500",
+  promoted_to_equipment: "border-l-teal-500",
+  promoted_to_maintenance_log: "border-l-green-500",
+  promoted_to_ncr: "border-l-red-500",
+  promoted_to_capa: "border-l-orange-500",
+  promoted_to_complaint: "border-l-pink-500",
+};
+
+// Map AISuggestion.createdRecordType values to their detail-page paths so the
+// suggestion pill can link back to the created record.
+const RECORD_TYPE_PATH: Record<string, string> = {
+  Project: "projects",
+  WorkOrder: "work-orders",
+  Equipment: "equipment",
+  MaintenanceLog: "maintenance",
+  NonConformance: "ncrs",
+  CAPA: "capas",
+  CustomerComplaint: "complaints",
 };
 
 // Any message where no suggestion was ever created is a candidate for manual
@@ -65,8 +89,8 @@ type PromotionOption = {
   note?: string;
 };
 
-// Project is first because it has real prefill support. Other types open a
-// blank form today; full prefill + promotion tracking can be added per type.
+// All promotion types now prefill the new form from the email and mark the
+// source message as promoted on save.
 const PROMOTION_OPTIONS: PromotionOption[] = [
   {
     label: "Project",
@@ -217,9 +241,16 @@ export function ActivityItem({ message }: { message: ActivityMessage }) {
                 {s.reviewer && ` by ${s.reviewer.name}`}
               </span>
             );
-            if (s.createdRecordType === "Project" && s.createdRecordId) {
+            const pathSegment = s.createdRecordType
+              ? RECORD_TYPE_PATH[s.createdRecordType]
+              : null;
+            if (pathSegment && s.createdRecordId) {
               return (
-                <Link key={s.id} href={`/projects/${s.createdRecordId}`} className="hover:underline">
+                <Link
+                  key={s.id}
+                  href={`/${pathSegment}/${s.createdRecordId}`}
+                  className="hover:underline"
+                >
                   {pill}
                 </Link>
               );

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { markMessagePromoted } from "@/lib/m365/promote-message";
 
 export async function GET(req: NextRequest) {
   try {
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest) {
       plantLocation,
       assignedInvestigatorId,
       secondaryInvestigatorId,
+      fromMessageId,
     } = body;
 
     if (!ncrType || !requirementDescription || !nonConformanceDescription) {
@@ -104,6 +106,14 @@ export async function POST(req: NextRequest) {
         secondaryInvestigatorId: secondaryInvestigatorId || null,
         status: "open",
       },
+    });
+
+    await markMessagePromoted({
+      fromMessageId,
+      kind: "ncr",
+      createdRecordId: ncr.id,
+      reviewerId: session.user.id,
+      payloadSummary: { ncrNumber, ncrType, nonConformanceDescription },
     });
 
     return NextResponse.json(ncr, { status: 201 });
