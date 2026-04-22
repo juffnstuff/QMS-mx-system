@@ -110,7 +110,7 @@ export default async function ProjectLogPage({
                         {p.budget ? ` · ${p.budget}` : ""}
                       </p>
                     </div>
-                    <div className="text-left sm:text-right text-xs text-gray-500 whitespace-nowrap shrink-0">
+                    <div className="text-left sm:text-right text-xs text-gray-500 sm:whitespace-nowrap shrink-0">
                       {p.completedAt ? (
                         <>
                           <p className="font-medium text-gray-700">

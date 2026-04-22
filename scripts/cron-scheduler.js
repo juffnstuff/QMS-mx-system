@@ -49,6 +49,11 @@ async function runCleanup() {
   await callEndpoint("Cleanup Messages", "/api/cron/cleanup-messages", "header");
 }
 
+async function runGenerateChecklists() {
+  console.log(`[Cron] Generating PM checklist completions at ${new Date().toISOString()}`);
+  await callEndpoint("Generate Checklists", "/api/cron/generate-checklists", "bearer");
+}
+
 // Schedule: "0 */6 * * *" = every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
 cron.schedule("0 */6 * * *", () => {
   runAllChecks();
@@ -64,10 +69,22 @@ cron.schedule("10 3 * * *", () => {
   runCleanup();
 });
 
-console.log("[Cron] Scheduler started — checks every 6 hours, cleanup daily");
+// Daily PM checklist generation at 00:00 Eastern (midnight, before first shift)
+cron.schedule(
+  "0 0 * * *",
+  () => {
+    runGenerateChecklists();
+  },
+  { timezone: "America/New_York" },
+);
 
-// Also run once 60 seconds after startup (gives server time to be ready)
+console.log("[Cron] Scheduler started — checks every 6 hours, cleanup + PM generation daily (midnight Eastern)");
+
+// Also run once 60 seconds after startup (gives server time to be ready).
+// runGenerateChecklists is idempotent — safe to re-run; ensures a deploy at
+// any time picks up today's checklists without waiting for midnight.
 setTimeout(() => {
   console.log("[Cron] Running initial checks after startup...");
   runAllChecks();
+  runGenerateChecklists();
 }, 60000);

@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
 import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { NotesSection } from "@/components/notes/notes-section";
 import Link from "next/link";
 import { Pencil, ShieldAlert, Shield, ShieldCheck, Link2, ClipboardList, Plus } from "lucide-react";
 
@@ -60,6 +61,11 @@ export default async function EquipmentDetailPage({
         orderBy: { createdAt: "desc" },
         include: { assignedTo: true },
       },
+      checklistCompletions: {
+        take: 8,
+        orderBy: [{ status: "asc" }, { scheduledFor: "desc" }],
+        include: { template: { select: { name: true, frequency: true } } },
+      },
     },
   });
 
@@ -80,9 +86,9 @@ export default async function EquipmentDetailPage({
         { label: "Equipment", href: "/equipment" },
         { label: equipment.name },
       ]} />
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
               {equipment.name}
             </h1>
@@ -98,7 +104,7 @@ export default async function EquipmentDetailPage({
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Link
             href={`/equipment/${id}/edit`}
             className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
@@ -172,6 +178,16 @@ export default async function EquipmentDetailPage({
             </div>
           )}
         </dl>
+      </div>
+
+      {/* Notes */}
+      <div className="mb-6">
+        <NotesSection
+          recordType="equipment"
+          recordId={id}
+          currentUserId={session?.user.id ?? ""}
+          isAdmin={session?.user.role === "admin"}
+        />
       </div>
 
       {/* Attachments */}
@@ -260,13 +276,13 @@ export default async function EquipmentDetailPage({
                 <Link
                   key={schedule.id}
                   href={`/schedules/${schedule.id}`}
-                  className="block p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                  className="block p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-gray-50 transition-colors"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-blue-600 hover:text-blue-800">{schedule.title}</p>
                     <p className="text-sm text-gray-500 capitalize">{schedule.frequency}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-left sm:text-right shrink-0">
                     <p className={`text-sm font-medium ${isOverdue ? "text-red-600" : "text-gray-600"}`}>
                       {isOverdue ? "OVERDUE" : "Due"}: {new Date(schedule.nextDue).toLocaleDateString()}
                     </p>
@@ -277,6 +293,52 @@ export default async function EquipmentDetailPage({
           )}
         </div>
       </div>
+
+      {/* PM Checklists */}
+      {equipment.checklistCompletions.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">PM Checklists</h2>
+            <Link href="/checklists" className="text-sm text-blue-600 hover:text-blue-800">
+              All checklists →
+            </Link>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {equipment.checklistCompletions.map((completion) => {
+              const statusColor =
+                completion.status === "completed"
+                  ? "text-green-700"
+                  : completion.status === "superseded"
+                  ? "text-gray-500"
+                  : completion.status === "in_progress"
+                  ? "text-blue-700"
+                  : new Date(completion.scheduledFor) < new Date()
+                  ? "text-red-600"
+                  : "text-amber-700";
+              return (
+                <Link
+                  key={completion.id}
+                  href={`/checklists/${completion.id}`}
+                  className="block p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-blue-600 hover:text-blue-800">
+                      {completion.template?.name ?? "—"}
+                    </p>
+                    <p className="text-sm text-gray-500 capitalize">
+                      {completion.template?.frequency} · Scheduled{" "}
+                      {new Date(completion.scheduledFor).toLocaleDateString("en-US", { timeZone: "America/New_York" })}
+                    </p>
+                  </div>
+                  <div className={`text-sm font-medium capitalize shrink-0 ${statusColor}`}>
+                    {completion.status.replace("_", " ")}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Recent Work Orders */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
@@ -294,15 +356,15 @@ export default async function EquipmentDetailPage({
                   href={`/work-orders/${order.id}`}
                   className="block p-4 hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="min-w-0">
                       <p className="font-medium text-blue-600 hover:text-blue-800">{order.title}</p>
                       <p className="text-sm text-gray-500">
                         {order.assignedTo ? order.assignedTo.name : "Unassigned"} •{" "}
                         {new Date(order.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 shrink-0">
                       <StatusBadge status={order.priority} />
                       <StatusBadge status={order.status} />
                     </div>

@@ -44,17 +44,14 @@ export async function DELETE(
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (session.user.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const { id } = await params;
 
   const attachment = await prisma.attachment.findUnique({ where: { id } });
   if (!attachment) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const isAdmin = session.user.role === "admin";
-  const isOwner = attachment.uploadedById === session.user.id;
-  if (!isAdmin && !isOwner) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   await prisma.attachment.delete({ where: { id } });

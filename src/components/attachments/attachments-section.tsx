@@ -125,7 +125,8 @@ export function AttachmentsSection({ recordType, recordId, currentUserId, isAdmi
     }
   };
 
-  const canModify = (a: Attachment) => isAdmin || a.uploadedBy.id === currentUserId;
+  const canEditCaption = (a: Attachment) => isAdmin || a.uploadedBy.id === currentUserId;
+  const canDelete = (_a: Attachment) => isAdmin;
 
   const images = items.filter((a) => isImage(a.mimeType));
   const docs = items.filter((a) => !isImage(a.mimeType));
@@ -236,27 +237,31 @@ export function AttachmentsSection({ recordType, recordId, currentUserId, isAdmi
                         {a.uploadedBy.name} • {formatBytes(a.sizeBytes)}
                       </p>
                     </div>
-                    {canModify(a) && editingId !== a.id && (
-                      <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingId(a.id);
-                            setEditingCaption(a.caption || "");
-                          }}
-                          className="bg-white/90 hover:bg-white text-gray-700 rounded-full p-1 shadow-sm"
-                          title="Edit caption"
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => remove(a)}
-                          className="bg-white/90 hover:bg-white text-red-600 rounded-full p-1 shadow-sm"
-                          title="Delete"
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                    {(canEditCaption(a) || canDelete(a)) && editingId !== a.id && (
+                      <div className="absolute top-1 right-1 flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                        {canEditCaption(a) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(a.id);
+                              setEditingCaption(a.caption || "");
+                            }}
+                            className="bg-white/90 hover:bg-white text-gray-700 rounded-full p-1 shadow-sm"
+                            title="Edit caption"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                        )}
+                        {canDelete(a) && (
+                          <button
+                            type="button"
+                            onClick={() => remove(a)}
+                            className="bg-white/90 hover:bg-white text-red-600 rounded-full p-1 shadow-sm"
+                            title="Delete (admin only)"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -312,27 +317,33 @@ export function AttachmentsSection({ recordType, recordId, currentUserId, isAdmi
                         {a.uploadedBy.name} • {formatBytes(a.sizeBytes)} • {new Date(a.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    {canModify(a) && editingId !== a.id && (
+                    {(canEditCaption(a) || canDelete(a)) && editingId !== a.id && (
                       <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingId(a.id);
-                            setEditingCaption(a.caption || "");
-                          }}
-                          className="text-gray-400 hover:text-gray-700 p-1"
-                          title="Edit caption"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => remove(a)}
-                          className="text-red-500 hover:text-red-700 p-1"
-                          title="Delete"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {canEditCaption(a) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(a.id);
+                              setEditingCaption(a.caption || "");
+                            }}
+                            className="text-gray-400 hover:text-gray-700 p-2.5 sm:p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-md hover:bg-gray-100"
+                            title="Edit caption"
+                            aria-label="Edit caption"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                        )}
+                        {canDelete(a) && (
+                          <button
+                            type="button"
+                            onClick={() => remove(a)}
+                            className="text-red-500 hover:text-red-700 p-2.5 sm:p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-md hover:bg-red-50"
+                            title="Delete (admin only)"
+                            aria-label="Delete attachment"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     )}
                   </li>

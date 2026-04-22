@@ -278,7 +278,7 @@ function initialKindForms(
 }
 
 const inputClass =
-  "w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500";
+  "w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500";
 const labelClass = "block text-xs font-medium text-gray-600 mb-1";
 
 export function SuggestionCard({
@@ -443,7 +443,7 @@ export function SuggestionCard({
       </div>
 
       {expanded && (
-        <div className="border-t border-gray-100 p-4 bg-gray-50 max-h-[calc(100vh-8rem)] overflow-y-auto">
+        <div className="border-t border-gray-100 p-4 bg-gray-50 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
           {/* Email Body */}
           <div className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-1">Email Body</h4>

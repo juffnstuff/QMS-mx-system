@@ -44,7 +44,13 @@ const EQUIPMENT_CLASS_OPTIONS = [
   { value: "other", label: "Other" },
 ] as const;
 
-export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: EquipmentData; allEquipment?: EquipmentOption[]; users?: UserOption[] }) {
+interface Prefill {
+  name?: string;
+  notes?: string;
+  fromMessageId?: string;
+}
+
+export function EquipmentForm({ equipment, allEquipment, users, prefill }: { equipment?: EquipmentData; allEquipment?: EquipmentOption[]; users?: UserOption[]; prefill?: Prefill }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -71,6 +77,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
       assignedTechnicianId: assignedTechnicianId || null,
       secondaryTechnicianId: secondaryTechnicianId || null,
       notes: (formData.get("notes") as string) || null,
+      fromMessageId: !isEdit ? prefill?.fromMessageId : undefined,
     };
 
     const url = isEdit
@@ -125,8 +132,8 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
             id="name"
             name="name"
             required
-            defaultValue={equipment?.name}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            defaultValue={equipment?.name ?? prefill?.name ?? ""}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., Granulator #1"
           />
         </div>
@@ -141,7 +148,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
               name="type"
               required
               defaultValue={equipment?.type}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g., Granulator"
             />
           </div>
@@ -154,7 +161,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
               name="location"
               required
               defaultValue={equipment?.location}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g., Plant Floor - Bay 3"
             />
           </div>
@@ -170,7 +177,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
               name="serialNumber"
               required
               defaultValue={equipment?.serialNumber}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
               placeholder="e.g., GRN-2024-001"
             />
           </div>
@@ -182,7 +189,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
               id="status"
               name="status"
               defaultValue={equipment?.status || "operational"}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="operational">Operational</option>
               <option value="needs_service">Needs Service</option>
@@ -201,7 +208,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
               name="criticality"
               required
               defaultValue={equipment?.criticality || ""}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="" disabled>Select criticality...</option>
               <option value="A">Class A — Critical (production stoppage if down)</option>
@@ -217,7 +224,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
               id="groupName"
               name="groupName"
               defaultValue={equipment?.groupName || ""}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder='e.g., "Dake Press System"'
             />
           </div>
@@ -231,7 +238,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
             id="equipmentClass"
             name="equipmentClass"
             defaultValue={equipment?.equipmentClass || ""}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Uncategorized</option>
             {EQUIPMENT_CLASS_OPTIONS.map((opt) => (
@@ -254,7 +261,7 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
               id="parentId"
               name="parentId"
               defaultValue={equipment?.parentId || ""}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">None (top-level equipment)</option>
               {allEquipment
@@ -298,8 +305,8 @@ export function EquipmentForm({ equipment, allEquipment, users }: { equipment?: 
             id="notes"
             name="notes"
             rows={3}
-            defaultValue={equipment?.notes || ""}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            defaultValue={equipment?.notes ?? prefill?.notes ?? ""}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Optional notes about this equipment..."
           />
         </div>

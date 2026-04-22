@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
 import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { NotesSection } from "@/components/notes/notes-section";
 import { StatusHistory } from "@/components/status-history";
 import Link from "next/link";
 
@@ -77,9 +78,9 @@ export default async function CAPADetailPage({
         { label: "CAPAs", href: "/capas" },
         { label: capa.capaNumber },
       ]} />
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <h1 className="text-2xl font-bold text-gray-900">{capa.capaNumber}</h1>
             <StatusBadge status={capa.severityLevel} />
             <StatusBadge status={capa.status} />
@@ -90,12 +91,14 @@ export default async function CAPADetailPage({
             ) : "Unknown"} • {new Date(capa.createdAt).toLocaleDateString()}
           </p>
         </div>
-        <DeleteRecordButton
-          recordId={id}
-          recordType="capas"
-          recordLabel={capa.capaNumber}
-          redirectTo="/capas"
-        />
+        <div className="shrink-0">
+          <DeleteRecordButton
+            recordId={id}
+            recordType="capas"
+            recordLabel={capa.capaNumber}
+            redirectTo="/capas"
+          />
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -325,6 +328,15 @@ export default async function CAPADetailPage({
             </div>
           </div>
         )}
+
+        <div className="mt-6">
+          <NotesSection
+            recordType="capa"
+            recordId={id}
+            currentUserId={session?.user.id ?? ""}
+            isAdmin={session?.user.role === "admin"}
+          />
+        </div>
 
         <div className="mt-6">
           <AttachmentsSection

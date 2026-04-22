@@ -46,7 +46,7 @@ export default async function ComplaintsPage({
           <select
             name="status"
             defaultValue={params.status || "all"}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Statuses</option>
             <option value="open">Open</option>
@@ -57,7 +57,7 @@ export default async function ComplaintsPage({
           <select
             name="complaintType"
             defaultValue={params.complaintType || "all"}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Complaint Types</option>
             <option value="aesthetic">Aesthetic</option>

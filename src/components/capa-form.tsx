@@ -12,13 +12,19 @@ interface ActionItem {
   status: string;
 }
 
+interface Prefill {
+  nonconformanceDescription?: string;
+  fromMessageId?: string;
+}
+
 interface Props {
   users: { id: string; name: string }[];
   ncrs: { id: string; ncrNumber: string }[];
   isAdmin: boolean;
+  prefill?: Prefill;
 }
 
-export function CAPAForm({ users, ncrs, isAdmin }: Props) {
+export function CAPAForm({ users, ncrs, isAdmin, prefill }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -73,6 +79,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
       lessonsLearned: formData.get("lessonsLearned") || null,
       preventiveActions: formData.get("preventiveActions") || null,
       actions: actions.filter((a) => a.description.trim() !== ""),
+      fromMessageId: prefill?.fromMessageId,
     };
 
     const res = await fetch("/api/capas", {
@@ -124,7 +131,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
               <input
                 id="department"
                 name="department"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., Production, Quality, Shipping"
               />
             </div>
@@ -135,7 +142,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
               <select
                 id="referenceNcrId"
                 name="referenceNcrId"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">None</option>
                 {ncrs.map((ncr) => (
@@ -156,7 +163,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                 id="targetCloseDate"
                 name="targetCloseDate"
                 type="date"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -166,7 +173,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
               <select
                 id="assignedToId"
                 name="assignedToId"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Unassigned</option>
                 {users.map((u) => (
@@ -186,7 +193,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
               <select
                 id="secondaryAssignedToId"
                 name="secondaryAssignedToId"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Unassigned</option>
                 {users.map((u) => (
@@ -207,7 +214,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                 id="source"
                 name="source"
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select source...</option>
                 <option value="internal_audit">Internal Audit</option>
@@ -229,7 +236,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                 name="severityLevel"
                 required
                 defaultValue="medium"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -246,7 +253,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
             <input
               id="sourceOther"
               name="sourceOther"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="If 'Other' selected above, specify here"
             />
           </div>
@@ -268,7 +275,8 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
               name="nonconformanceDescription"
               required
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              defaultValue={prefill?.nonconformanceDescription ?? ""}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Describe the nonconformance — what happened, where, when, and the extent..."
             />
           </div>
@@ -281,7 +289,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
               <input
                 id="productProcessAffected"
                 name="productProcessAffected"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., Rubber molding line #2"
               />
             </div>
@@ -292,7 +300,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
               <input
                 id="quantityScopeAffected"
                 name="quantityScopeAffected"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., 500 units, 3 batches"
               />
             </div>
@@ -306,7 +314,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
               id="containmentActions"
               name="containmentActions"
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Describe immediate actions taken to contain the issue..."
             />
           </div>
@@ -327,7 +335,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
               <select
                 id="rcaMethod"
                 name="rcaMethod"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select method...</option>
                 <option value="5_whys">5 Whys</option>
@@ -346,7 +354,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
               <input
                 id="rcaMethodOther"
                 name="rcaMethodOther"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="If 'Other' selected, specify here"
               />
             </div>
@@ -361,7 +369,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                 id="whyMan"
                 name="whyMan"
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Training, skill, fatigue, error..."
               />
             </div>
@@ -373,7 +381,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                 id="whyMachine"
                 name="whyMachine"
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Calibration, wear, malfunction..."
               />
             </div>
@@ -385,7 +393,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                 id="whyMethod"
                 name="whyMethod"
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Procedure, work instructions, SOP gaps..."
               />
             </div>
@@ -397,7 +405,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                 id="whyMaterial"
                 name="whyMaterial"
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Raw material, supplier, specification..."
               />
             </div>
@@ -411,7 +419,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
               id="rootCauseStatement"
               name="rootCauseStatement"
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Clearly state the verified root cause..."
             />
           </div>
@@ -452,7 +460,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                       updateAction(index, "description", e.target.value)
                     }
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Describe the corrective action..."
                   />
                 </div>
@@ -466,7 +474,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                       onChange={(e) =>
                         updateAction(index, "responsibleParty", e.target.value)
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Name or role"
                     />
                   </div>
@@ -480,7 +488,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                       onChange={(e) =>
                         updateAction(index, "dueDate", e.target.value)
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div>
@@ -492,7 +500,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                       onChange={(e) =>
                         updateAction(index, "status", e.target.value)
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="planned">Planned</option>
                       <option value="in_progress">In Progress</option>
@@ -530,7 +538,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                 <input
                   id="verificationMethod"
                   name="verificationMethod"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., Re-audit, sampling, review"
                 />
               </div>
@@ -541,7 +549,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                 <select
                   id="effectivenessOutcome"
                   name="effectivenessOutcome"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Not yet determined</option>
                   <option value="effective">Effective</option>
@@ -559,7 +567,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                 id="objectiveEvidence"
                 name="objectiveEvidence"
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Document objective evidence of effectiveness..."
               />
             </div>
@@ -572,7 +580,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                 id="lessonsLearned"
                 name="lessonsLearned"
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Key takeaways and lessons learned..."
               />
             </div>
@@ -585,7 +593,7 @@ export function CAPAForm({ users, ncrs, isAdmin }: Props) {
                 id="preventiveActions"
                 name="preventiveActions"
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Preventive actions, system updates, procedure changes..."
               />
             </div>

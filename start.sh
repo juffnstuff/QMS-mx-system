@@ -3,10 +3,17 @@ set -e
 
 echo "Starting QMS Equipment Tracker..."
 
-# Ensure the attachments directory exists and is writable.
-# In production this path should be backed by a Railway volume.
+# Ensure the attachments directory is writable by the app user. Railway
+# volume mounts come in owned by root, so the nextjs (uid 1001) user can't
+# mkdir/write there without help. If we're running as root, fix permissions
+# and then re-exec this script as nextjs via su-exec.
 ATTACHMENTS_DIR="${ATTACHMENTS_DIR:-/data/attachments}"
-mkdir -p "$ATTACHMENTS_DIR" 2>/dev/null || echo "Warning: could not create $ATTACHMENTS_DIR"
+if [ "$(id -u)" = "0" ]; then
+  mkdir -p "$ATTACHMENTS_DIR" 2>/dev/null || echo "Warning: could not create $ATTACHMENTS_DIR"
+  chown -R 1001:1001 "$ATTACHMENTS_DIR" 2>/dev/null || echo "Warning: could not chown $ATTACHMENTS_DIR"
+  # Drop privileges for the rest of the script.
+  exec su-exec 1001:1001 sh "$0" "$@"
+fi
 
 # Run database migrations (continue even if they fail, e.g. already applied)
 echo "Running database migrations..."

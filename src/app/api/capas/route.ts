@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { markMessagePromoted } from "@/lib/m365/promote-message";
 
 export async function GET(req: NextRequest) {
   try {
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
       finalDisposition,
       status,
       actions,
+      fromMessageId,
     } = body;
 
     if (!source || !severityLevel || !nonconformanceDescription) {
@@ -152,6 +154,14 @@ export async function POST(req: NextRequest) {
           : undefined,
       },
       include: { actions: true },
+    });
+
+    await markMessagePromoted({
+      fromMessageId,
+      kind: "capa",
+      createdRecordId: capa.id,
+      reviewerId: session.user.id,
+      payloadSummary: { capaNumber, severityLevel, nonconformanceDescription },
     });
 
     return NextResponse.json(capa, { status: 201 });

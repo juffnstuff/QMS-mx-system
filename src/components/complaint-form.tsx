@@ -12,11 +12,19 @@ interface UserOption {
   role: string;
 }
 
-interface Props {
-  users?: UserOption[];
+interface Prefill {
+  complaintDescription?: string;
+  customerName?: string;
+  contactEmail?: string;
+  fromMessageId?: string;
 }
 
-export function ComplaintForm({ users }: Props) {
+interface Props {
+  users?: UserOption[];
+  prefill?: Prefill;
+}
+
+export function ComplaintForm({ users, prefill }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -56,6 +64,7 @@ export function ComplaintForm({ users }: Props) {
       capaRequired: formData.get("capaRequired") === "on",
       affectsOtherOrders: formData.get("affectsOtherOrders") === "on",
       rootCauseRequired: formData.get("rootCauseRequired") === "on",
+      fromMessageId: prefill?.fromMessageId,
     };
 
     const res = await fetch("/api/complaints", {
@@ -104,7 +113,8 @@ export function ComplaintForm({ users }: Props) {
             id="customerName"
             name="customerName"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            defaultValue={prefill?.customerName ?? ""}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., Acme Corporation"
           />
         </div>
@@ -117,7 +127,7 @@ export function ComplaintForm({ users }: Props) {
             id="customerAddress"
             name="customerAddress"
             rows={2}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Street, City, State, ZIP"
           />
         </div>
@@ -130,7 +140,7 @@ export function ComplaintForm({ users }: Props) {
             <input
               id="customerContact"
               name="customerContact"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Contact name"
             />
           </div>
@@ -141,7 +151,7 @@ export function ComplaintForm({ users }: Props) {
             <input
               id="contactPhone"
               name="contactPhone"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="(555) 123-4567"
             />
           </div>
@@ -153,7 +163,8 @@ export function ComplaintForm({ users }: Props) {
               id="contactEmail"
               name="contactEmail"
               type="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              defaultValue={prefill?.contactEmail ?? ""}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="contact@example.com"
             />
           </div>
@@ -167,7 +178,7 @@ export function ComplaintForm({ users }: Props) {
             <input
               id="partNumber"
               name="partNumber"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Part number or name"
             />
           </div>
@@ -178,7 +189,7 @@ export function ComplaintForm({ users }: Props) {
             <input
               id="salesOrderNumber"
               name="salesOrderNumber"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="SO-12345"
             />
           </div>
@@ -191,7 +202,7 @@ export function ComplaintForm({ users }: Props) {
           <select
             id="invoiced"
             name="invoiced"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select...</option>
             <option value="yes">Yes</option>
@@ -208,7 +219,7 @@ export function ComplaintForm({ users }: Props) {
             <input
               id="invoiceNumber"
               name="invoiceNumber"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="INV-12345"
             />
           </div>
@@ -219,7 +230,7 @@ export function ComplaintForm({ users }: Props) {
             <input
               id="invoiceValue"
               name="invoiceValue"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="$0.00"
             />
           </div>
@@ -233,7 +244,7 @@ export function ComplaintForm({ users }: Props) {
             <input
               id="drawingNumber"
               name="drawingNumber"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="DWG-001"
             />
           </div>
@@ -244,7 +255,7 @@ export function ComplaintForm({ users }: Props) {
             <input
               id="drawingRevision"
               name="drawingRevision"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="A"
             />
           </div>
@@ -255,7 +266,7 @@ export function ComplaintForm({ users }: Props) {
             <input
               id="quantityAffected"
               name="quantityAffected"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="0"
             />
           </div>
@@ -269,7 +280,7 @@ export function ComplaintForm({ users }: Props) {
             id="complaintType"
             name="complaintType"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select complaint type...</option>
             <option value="aesthetic">Aesthetic</option>
@@ -293,7 +304,8 @@ export function ComplaintForm({ users }: Props) {
             name="complaintDescription"
             required
             rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            defaultValue={prefill?.complaintDescription ?? ""}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Describe the complaint in detail..."
           />
         </div>
@@ -306,7 +318,7 @@ export function ComplaintForm({ users }: Props) {
             id="otherInfo"
             name="otherInfo"
             rows={2}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Any additional information..."
           />
         </div>
@@ -342,7 +354,7 @@ export function ComplaintForm({ users }: Props) {
                 <select
                   id="disposition"
                   name="disposition"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select disposition...</option>
                   <option value="return_rework">Return & Rework</option>
@@ -360,7 +372,7 @@ export function ComplaintForm({ users }: Props) {
                 <input
                   id="rmaNumber"
                   name="rmaNumber"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="RMA-12345"
                 />
               </div>
@@ -373,7 +385,7 @@ export function ComplaintForm({ users }: Props) {
                   id="customerFacingAction"
                   name="customerFacingAction"
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Action to communicate to the customer..."
                 />
               </div>
@@ -386,7 +398,7 @@ export function ComplaintForm({ users }: Props) {
                   id="internalAction"
                   name="internalAction"
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Internal corrective actions..."
                 />
               </div>

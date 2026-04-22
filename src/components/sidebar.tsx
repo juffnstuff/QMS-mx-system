@@ -20,6 +20,7 @@ import {
   Shield,
   MessageSquareWarning,
   User,
+  ClipboardCheck,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/equipment", label: "Equipment", icon: Wrench },
   { href: "/schedules", label: "Schedules", icon: Calendar },
+  { href: "/checklists", label: "PM Checklists", icon: ClipboardCheck },
   { href: "/maintenance", label: "Maintenance Log", icon: FileText },
   { href: "/work-orders", label: "Work Orders", icon: ClipboardList },
   { href: "/ncrs", label: "NCRs", icon: AlertTriangle },
@@ -58,7 +60,7 @@ export function Sidebar({ userName, userRole, unreadCount = 0 }: { userName: str
         <p className="text-xs text-gray-400 mt-0.5">RubberForm Recycled Products</p>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1">
+      <nav className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const badge = (item as { showBadge?: boolean }).showBadge && unreadCount > 0;

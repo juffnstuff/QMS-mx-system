@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DeleteRecordButton } from "@/components/delete-record-button";
 import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { NotesSection } from "@/components/notes/notes-section";
 import Link from "next/link";
 
 const dispositionLabels: Record<string, string> = {
@@ -54,9 +55,9 @@ export default async function ComplaintDetailPage({
         { label: "Complaints", href: "/complaints" },
         { label: complaint.complaintNumber },
       ]} />
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
               {complaint.complaintNumber}
             </h1>
@@ -66,12 +67,14 @@ export default async function ComplaintDetailPage({
             {complaint.customerName} {"\u2022"} {complaintTypeLabels[complaint.complaintType] || complaint.complaintType}
           </p>
         </div>
-        <DeleteRecordButton
-          recordId={id}
-          recordType="complaints"
-          recordLabel={complaint.complaintNumber}
-          redirectTo="/complaints"
-        />
+        <div className="shrink-0">
+          <DeleteRecordButton
+            recordId={id}
+            recordType="complaints"
+            recordLabel={complaint.complaintNumber}
+            redirectTo="/complaints"
+          />
+        </div>
       </div>
 
       {/* Complaint Details */}
@@ -278,6 +281,15 @@ export default async function ComplaintDetailPage({
           </dl>
         </div>
       )}
+
+      <div className="mt-6">
+        <NotesSection
+          recordType="complaint"
+          recordId={id}
+          currentUserId={session?.user.id ?? ""}
+          isAdmin={session?.user.role === "admin"}
+        />
+      </div>
 
       <div className="mt-6">
         <AttachmentsSection

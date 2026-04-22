@@ -51,6 +51,9 @@ model User {
   secondaryCAPAs     CAPA[]             @relation("CAPASecondary")
   uploadedAttachments Attachment[]      @relation("UploadedAttachments")
   statusChanges      StatusChangeLog[]  @relation("UserStatusChanges")
+  checklistsAsTechnician ChecklistCompletion[] @relation("ChecklistTechnician")
+  checklistsAsSupervisor ChecklistCompletion[] @relation("ChecklistSupervisor")
+  authoredNotes      Note[]             @relation("AuthoredNotes")
 }
 
 model Equipment {
@@ -77,6 +80,7 @@ model Equipment {
   schedules           MaintenanceSchedule[]
   maintenanceLogs     MaintenanceLog[]
   workOrders          WorkOrder[]
+  checklistCompletions ChecklistCompletion[]
 
   @@index([status])
   @@index([criticality])
@@ -98,6 +102,7 @@ model MaintenanceSchedule {
   nextDue           DateTime
   boardStatus       String   @default("backlog") // "backlog" | "in_progress" | "needs_parts" | "scheduled" | "done"
   sourceWorkOrderId String?
+  checklistTemplateId String? // If set, this schedule spawns ChecklistCompletion rows from the template
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -105,10 +110,13 @@ model MaintenanceSchedule {
   assignedTo           User?      @relation("ScheduleAssignee", fields: [assignedToId], references: [id])
   secondaryAssignedTo  User?      @relation("ScheduleSecondary", fields: [secondaryAssignedToId], references: [id])
   sourceWorkOrder      WorkOrder? @relation("SourceWorkOrder", fields: [sourceWorkOrderId], references: [id])
+  checklistTemplate    ChecklistTemplate? @relation(fields: [checklistTemplateId], references: [id])
+  checklistCompletions ChecklistCompletion[]
 
   @@index([nextDue])
   @@index([boardStatus])
   @@index([assignedToId])
+  @@index([checklistTemplateId])
 }
 
 model MaintenanceLog {
@@ -122,6 +130,105 @@ model MaintenanceLog {
 
   equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id])
+}
+
+// ChecklistTemplate — reusable PM checklist blueprint (e.g. "Daily — All Presses").
+// Items are layered: a weekly template embeds all daily items (plus weekly-only),
+// and monthly embeds daily + weekly (plus monthly-only). Drives F-19 forms.
+model ChecklistTemplate {
+  id               String   @id @default(cuid())
+  code             String   @unique // "DAILY_ALL_PRESSES" | "WEEKLY_ALL_PRESSES" | ...
+  name             String              // "Daily — All Presses"
+  frequency        String              // "daily" | "weekly" | "monthly" | "quarterly"
+  scope            String              // "all_presses" | "large_plenum" | "small_plenum" | "dake_300t" | "hot_oil_boiler" | "compressor"
+  description      String?
+  supersedesCodes  String?             // Comma-separated template codes this one supersedes (e.g. weekly supersedes daily)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  items         ChecklistItem[]
+  schedules     MaintenanceSchedule[]
+  completions   ChecklistCompletion[]
+
+  @@index([frequency])
+  @@index([scope])
+}
+
+// ChecklistItem — individual check line in a template (e.g. "Hydraulic oil level").
+// isCritical + escalationNote drive automatic WorkOrder creation on fail.
+model ChecklistItem {
+  id             String   @id @default(cuid())
+  templateId     String
+  sortOrder      Int      @default(0)
+  section        String?  // Grouping header: "ALL PRESSES" | "LARGE PLENUM" | "HOT OIL BOILER" ...
+  label          String
+  details        String?  // Longer description / procedural note
+  inputType      String   @default("checkbox") // "checkbox" | "numeric" | "text"
+  isCritical     Boolean  @default(false)      // If true, a "fail" result auto-creates a WorkOrder
+  escalationNote String?  // Text shown on the form + used in the auto-WO description
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  template ChecklistTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  results  ChecklistItemResult[]
+
+  @@index([templateId, sortOrder])
+}
+
+// ChecklistCompletion — one scheduled run of a template against one equipment.
+// Cron creates "pending" rows for the day; techs fill them out; supersede logic
+// closes out older pending dailies when a weekly/monthly is completed.
+model ChecklistCompletion {
+  id             String    @id @default(cuid())
+  templateId     String
+  scheduleId     String?   // Optional link to the owning MaintenanceSchedule
+  equipmentId    String
+  scheduledFor   DateTime  // Date this completion is due (usually the calendar day)
+  status         String    @default("pending") // "pending" | "in_progress" | "completed" | "superseded" | "missed"
+  startedAt      DateTime?
+  completedAt    DateTime?
+  technicianId   String?   // User who performed the checks
+  supervisorId   String?   // Optional sign-off
+  notes          String?
+  supersededById String?   // If superseded, link to the completion that replaced it
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  template     ChecklistTemplate     @relation(fields: [templateId], references: [id])
+  schedule     MaintenanceSchedule?  @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  equipment    Equipment             @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  technician   User?                 @relation("ChecklistTechnician", fields: [technicianId], references: [id])
+  supervisor   User?                 @relation("ChecklistSupervisor", fields: [supervisorId], references: [id])
+  supersededBy ChecklistCompletion?  @relation("ChecklistSupersedes", fields: [supersededById], references: [id])
+  supersedes   ChecklistCompletion[] @relation("ChecklistSupersedes")
+  results      ChecklistItemResult[]
+
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([equipmentId, scheduledFor])
+  @@index([templateId, scheduledFor])
+  @@index([technicianId])
+}
+
+// ChecklistItemResult — per-item outcome inside a completion.
+// value holds numeric readings (oil level inches, temperature, etc.).
+model ChecklistItemResult {
+  id           String    @id @default(cuid())
+  completionId String
+  itemId       String
+  result       String    @default("pending") // "pending" | "pass" | "fail" | "na"
+  value        String?   // Numeric reading or measured value, when inputType != checkbox
+  notes        String?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  completion ChecklistCompletion @relation(fields: [completionId], references: [id], onDelete: Cascade)
+  item       ChecklistItem       @relation(fields: [itemId], references: [id])
+
+  @@unique([completionId, itemId])
+  @@index([result])
 }
 
 model WorkOrder {
@@ -535,4 +642,21 @@ model StatusChangeLog {
 
   @@index([entityType, entityId, changedAt])
   @@index([changedById])
+}
+
+// Freeform operator notes on any record. Same recordType vocabulary as
+// Attachment. Editable/deletable by the author or any admin.
+model Note {
+  id          String   @id @default(cuid())
+  recordType  String   // "equipment" | "ncr" | "work_order" | "project" | "capa" | "complaint" | "maintenance_schedule" | "maintenance_log"
+  recordId    String
+  body        String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User @relation("AuthoredNotes", fields: [createdById], references: [id])
+
+  @@index([recordType, recordId, createdAt])
+  @@index([createdById])
 }
