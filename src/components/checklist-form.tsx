@@ -82,6 +82,27 @@ export function ChecklistForm({
     }
   }
 
+  async function handleUnstart() {
+    if (!confirm("Reset this checklist back to 'pending'? Any answers you've given will stay saved but the checklist will become read-only again until you re-start.")) {
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/checklists/${completionId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "unstart" }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to reset");
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -230,13 +251,24 @@ export function ChecklistForm({
             )}
           </div>
           {error && <div className="text-sm text-red-600">{error}</div>}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="bg-green-600 text-white px-6 py-2 rounded-md text-sm font-medium hover:bg-green-700 disabled:opacity-50"
-          >
-            {submitting ? "Submitting…" : "Submit checklist"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleUnstart}
+              disabled={submitting}
+              className="text-gray-600 hover:text-gray-800 text-sm px-3 py-2 rounded-md hover:bg-gray-100 disabled:opacity-50"
+              title="Reset to pending (e.g. Start was clicked by mistake)"
+            >
+              Undo start
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="bg-green-600 text-white px-6 py-2 rounded-md text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+            >
+              {submitting ? "Submitting…" : "Submit checklist"}
+            </button>
+          </div>
         </div>
       )}
     </form>

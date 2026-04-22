@@ -21,11 +21,13 @@ import {
   MessageSquareWarning,
   User,
   ClipboardCheck,
+  Activity,
 } from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/kpis", label: "KPIs", icon: Activity },
   { href: "/equipment", label: "Equipment", icon: Wrench },
   { href: "/schedules", label: "Schedules", icon: Calendar },
   { href: "/checklists", label: "PM Checklists", icon: ClipboardCheck },

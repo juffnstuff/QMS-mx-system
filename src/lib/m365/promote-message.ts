@@ -105,6 +105,7 @@ export async function fetchMessageForPrefill(id: string | null | undefined) {
       senderName: true,
       senderEmail: true,
       bodyPreview: true,
+      bodyContent: true,
       receivedAt: true,
     },
   });
@@ -118,14 +119,52 @@ export function titleFromMessage(
   return msg.subject.replace(/^(re|fwd?):\s*/i, "").trim() || "";
 }
 
-// Build a description snippet referencing the source email. Matches the
-// shape that the Project promotion already uses.
+// Convert HTML to readable plain text. Handles the common Outlook email
+// shape: strips script/style, replaces line-breaking tags with \n, drops
+// remaining tags, decodes the core entities, collapses whitespace.
+export function htmlToPlainText(html: string): string {
+  if (!html) return "";
+  let s = html;
+  s = s.replace(/<script[\s\S]*?<\/script>/gi, "");
+  s = s.replace(/<style[\s\S]*?<\/style>/gi, "");
+  s = s.replace(/<(br|\/p|\/div|\/li|\/tr|\/h[1-6])\s*\/?>/gi, "\n");
+  s = s.replace(/<li[^>]*>/gi, "• ");
+  s = s.replace(/<[^>]+>/g, "");
+  s = s
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+  s = s.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n");
+  return s.trim();
+}
+
+// Cap to a reasonable size so we don't dump a 50KB newsletter into a form.
+const MAX_PREFILL_BODY = 5000;
+
+// Prefer the full body when available, falling back to the preview. Trim to
+// a cap to keep forms sane even for long email chains.
+function bestBodyText(
+  msg: { bodyContent?: string | null; bodyPreview: string },
+): string {
+  const raw = msg.bodyContent ?? msg.bodyPreview;
+  const cleaned = /[<>]/.test(raw) ? htmlToPlainText(raw) : raw;
+  if (cleaned.length <= MAX_PREFILL_BODY) return cleaned;
+  return cleaned.slice(0, MAX_PREFILL_BODY) + "\n\n… (truncated — see the source email for the full content)";
+}
+
+// Build a description snippet referencing the source email. Uses the full
+// body when stored, otherwise falls back to the 500-char preview.
 export function descriptionFromMessage(
   msg: {
     senderName: string | null;
     senderEmail: string | null;
     receivedAt: Date | string;
     bodyPreview: string;
+    bodyContent?: string | null;
   } | null,
 ): string {
   if (!msg) return "";
@@ -133,5 +172,5 @@ export function descriptionFromMessage(
   const sender =
     (msg.senderName ? ` from ${msg.senderName}` : "") +
     (msg.senderEmail ? ` <${msg.senderEmail}>` : "");
-  return `Created from email received ${date}${sender}.\n\n${msg.bodyPreview}`;
+  return `Created from email received ${date}${sender}.\n\n${bestBodyText(msg)}`;
 }

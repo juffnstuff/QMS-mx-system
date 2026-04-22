@@ -92,6 +92,30 @@ export async function PATCH(
       return NextResponse.json(outcome);
     }
 
+    if (body.action === "unstart") {
+      // Reset an in-progress checklist back to pending — for when Start was
+      // clicked by mistake. Any authenticated user can reset; we intentionally
+      // don't limit to the starter so a coworker can fix an accidental click.
+      // Item results stay in the DB (cleared via form re-edit if needed);
+      // only the status flip + startedAt are reset.
+      const completion = await prisma.checklistCompletion.findUnique({ where: { id } });
+      if (!completion) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      if (completion.status !== "in_progress") {
+        return NextResponse.json(
+          { error: `Cannot unstart a ${completion.status} checklist` },
+          { status: 400 },
+        );
+      }
+      const updated = await prisma.checklistCompletion.update({
+        where: { id },
+        data: {
+          status: "pending",
+          startedAt: null,
+        },
+      });
+      return NextResponse.json(updated);
+    }
+
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (err) {
     console.error("[PATCH /api/checklists/[id]] failed:", err);

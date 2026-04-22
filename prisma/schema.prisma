@@ -308,7 +308,8 @@ model ProcessedMessage {
   subject         String?
   senderName      String?
   senderEmail     String?
-  bodyPreview     String   // first ~500 chars
+  bodyPreview     String   // first ~500 chars (quick display / previews)
+  bodyContent     String?  // Full email body (HTML or plain) — used for richer prefill when promoting to a record
   receivedAt      DateTime
   processedAt     DateTime @default(now())
   aiAnalysis      String?  // Full JSON from Claude
