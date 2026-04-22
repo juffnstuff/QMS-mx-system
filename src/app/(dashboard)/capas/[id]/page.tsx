@@ -77,9 +77,9 @@ export default async function CAPADetailPage({
         { label: "CAPAs", href: "/capas" },
         { label: capa.capaNumber },
       ]} />
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <h1 className="text-2xl font-bold text-gray-900">{capa.capaNumber}</h1>
             <StatusBadge status={capa.severityLevel} />
             <StatusBadge status={capa.status} />
@@ -90,12 +90,14 @@ export default async function CAPADetailPage({
             ) : "Unknown"} • {new Date(capa.createdAt).toLocaleDateString()}
           </p>
         </div>
-        <DeleteRecordButton
-          recordId={id}
-          recordType="capas"
-          recordLabel={capa.capaNumber}
-          redirectTo="/capas"
-        />
+        <div className="shrink-0">
+          <DeleteRecordButton
+            recordId={id}
+            recordType="capas"
+            recordLabel={capa.capaNumber}
+            redirectTo="/capas"
+          />
+        </div>
       </div>
 
       <div className="space-y-6">

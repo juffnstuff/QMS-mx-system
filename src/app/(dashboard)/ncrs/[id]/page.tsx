@@ -53,12 +53,12 @@ export default async function NCRDetailPage({
         { label: "NCRs", href: "/ncrs" },
         { label: ncr.ncrNumber },
       ]} />
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex-1">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6">
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">{ncr.ncrNumber}</h1>
           <p className="text-gray-500 text-sm mt-0.5">Non-Conformance Report</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <StatusBadge status={ncr.ncrType} />
           <StatusBadge status={ncr.status} />
           {isAdmin && (

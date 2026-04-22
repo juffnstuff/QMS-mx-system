@@ -78,7 +78,7 @@ export default async function EquipmentMaintenanceLogPage({
                       <p className="text-sm text-gray-500 mt-0.5">Parts: {log.partsUsed}</p>
                     )}
                   </div>
-                  <div className="text-left sm:text-right text-sm text-gray-500 whitespace-nowrap">
+                  <div className="text-left sm:text-right text-sm text-gray-500 sm:whitespace-nowrap">
                     <span className="font-medium text-blue-600">{log.user.name}</span>
                     <p>{new Date(log.performedAt).toLocaleDateString()}</p>
                   </div>

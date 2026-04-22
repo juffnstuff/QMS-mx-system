@@ -121,7 +121,7 @@ export function AssignExistingPicker({
           value={recordId}
           onChange={(e) => setRecordId(e.target.value)}
           required
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">Select {recordLabel}…</option>
           {records.map((r) => {
@@ -142,7 +142,7 @@ export function AssignExistingPicker({
         <select
           value={slot}
           onChange={(e) => setSlot(e.target.value as "primary" | "secondary")}
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="primary">{primaryLabel}</option>
           <option value="secondary">{secondaryLabel}</option>

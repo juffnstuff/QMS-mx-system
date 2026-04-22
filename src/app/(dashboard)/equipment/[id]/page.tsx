@@ -85,9 +85,9 @@ export default async function EquipmentDetailPage({
         { label: "Equipment", href: "/equipment" },
         { label: equipment.name },
       ]} />
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
               {equipment.name}
             </h1>
@@ -103,7 +103,7 @@ export default async function EquipmentDetailPage({
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Link
             href={`/equipment/${id}/edit`}
             className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
@@ -265,13 +265,13 @@ export default async function EquipmentDetailPage({
                 <Link
                   key={schedule.id}
                   href={`/schedules/${schedule.id}`}
-                  className="block p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                  className="block p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-gray-50 transition-colors"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-blue-600 hover:text-blue-800">{schedule.title}</p>
                     <p className="text-sm text-gray-500 capitalize">{schedule.frequency}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-left sm:text-right shrink-0">
                     <p className={`text-sm font-medium ${isOverdue ? "text-red-600" : "text-gray-600"}`}>
                       {isOverdue ? "OVERDUE" : "Due"}: {new Date(schedule.nextDue).toLocaleDateString()}
                     </p>
@@ -308,9 +308,9 @@ export default async function EquipmentDetailPage({
                 <Link
                   key={completion.id}
                   href={`/checklists/${completion.id}`}
-                  className="block p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                  className="block p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-gray-50 transition-colors"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-blue-600 hover:text-blue-800">
                       {completion.template?.name ?? "—"}
                     </p>
@@ -319,7 +319,7 @@ export default async function EquipmentDetailPage({
                       {new Date(completion.scheduledFor).toLocaleDateString("en-US", { timeZone: "America/New_York" })}
                     </p>
                   </div>
-                  <div className={`text-sm font-medium capitalize ${statusColor}`}>
+                  <div className={`text-sm font-medium capitalize shrink-0 ${statusColor}`}>
                     {completion.status.replace("_", " ")}
                   </div>
                 </Link>
@@ -345,15 +345,15 @@ export default async function EquipmentDetailPage({
                   href={`/work-orders/${order.id}`}
                   className="block p-4 hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="min-w-0">
                       <p className="font-medium text-blue-600 hover:text-blue-800">{order.title}</p>
                       <p className="text-sm text-gray-500">
                         {order.assignedTo ? order.assignedTo.name : "Unassigned"} •{" "}
                         {new Date(order.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 shrink-0">
                       <StatusBadge status={order.priority} />
                       <StatusBadge status={order.status} />
                     </div>

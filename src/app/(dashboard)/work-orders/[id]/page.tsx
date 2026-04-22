@@ -37,8 +37,8 @@ export default async function WorkOrderDetailPage({
         { label: "Work Orders", href: "/work-orders" },
         { label: order.title },
       ]} />
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex-1">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6">
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">{order.title}</h1>
           <p className="text-gray-500 text-sm mt-0.5">
             <Link href={`/equipment/${order.equipmentId}`} className="text-blue-600 hover:text-blue-800">
@@ -46,7 +46,7 @@ export default async function WorkOrderDetailPage({
             </Link>
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <StatusBadge status={order.priority} />
           <StatusBadge status={order.status} />
           {session?.user.role === "admin" && (

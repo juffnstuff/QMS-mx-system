@@ -86,7 +86,7 @@ export function ScheduleCompleteButton({ scheduleId, scheduleTitle }: Props) {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
           placeholder="Any notes about the work performed..."
         />
       </div>
@@ -95,7 +95,7 @@ export function ScheduleCompleteButton({ scheduleId, scheduleTitle }: Props) {
         <input
           value={partsUsed}
           onChange={(e) => setPartsUsed(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
           placeholder="e.g., Oil filter, hydraulic fluid"
         />
       </div>

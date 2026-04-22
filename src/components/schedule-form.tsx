@@ -112,7 +112,7 @@ export function ScheduleForm({ equipment, users, schedule }: Props) {
             name="title"
             required
             defaultValue={schedule?.title}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., Blade inspection and sharpening"
           />
         </div>
@@ -127,7 +127,7 @@ export function ScheduleForm({ equipment, users, schedule }: Props) {
               name="equipmentId"
               required
               defaultValue={schedule?.equipmentId}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select equipment...</option>
               {equipment.map((e) => (
@@ -146,7 +146,7 @@ export function ScheduleForm({ equipment, users, schedule }: Props) {
               name="frequency"
               required
               defaultValue={schedule?.frequency}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select frequency...</option>
               <option value="daily">Daily</option>
@@ -168,7 +168,7 @@ export function ScheduleForm({ equipment, users, schedule }: Props) {
             type="date"
             required
             defaultValue={schedule?.nextDue ? new Date(schedule.nextDue).toISOString().split("T")[0] : ""}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-xs"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-xs"
           />
         </div>
 
@@ -181,7 +181,7 @@ export function ScheduleForm({ equipment, users, schedule }: Props) {
             name="description"
             rows={3}
             defaultValue={schedule?.description || ""}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Optional details about this maintenance task..."
           />
         </div>

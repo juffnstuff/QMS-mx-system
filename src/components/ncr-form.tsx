@@ -91,7 +91,7 @@ export function NCRForm({ isAdmin, users }: Props) {
           <input
             id="partNumber"
             name="partNumber"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., P/N 12345 or Assembly Process"
           />
         </div>
@@ -104,7 +104,7 @@ export function NCRForm({ isAdmin, users }: Props) {
             <input
               id="drawingNumber"
               name="drawingNumber"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Drawing number"
             />
           </div>
@@ -115,7 +115,7 @@ export function NCRForm({ isAdmin, users }: Props) {
             <input
               id="drawingRevision"
               name="drawingRevision"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Revision"
             />
           </div>
@@ -126,7 +126,7 @@ export function NCRForm({ isAdmin, users }: Props) {
             <input
               id="quantityAffected"
               name="quantityAffected"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Quantity"
             />
           </div>
@@ -139,7 +139,7 @@ export function NCRForm({ isAdmin, users }: Props) {
           <input
             id="vendor"
             name="vendor"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Vendor name"
           />
         </div>
@@ -151,7 +151,7 @@ export function NCRForm({ isAdmin, users }: Props) {
           <input
             id="otherInfo"
             name="otherInfo"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Any additional information"
           />
         </div>
@@ -164,7 +164,7 @@ export function NCRForm({ isAdmin, users }: Props) {
             id="ncrType"
             name="ncrType"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select type...</option>
             <option value="aesthetic">Aesthetic</option>
@@ -204,7 +204,7 @@ export function NCRForm({ isAdmin, users }: Props) {
             name="requirementDescription"
             required
             rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Describe the requirement or specification that was not met..."
           />
         </div>
@@ -218,7 +218,7 @@ export function NCRForm({ isAdmin, users }: Props) {
             name="nonConformanceDescription"
             required
             rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Describe how the item or process does not conform..."
           />
         </div>
@@ -230,7 +230,7 @@ export function NCRForm({ isAdmin, users }: Props) {
           <select
             id="disposition"
             name="disposition"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select disposition...</option>
             <option value="rework">Re-Work</option>
@@ -248,7 +248,7 @@ export function NCRForm({ isAdmin, users }: Props) {
             id="immediateAction"
             name="immediateAction"
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Describe any immediate actions taken..."
           />
         </div>
@@ -261,7 +261,7 @@ export function NCRForm({ isAdmin, users }: Props) {
             <input
               id="ncrTagNumber"
               name="ncrTagNumber"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Tag number"
             />
           </div>
@@ -272,7 +272,7 @@ export function NCRForm({ isAdmin, users }: Props) {
             <input
               id="plantLocation"
               name="plantLocation"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Plant location"
             />
           </div>
