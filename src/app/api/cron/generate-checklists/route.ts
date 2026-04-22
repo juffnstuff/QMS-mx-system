@@ -3,11 +3,19 @@ import { generateChecklistCompletionsForDate } from "@/lib/pm-checklists/generat
 
 // Cron endpoint: generate today's pending ChecklistCompletion rows for every
 // active schedule that's due. Call nightly (or on-demand) via cron-scheduler.
+// Accepts either Authorization: Bearer <secret> (for server-to-server) or
+// ?key=<secret> (for quick admin triggers from a browser).
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers.get("authorization");
+  const keyParam = req.nextUrl.searchParams.get("key");
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  const authorized =
+    !cronSecret ||
+    authHeader === `Bearer ${cronSecret}` ||
+    keyParam === cronSecret;
+
+  if (!authorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
