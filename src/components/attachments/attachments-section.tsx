@@ -326,20 +326,22 @@ export function AttachmentsSection({ recordType, recordId, currentUserId, isAdmi
                               setEditingId(a.id);
                               setEditingCaption(a.caption || "");
                             }}
-                            className="text-gray-400 hover:text-gray-700 p-1"
+                            className="text-gray-400 hover:text-gray-700 p-2.5 sm:p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-md hover:bg-gray-100"
                             title="Edit caption"
+                            aria-label="Edit caption"
                           >
-                            <Pencil size={14} />
+                            <Pencil size={16} />
                           </button>
                         )}
                         {canDelete(a) && (
                           <button
                             type="button"
                             onClick={() => remove(a)}
-                            className="text-red-500 hover:text-red-700 p-1"
+                            className="text-red-500 hover:text-red-700 p-2.5 sm:p-2 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-md hover:bg-red-50"
                             title="Delete (admin only)"
+                            aria-label="Delete attachment"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={16} />
                           </button>
                         )}
                       </div>

@@ -53,8 +53,8 @@ export function ActivityItem({ message }: { message: ActivityMessage }) {
         actionColors[message.actionTaken] || "border-l-gray-300"
       } rounded-lg p-4`}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-medium text-gray-400 uppercase">
               {message.sourceType}
@@ -74,7 +74,7 @@ export function ActivityItem({ message }: { message: ActivityMessage }) {
             {message.bodyPreview}
           </p>
         </div>
-        <div className="text-right ml-4 shrink-0">
+        <div className="text-left sm:text-right sm:ml-4 shrink-0">
           <span
             className={`text-xs font-medium ${
               message.actionTaken === "ignored" ? "text-gray-400" : "text-blue-600"

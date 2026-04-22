@@ -39,9 +39,9 @@ export default async function ProjectDetailPage({
         { label: "Projects", href: "/projects" },
         { label: project.title },
       ]} />
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
               {project.title}
             </h1>
@@ -51,7 +51,7 @@ export default async function ProjectDetailPage({
             Created by <Link href={`/users?highlight=${project.createdBy.id}`} className="text-blue-600 hover:text-blue-800">{project.createdBy.name}</Link> • {new Date(project.createdAt).toLocaleDateString()}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Link
             href={`/projects/${id}/edit`}
             className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
@@ -300,15 +300,15 @@ export default async function ProjectDetailPage({
               <Link
                 key={child.id}
                 href={`/projects/${child.id}`}
-                className="flex items-center justify-between py-3 hover:bg-gray-50 -mx-6 px-6 transition-colors"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 hover:bg-gray-50 -mx-6 px-6 transition-colors"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
                   <span className="text-gray-900 font-medium">{child.title}</span>
                   <StatusBadge status={child.status} />
                   <StatusBadge status={child.priority} />
                 </div>
                 {child.dueDate && (
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-gray-500 shrink-0">
                     Due {new Date(child.dueDate).toLocaleDateString()}
                   </span>
                 )}

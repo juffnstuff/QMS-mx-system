@@ -443,7 +443,7 @@ export function SuggestionCard({
       </div>
 
       {expanded && (
-        <div className="border-t border-gray-100 p-4 bg-gray-50 max-h-[calc(100vh-8rem)] overflow-y-auto">
+        <div className="border-t border-gray-100 p-4 bg-gray-50 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
           {/* Email Body */}
           <div className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-1">Email Body</h4>
