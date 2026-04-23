@@ -23,7 +23,7 @@ type Filter = "all" | "checklist" | "vendor";
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "checklist", label: "Checklist-driven" },
-  { key: "vendor", label: "Vendor & External" },
+  { key: "vendor", label: "Other / Vendor" },
 ];
 
 export function SchedulesList({
@@ -84,7 +84,7 @@ export function SchedulesList({
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center text-gray-500">
           <Calendar size={40} className="mx-auto mb-3 text-gray-300" />
           <p>
-            No {filter === "all" ? "" : filter === "checklist" ? "checklist-driven " : "vendor / external "}
+            No {filter === "all" ? "" : filter === "checklist" ? "checklist-driven " : "other / vendor "}
             schedules.
           </p>
         </div>
@@ -177,7 +177,7 @@ function Row({
             </span>
           ) : (
             <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
-              Vendor / External
+              Other / Vendor
             </span>
           )}
         </div>
