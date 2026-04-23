@@ -145,25 +145,39 @@ export function ChecklistForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {status === "pending" && !readOnly && (
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-4 flex items-center justify-between gap-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="text-sm text-blue-900">
-            Ready to start? Click below to claim this checklist and begin logging.
+            Ready to start? Tap below to claim this checklist and begin logging.
           </div>
           <button
             type="button"
             onClick={handleStart}
             disabled={submitting}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="bg-blue-600 text-white px-6 py-3 min-h-[48px] rounded-md text-base font-semibold hover:bg-blue-700 disabled:opacity-50 w-full sm:w-auto"
           >
             Start checklist
           </button>
         </div>
       )}
 
-      {sections.map((sec) => (
+      {sections.map((sec) => {
+        const total = sec.items.length;
+        const answered = sec.items.filter((i) => i.result !== "pending").length;
+        return (
         <div key={sec.title} className="bg-white border border-gray-200 rounded-lg shadow-sm">
-          <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 text-sm font-semibold text-gray-700 rounded-t-lg">
-            {sec.title}
+          <div className="sticky top-0 z-10 px-4 py-3 bg-gray-100/95 backdrop-blur border-b border-gray-200 text-base font-semibold text-gray-800 rounded-t-lg flex items-center justify-between gap-3">
+            <span className="truncate">{sec.title}</span>
+            <span
+              className={`text-xs font-medium shrink-0 px-2 py-0.5 rounded-full ${
+                answered === total
+                  ? "bg-green-100 text-green-700"
+                  : answered === 0
+                  ? "bg-gray-200 text-gray-600"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+            >
+              {answered}/{total}
+            </span>
           </div>
           <div className="divide-y divide-gray-100">
             {sec.items.map((item) => (
@@ -176,7 +190,8 @@ export function ChecklistForm({
             ))}
           </div>
         </div>
-      ))}
+        );
+      })}
 
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 space-y-4">
         <div>
@@ -188,7 +203,7 @@ export function ChecklistForm({
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
             disabled={readOnly || status === "pending"}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm disabled:bg-gray-50"
             placeholder="Overall notes for this PM…"
           />
         </div>
@@ -286,30 +301,30 @@ function ItemRow({
 }) {
   return (
     <div className="p-4">
-      <div className="flex items-start gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:gap-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-2">
-            <span className="font-medium text-gray-900">{item.label}</span>
+          <div className="flex items-start gap-2 flex-wrap">
+            <span className="font-medium text-base text-gray-900">{item.label}</span>
             {item.isCritical && (
-              <span className="text-[10px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded uppercase tracking-wider whitespace-nowrap">
                 Critical
               </span>
             )}
           </div>
           {item.details && (
-            <p className="text-sm text-gray-500 mt-0.5">{item.details}</p>
+            <p className="text-sm text-gray-500 mt-1">{item.details}</p>
           )}
           {item.isCritical && item.escalationNote && (
-            <p className="text-xs text-red-700 bg-red-50 border border-red-100 rounded px-2 py-1 mt-2">
+            <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded px-2 py-1.5 mt-2">
               <span className="font-semibold">Escalation:</span> {item.escalationNote}
             </p>
           )}
         </div>
-        <div className="flex gap-1 shrink-0">
+        <div className="grid grid-cols-3 gap-1.5 sm:flex sm:gap-1 shrink-0 mt-3 sm:mt-0">
           <ResultButton
             active={item.result === "pass"}
             tone="green"
-            icon={<CheckCircle2 size={16} />}
+            icon={<CheckCircle2 size={18} />}
             label="Pass"
             disabled={readOnly}
             onClick={() => onChange({ result: "pass" })}
@@ -317,7 +332,7 @@ function ItemRow({
           <ResultButton
             active={item.result === "fail"}
             tone="red"
-            icon={<XCircle size={16} />}
+            icon={<XCircle size={18} />}
             label="Fail"
             disabled={readOnly}
             onClick={() => onChange({ result: "fail" })}
@@ -325,7 +340,7 @@ function ItemRow({
           <ResultButton
             active={item.result === "na"}
             tone="gray"
-            icon={<MinusCircle size={16} />}
+            icon={<MinusCircle size={18} />}
             label="N/A"
             disabled={readOnly}
             onClick={() => onChange({ result: "na" })}
@@ -334,7 +349,7 @@ function ItemRow({
       </div>
 
       {(item.inputType === "numeric" || item.inputType === "text") && (
-        <div className="mt-2">
+        <div className="mt-3">
           <input
             type={item.inputType === "numeric" ? "text" : "text"}
             inputMode={item.inputType === "numeric" ? "decimal" : "text"}
@@ -342,20 +357,20 @@ function ItemRow({
             onChange={(e) => onChange({ value: e.target.value })}
             disabled={readOnly}
             placeholder={item.inputType === "numeric" ? "Reading / value" : "Enter value"}
-            className="w-full sm:w-64 border border-gray-300 rounded-md px-2 py-1 text-sm disabled:bg-gray-50"
+            className="w-full sm:w-64 border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm disabled:bg-gray-50"
           />
         </div>
       )}
 
       {(item.result === "fail" || item.notes) && (
-        <div className="mt-2">
+        <div className="mt-3">
           <textarea
             value={item.notes}
             onChange={(e) => onChange({ notes: e.target.value })}
-            rows={2}
+            rows={3}
             disabled={readOnly}
             placeholder="Notes (required on fail)"
-            className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm disabled:bg-gray-50"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm disabled:bg-gray-50"
           />
         </div>
       )}
@@ -398,7 +413,7 @@ function ResultButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded border disabled:opacity-50 disabled:cursor-not-allowed ${cls}`}
+      className={`inline-flex items-center justify-center gap-1.5 text-sm font-medium px-3 py-2.5 min-h-[44px] rounded-md border-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${cls}`}
     >
       {icon}
       {label}
