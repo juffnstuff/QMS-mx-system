@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   DndContext,
   DragOverlay,
@@ -31,7 +32,17 @@ type ColumnId = (typeof COLUMNS)[number]["id"];
 interface KanbanBoardProps {
   initialCards: KanbanCardData[];
   initialColumns: Record<ColumnId, string[]>; // column id → array of "entityType::id" keys
+  isAdmin?: boolean;
+  allUsers?: { id: string; name: string }[];
 }
+
+const TYPE_FILTERS: { key: EntityType; label: string }[] = [
+  { key: "workOrder", label: "Work Orders" },
+  { key: "maintenanceSchedule", label: "Maintenance" },
+  { key: "nonConformance", label: "NCRs" },
+  { key: "capa", label: "CAPAs" },
+  { key: "project", label: "Projects" },
+];
 
 function parseCardKey(key: string): { entityType: EntityType; id: string } | null {
   const [entityType, id] = key.split("::");
@@ -55,7 +66,12 @@ type PendingCompletion = {
   cardTitle: string;
 };
 
-export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) {
+export function KanbanBoard({
+  initialCards,
+  initialColumns,
+  isAdmin = false,
+  allUsers = [],
+}: KanbanBoardProps) {
   const router = useRouter();
   const [columns, setColumns] = useState<Record<ColumnId, string[]>>(initialColumns);
   const [cardMap] = useState<Map<string, KanbanCardData>>(() => {
@@ -70,6 +86,48 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
   // Snapshot of column state captured before a move that may need to be reverted.
   const [pendingSnapshot, setPendingSnapshot] = useState<Record<ColumnId, string[]> | null>(null);
   const [pendingCompletion, setPendingCompletion] = useState<PendingCompletion | null>(null);
+
+  // Filters — empty typeFilter means "show all types". assigneeFilter is
+  // admin-only; empty means "any assignee". Filters affect what renders but
+  // don't mutate the underlying columns state.
+  const [typeFilter, setTypeFilter] = useState<Set<EntityType>>(new Set());
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("");
+
+  const toggleTypeFilter = useCallback((t: EntityType) => {
+    setTypeFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
+  }, []);
+
+  const matchesFilters = useCallback(
+    (cardKey: string) => {
+      const card = cardMap.get(cardKey);
+      if (!card) return false;
+      if (typeFilter.size > 0 && !typeFilter.has(card.entityType)) return false;
+      if (assigneeFilter && !(card.assigneeIds ?? []).includes(assigneeFilter)) return false;
+      return true;
+    },
+    [cardMap, typeFilter, assigneeFilter],
+  );
+
+  const visibleColumns = useMemo(() => {
+    const filtered: Record<ColumnId, string[]> = {
+      backlog: [],
+      in_progress: [],
+      needs_parts: [],
+      scheduled: [],
+      done: [],
+    };
+    for (const colId of Object.keys(columns) as ColumnId[]) {
+      filtered[colId] = columns[colId].filter(matchesFilters);
+    }
+    return filtered;
+  }, [columns, matchesFilters]);
+
+  const filtersActive = typeFilter.size > 0 || assigneeFilter !== "";
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -308,6 +366,70 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
 
   return (
     <div className="relative">
+      {/* Filters: type (everyone) + assignee (admins only) */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-4">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {TYPE_FILTERS.map((f) => {
+            const active = typeFilter.has(f.key);
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => toggleTypeFilter(f.key)}
+                className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                  active
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+          {typeFilter.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setTypeFilter(new Set())}
+              className="text-xs text-gray-500 hover:text-gray-800 px-2"
+            >
+              Clear types
+            </button>
+          )}
+        </div>
+        {isAdmin && allUsers.length > 0 && (
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <label htmlFor="assignee-filter" className="text-xs text-gray-500">
+              Assignee
+            </label>
+            <select
+              id="assignee-filter"
+              value={assigneeFilter}
+              onChange={(e) => setAssigneeFilter(e.target.value)}
+              className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
+            >
+              <option value="">Anyone</option>
+              {allUsers.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {filtersActive && (
+          <button
+            type="button"
+            onClick={() => {
+              setTypeFilter(new Set());
+              setAssigneeFilter("");
+            }}
+            className="text-xs text-gray-500 hover:text-gray-800 underline"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+
       {/* ===== DESKTOP: Horizontal drag-and-drop columns ===== */}
       <div className="hidden sm:block">
         <DndContext
@@ -323,7 +445,7 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
                 key={col.id}
                 id={col.id}
                 title={col.title}
-                cards={(columns[col.id] || [])
+                cards={(visibleColumns[col.id] || [])
                   .map((key) => cardMap.get(key))
                   .filter((c): c is KanbanCardData => c !== undefined)}
                 onMoveCard={(cardKey, targetCol) => performMove(cardKey, targetCol as ColumnId)}
@@ -350,7 +472,7 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
         {/* Mobile tab selector */}
         <div className="flex gap-1 overflow-x-auto pb-2 -mx-1 px-1">
           {COLUMNS.map((col) => {
-            const count = (columns[col.id] || []).length;
+            const count = (visibleColumns[col.id] || []).length;
             return (
               <button
                 key={col.id}
@@ -376,7 +498,7 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
 
         {/* Active column cards */}
         <div className="space-y-2">
-          {(columns[mobileTab] || []).map((key) => {
+          {(visibleColumns[mobileTab] || []).map((key) => {
             const card = cardMap.get(key);
             if (!card) return null;
             return (
@@ -388,9 +510,10 @@ export function KanbanBoard({ initialCards, initialColumns }: KanbanBoardProps) 
               />
             );
           })}
-          {(columns[mobileTab] || []).length === 0 && (
+          {(visibleColumns[mobileTab] || []).length === 0 && (
             <div className="text-center py-8 text-sm text-gray-400">
               No items in {COLUMNS.find((c) => c.id === mobileTab)?.title}
+              {filtersActive && " (matching your filters)"}
             </div>
           )}
         </div>
@@ -434,10 +557,20 @@ function CompletionDialog({
   const [notes, setNotes] = useState("");
   const [parts, setParts] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Mount-on-client guard so createPortal doesn't run during SSR.
+  useEffect(() => setMounted(true), []);
 
   const label = entityType === "workOrder" ? "Work order" : "Maintenance";
 
-  return (
+  // Portal to document.body so the overlay escapes the dashboard's
+  // overflow-auto <main>. iOS Safari treats `position: fixed` inside a
+  // scrolling ancestor differently than desktop browsers — portaling
+  // sidesteps that quirk so the dialog reliably appears over the kanban.
+  if (!mounted) return null;
+
+  const dialog = (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 overflow-y-auto">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[calc(100vh-2rem)] flex flex-col">
         <div className="p-5 border-b border-gray-200">
@@ -517,4 +650,6 @@ function CompletionDialog({
       </div>
     </div>
   );
+
+  return createPortal(dialog, document.body);
 }

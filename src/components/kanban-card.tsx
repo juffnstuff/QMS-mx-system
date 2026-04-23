@@ -14,6 +14,9 @@ export interface KanbanCardData {
   title: string;
   subtitle: string;
   assigneeName?: string | null;
+  // IDs of users assigned (primary + secondary) — used by the admin
+  // assignee filter on the kanban board.
+  assigneeIds?: string[];
   dueDate?: string | null;
   href: string;
   priority?: string | null;

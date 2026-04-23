@@ -35,7 +35,7 @@ export default async function ChecklistDetailPage({
       results: true,
       technician: { select: { id: true, name: true } },
       supervisor: { select: { id: true, name: true } },
-      schedule: { select: { id: true, title: true } },
+      schedule: { select: { id: true, title: true, lastDone: true } },
       supersededBy: { select: { id: true } },
     },
   });
@@ -118,6 +118,25 @@ export default async function ChecklistDetailPage({
         )}
       </div>
 
+      {/* Days since last completion — only show for active (pending / in
+          progress) checklists since a completed one just told us "today". */}
+      {(completion.status === "pending" || completion.status === "in_progress") && (
+        <div className="mb-4 bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-900">
+          {completion.schedule?.lastDone ? (
+            <>
+              Last completed{" "}
+              <span className="font-semibold">
+                {daysBetween(new Date(completion.schedule.lastDone), new Date())}
+              </span>{" "}
+              day{daysBetween(new Date(completion.schedule.lastDone), new Date()) === 1 ? "" : "s"}{" "}
+              ago ({new Date(completion.schedule.lastDone).toLocaleDateString("en-US", { timeZone: EASTERN_TZ })}).
+            </>
+          ) : (
+            <>No prior PM on record — this will be the first completion for this schedule.</>
+          )}
+        </div>
+      )}
+
       {completion.status === "superseded" && (
         <div className="mb-4 bg-gray-50 border border-gray-200 rounded-md p-3 flex items-start gap-2 text-sm text-gray-700">
           <CheckCircle2 size={16} className="text-gray-500 mt-0.5 shrink-0" />
@@ -174,4 +193,11 @@ export default async function ChecklistDetailPage({
       )}
     </div>
   );
+}
+
+// Whole-day difference between two dates, rounded down. Never negative.
+function daysBetween(a: Date, b: Date): number {
+  const ms = b.getTime() - a.getTime();
+  if (ms <= 0) return 0;
+  return Math.floor(ms / (24 * 60 * 60 * 1000));
 }

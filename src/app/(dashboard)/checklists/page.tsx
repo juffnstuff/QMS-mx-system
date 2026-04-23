@@ -14,6 +14,7 @@ export default async function ChecklistsPage() {
         template: { select: { name: true, frequency: true } },
         equipment: { select: { name: true, serialNumber: true, criticality: true } },
         technician: { select: { name: true } },
+        schedule: { select: { lastDone: true } },
       },
       orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
       take: 100,
@@ -24,6 +25,7 @@ export default async function ChecklistsPage() {
         template: { select: { name: true, frequency: true } },
         equipment: { select: { name: true, serialNumber: true, criticality: true } },
         technician: { select: { name: true } },
+        schedule: { select: { lastDone: true } },
       },
       orderBy: { startedAt: "asc" },
     }),
@@ -143,6 +145,7 @@ type CompletionRowProps = {
     template: { name: string; frequency: string } | null;
     equipment: { name: string; serialNumber: string; criticality?: string } | null;
     technician: { name: string } | null;
+    schedule?: { lastDone: Date | null } | null;
   };
   isOverdue?: boolean;
   compact?: boolean;
@@ -152,6 +155,12 @@ function CompletionRow({ completion, isOverdue, compact }: CompletionRowProps) {
   const tpl = completion.template;
   const eq = completion.equipment;
   const tech = completion.technician;
+  const lastDone = completion.schedule?.lastDone
+    ? new Date(completion.schedule.lastDone)
+    : null;
+  const daysAgo = lastDone
+    ? Math.max(0, Math.floor((Date.now() - lastDone.getTime()) / 86400000))
+    : null;
   return (
     <Link
       href={`/checklists/${completion.id}`}
@@ -173,6 +182,16 @@ function CompletionRow({ completion, isOverdue, compact }: CompletionRowProps) {
             <span className="capitalize">{tpl?.frequency}</span>
             {tech && ` · ${tech.name}`}
           </div>
+          {!compact && daysAgo !== null && (completion.status === "pending" || completion.status === "in_progress") && (
+            <div className="text-xs text-amber-700 mt-1">
+              {daysAgo === 0
+                ? "Completed earlier today"
+                : `${daysAgo} day${daysAgo === 1 ? "" : "s"} since last completion`}
+            </div>
+          )}
+          {!compact && daysAgo === null && (completion.status === "pending" || completion.status === "in_progress") && (
+            <div className="text-xs text-gray-400 mt-1">First run — no prior completion on record</div>
+          )}
         </div>
         <div className="text-right shrink-0">
           <div className={`text-sm ${isOverdue ? "text-red-600 font-medium" : "text-gray-500"}`}>

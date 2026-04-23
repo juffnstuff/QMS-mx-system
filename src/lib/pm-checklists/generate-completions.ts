@@ -9,6 +9,7 @@ export interface GenerateResult {
   scheduled: number;
   created: number;
   skipped: number;
+  priorPendingMissed: number;
 }
 
 export async function generateChecklistCompletionsForDate(
@@ -30,10 +31,31 @@ export async function generateChecklistCompletionsForDate(
     scheduled: schedules.length,
     created: 0,
     skipped: 0,
+    priorPendingMissed: 0,
   };
 
   for (const schedule of schedules) {
     if (!schedule.checklistTemplateId || !schedule.checklistTemplate) continue;
+
+    // Any older pending / in_progress completion for this schedule rolls up
+    // to "missed" — we only want one active checklist per schedule per day.
+    // The days-since-last-completion helper on the form communicates how
+    // long the equipment has gone without a full PM.
+    const olderOpen = await prisma.checklistCompletion.findMany({
+      where: {
+        scheduleId: schedule.id,
+        status: { in: ["pending", "in_progress"] },
+        scheduledFor: { lt: dayStart },
+      },
+      select: { id: true },
+    });
+    if (olderOpen.length > 0) {
+      await prisma.checklistCompletion.updateMany({
+        where: { id: { in: olderOpen.map((c) => c.id) } },
+        data: { status: "missed" },
+      });
+      result.priorPendingMissed += olderOpen.length;
+    }
 
     // Skip if we've already created a completion for this schedule today.
     const existing = await prisma.checklistCompletion.findFirst({
