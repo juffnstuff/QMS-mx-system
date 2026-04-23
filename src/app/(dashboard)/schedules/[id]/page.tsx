@@ -102,17 +102,35 @@ export default async function ScheduleDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Mark Complete action */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Complete This Maintenance</h2>
-            <ScheduleCompleteButton
-              scheduleId={schedule.id}
-              scheduleTitle={schedule.title}
-            />
-            <p className="text-xs text-gray-400 mt-3">
-              This will log a maintenance entry and advance the next due date automatically.
-            </p>
-          </div>
+          {schedule.checklistTemplateId ? (
+            /* Checklist-driven schedule — point the user at /checklists */
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="text-sm text-blue-900">
+                <p className="font-medium">This schedule runs as a PM checklist.</p>
+                <p className="text-blue-700">
+                  Completing the daily, weekly, or monthly PM checklist updates this schedule automatically.
+                </p>
+              </div>
+              <Link
+                href="/checklists"
+                className="inline-flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 shrink-0"
+              >
+                Open checklists →
+              </Link>
+            </div>
+          ) : (
+            /* Standalone / vendor schedule — let the user mark complete (+ attach cert) */
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="font-semibold text-gray-900 mb-4">Complete This Maintenance</h2>
+              <ScheduleCompleteButton
+                scheduleId={schedule.id}
+                scheduleTitle={schedule.title}
+              />
+              <p className="text-xs text-gray-400 mt-3">
+                Logs a maintenance entry (with an optional vendor cert attachment) and advances the next due date.
+              </p>
+            </div>
+          )}
 
           {/* Description */}
           {schedule.description && (

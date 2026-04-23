@@ -5,6 +5,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { AttachmentsSection } from "@/components/attachments/attachments-section";
 import { NotesSection } from "@/components/notes/notes-section";
 import Link from "next/link";
+import { ClipboardCheck } from "lucide-react";
 
 export default async function MaintenanceLogDetailPage({
   params,
@@ -19,6 +20,9 @@ export default async function MaintenanceLogDetailPage({
     include: {
       equipment: { select: { id: true, name: true, serialNumber: true } },
       user: { select: { id: true, name: true } },
+      sourceChecklistCompletion: {
+        select: { id: true, template: { select: { name: true } } },
+      },
     },
   });
 
@@ -42,6 +46,25 @@ export default async function MaintenanceLogDetailPage({
           <span className="ml-2 font-mono text-gray-400">{log.equipment.serialNumber}</span>
         </p>
       </div>
+
+      {log.sourceChecklistCompletion && (
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm text-green-900">
+            <ClipboardCheck size={16} />
+            <span>
+              Auto-logged from the{" "}
+              <span className="font-medium">{log.sourceChecklistCompletion.template.name}</span>{" "}
+              PM checklist.
+            </span>
+          </div>
+          <Link
+            href={`/checklists/${log.sourceChecklistCompletion.id}`}
+            className="text-sm font-medium text-green-700 hover:text-green-900 whitespace-nowrap"
+          >
+            View full checklist →
+          </Link>
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
         <h2 className="font-semibold text-gray-900 mb-4">Details</h2>
