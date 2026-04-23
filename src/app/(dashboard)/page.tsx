@@ -64,6 +64,11 @@ export default async function DashboardPage() {
         // transient kanban state that the API resets to "scheduled" on
         // completion. Any rows stuck there are legacy / pre-reset-logic data.
         boardStatus: { not: "done" },
+        // Checklist-backed schedules are completed via /checklists where each
+        // item is actually checked off. Showing them on the kanban invites
+        // users to drag-to-done, which would skip the real PM work and the
+        // escalation WO flow. /kpis tracks their compliance.
+        checklistTemplateId: null,
         ...mineOr(["assignedToId", "secondaryAssignedToId"]),
       },
       orderBy: { nextDue: "asc" },

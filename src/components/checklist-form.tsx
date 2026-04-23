@@ -203,7 +203,7 @@ export function ChecklistForm({
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
             disabled={readOnly || status === "pending"}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm disabled:bg-gray-50"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-700"
             placeholder="Overall notes for this PM…"
           />
         </div>
@@ -217,7 +217,7 @@ export function ChecklistForm({
               value={technicianId}
               onChange={(e) => setTechnicianId(e.target.value)}
               disabled={readOnly}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm disabled:bg-gray-50"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-700"
             >
               <option value="">— Select —</option>
               {users.map((u) => (
@@ -236,7 +236,7 @@ export function ChecklistForm({
               value={supervisorId}
               onChange={(e) => setSupervisorId(e.target.value)}
               disabled={readOnly || status === "pending"}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm disabled:bg-gray-50"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-700"
             >
               <option value="">— Select —</option>
               {users
@@ -357,7 +357,7 @@ function ItemRow({
             onChange={(e) => onChange({ value: e.target.value })}
             disabled={readOnly}
             placeholder={item.inputType === "numeric" ? "Reading / value" : "Enter value"}
-            className="w-full sm:w-64 border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm disabled:bg-gray-50"
+            className="w-full sm:w-64 border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-700"
           />
         </div>
       )}
@@ -370,7 +370,7 @@ function ItemRow({
             rows={3}
             disabled={readOnly}
             placeholder="Notes (required on fail)"
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm disabled:bg-gray-50"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-base sm:text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-700"
           />
         </div>
       )}

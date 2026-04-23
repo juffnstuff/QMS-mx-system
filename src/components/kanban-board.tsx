@@ -405,7 +405,7 @@ export function KanbanBoard({
               id="assignee-filter"
               value={assigneeFilter}
               onChange={(e) => setAssigneeFilter(e.target.value)}
-              className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
+              className="text-sm text-gray-900 border border-gray-300 rounded-md px-2 py-1 bg-white"
             >
               <option value="">Anyone</option>
               {allUsers.map((u) => (
