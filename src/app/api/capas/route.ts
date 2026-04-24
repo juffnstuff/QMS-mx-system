@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { markMessagePromoted } from "@/lib/m365/promote-message";
+import { withYearlyNumber } from "@/lib/record-numbering";
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,6 +53,7 @@ export async function POST(req: NextRequest) {
       referenceNcrId,
       targetCloseDate,
       assignedToId,
+      secondaryAssignedToId,
       source,
       sourceOther,
       severityLevel,
@@ -73,6 +76,7 @@ export async function POST(req: NextRequest) {
       finalDisposition,
       status,
       actions,
+      fromMessageId,
     } = body;
 
     if (!source || !severityLevel || !nonconformanceDescription) {
@@ -82,23 +86,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Auto-generate capaNumber: CAPA-YYYY-001
-    const year = new Date().getFullYear();
-    const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
-    const endOfYear = new Date(`${year + 1}-01-01T00:00:00.000Z`);
-
-    const count = await prisma.cAPA.count({
-      where: {
-        createdAt: {
-          gte: startOfYear,
-          lt: endOfYear,
-        },
-      },
-    });
-
-    const capaNumber = `CAPA-${year}-${String(count + 1).padStart(3, "0")}`;
-
-    const capa = await prisma.cAPA.create({
+    // Auto-generate capaNumber (race-safe via pg advisory lock).
+    const capa = await withYearlyNumber("CAPA", {
+      countCurrent: (tx, { startOfYear, endOfYear }) =>
+        tx.cAPA.count({
+          where: { createdAt: { gte: startOfYear, lt: endOfYear } },
+        }),
+      run: (tx, capaNumber) => tx.cAPA.create({
       data: {
         capaNumber,
         originatorId: session.user.id,
@@ -106,6 +100,7 @@ export async function POST(req: NextRequest) {
         referenceNcrId: referenceNcrId || null,
         targetCloseDate: targetCloseDate ? new Date(targetCloseDate) : null,
         assignedToId: assignedToId || null,
+        secondaryAssignedToId: secondaryAssignedToId || null,
         source,
         sourceOther: sourceOther || null,
         severityLevel,
@@ -150,6 +145,15 @@ export async function POST(req: NextRequest) {
           : undefined,
       },
       include: { actions: true },
+    }),
+    });
+
+    await markMessagePromoted({
+      fromMessageId,
+      kind: "capa",
+      createdRecordId: capa.id,
+      reviewerId: session.user.id,
+      payloadSummary: { capaNumber: capa.capaNumber, severityLevel, nonconformanceDescription },
     });
 
     return NextResponse.json(capa, { status: 201 });

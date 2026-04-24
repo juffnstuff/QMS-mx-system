@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendNotification } from "@/lib/notifications/send-notification";
 import { statusChanged, workOrderAssigned } from "@/lib/notifications/email-templates";
+import { statusToBoardStatus } from "@/lib/board-sync";
+import { logStatusChange } from "@/lib/status-log";
 
 export async function PUT(
   req: NextRequest,
@@ -15,7 +17,10 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { status, assignedToId, priority, title, description, dueDate } = body;
+  const {
+    status, assignedToId, secondaryAssignedToId,
+    priority, title, description, dueDate,
+  } = body;
 
   // Fetch existing to detect changes
   const existing = await prisma.workOrder.findUnique({ where: { id } });
@@ -29,8 +34,13 @@ export async function PUT(
     if (status === "completed") {
       updateData.completedAt = new Date();
     }
+    const boardStatus = statusToBoardStatus("workOrder", status);
+    if (boardStatus) updateData.boardStatus = boardStatus;
   }
   if (assignedToId !== undefined) updateData.assignedToId = assignedToId || null;
+  if (secondaryAssignedToId !== undefined) {
+    updateData.secondaryAssignedToId = secondaryAssignedToId || null;
+  }
   if (priority !== undefined) updateData.priority = priority;
   if (title !== undefined) updateData.title = title;
   if (description !== undefined) updateData.description = description;
@@ -40,6 +50,17 @@ export async function PUT(
     where: { id },
     data: updateData,
   });
+
+  if (status && status !== existing.status) {
+    await logStatusChange({
+      entityType: "workOrder",
+      entityId: id,
+      field: "status",
+      fromValue: existing.status,
+      toValue: status,
+      changedById: session.user.id,
+    });
+  }
 
   // Notify on status change
   if (status && status !== existing.status) {
@@ -52,6 +73,7 @@ export async function PUT(
       sendNotification({
         userId,
         type: "status_changed",
+        urgency: "digest",
         title: `Work Order Updated: ${existing.title}`,
         message: `Status changed from ${existing.status} to ${status}`,
         relatedType: "WorkOrder",
@@ -59,11 +81,11 @@ export async function PUT(
         emailSubject: email.subject,
         emailHtml: email.html,
         smsText: email.plain,
-      }).catch((e) => console.error("[Notification] Failed:", e));
+      }).catch((e) => console.error("[Notification] status_changed failed:", e));
     }
   }
 
-  // Notify on reassignment
+  // Notify on reassignment — digest-level
   if (assignedToId && assignedToId !== existing.assignedToId && assignedToId !== session.user.id) {
     const assignee = await prisma.user.findUnique({ where: { id: assignedToId } });
     if (assignee) {
@@ -71,6 +93,7 @@ export async function PUT(
       sendNotification({
         userId: assignedToId,
         type: "work_order_assigned",
+        urgency: "digest",
         title: `Work Order Assigned: ${existing.title}`,
         message: `You've been assigned work order "${existing.title}"`,
         relatedType: "WorkOrder",
@@ -78,9 +101,28 @@ export async function PUT(
         emailSubject: email.subject,
         emailHtml: email.html,
         smsText: email.plain,
-      }).catch((e) => console.error("[Notification] Failed:", e));
+      }).catch((e) => console.error("[Notification] work_order_assigned failed:", e));
     }
   }
 
   return NextResponse.json(workOrder);
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session || session.user.role !== "admin") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  try {
+    await prisma.workOrder.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Failed to delete work order:", error);
+    return NextResponse.json({ error: "Failed to delete work order" }, { status: 500 });
+  }
 }

@@ -78,9 +78,10 @@ export async function PUT(
       linkedNcrId,
       linkedCapaId,
       status,
+      assignedToId,
+      secondaryAssignedToId,
     } = body;
 
-    const isAdmin = session.user.role === "admin";
     const updateData: Record<string, unknown> = {};
 
     // General fields
@@ -100,21 +101,20 @@ export async function PUT(
     if (otherInfo !== undefined) updateData.otherInfo = otherInfo || null;
     if (complaintType !== undefined) updateData.complaintType = complaintType;
     if (complaintDescription !== undefined) updateData.complaintDescription = complaintDescription;
+    if (assignedToId !== undefined) updateData.assignedToId = assignedToId || null;
+    if (secondaryAssignedToId !== undefined) updateData.secondaryAssignedToId = secondaryAssignedToId || null;
 
-    // Admin-only fields: disposition, status, management fields
-    if (isAdmin) {
-      if (status !== undefined) updateData.status = status;
-      if (disposition !== undefined) updateData.disposition = disposition || null;
-      if (rmaNumber !== undefined) updateData.rmaNumber = rmaNumber || null;
-      if (customerFacingAction !== undefined) updateData.customerFacingAction = customerFacingAction || null;
-      if (internalAction !== undefined) updateData.internalAction = internalAction || null;
-      if (ncrRequired !== undefined) updateData.ncrRequired = ncrRequired;
-      if (capaRequired !== undefined) updateData.capaRequired = capaRequired;
-      if (affectsOtherOrders !== undefined) updateData.affectsOtherOrders = affectsOtherOrders;
-      if (rootCauseRequired !== undefined) updateData.rootCauseRequired = rootCauseRequired;
-      if (linkedNcrId !== undefined) updateData.linkedNcrId = linkedNcrId || null;
-      if (linkedCapaId !== undefined) updateData.linkedCapaId = linkedCapaId || null;
-    }
+    if (status !== undefined) updateData.status = status;
+    if (disposition !== undefined) updateData.disposition = disposition || null;
+    if (rmaNumber !== undefined) updateData.rmaNumber = rmaNumber || null;
+    if (customerFacingAction !== undefined) updateData.customerFacingAction = customerFacingAction || null;
+    if (internalAction !== undefined) updateData.internalAction = internalAction || null;
+    if (ncrRequired !== undefined) updateData.ncrRequired = ncrRequired;
+    if (capaRequired !== undefined) updateData.capaRequired = capaRequired;
+    if (affectsOtherOrders !== undefined) updateData.affectsOtherOrders = affectsOtherOrders;
+    if (rootCauseRequired !== undefined) updateData.rootCauseRequired = rootCauseRequired;
+    if (linkedNcrId !== undefined) updateData.linkedNcrId = linkedNcrId || null;
+    if (linkedCapaId !== undefined) updateData.linkedCapaId = linkedCapaId || null;
 
     const complaint = await prisma.customerComplaint.update({
       where: { id },

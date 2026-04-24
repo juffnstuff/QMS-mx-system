@@ -3,8 +3,12 @@ import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
 import { NCRStatusUpdate } from "@/components/ncr-status-update";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { DeleteRecordButton } from "@/components/delete-record-button";
+import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { NotesSection } from "@/components/notes/notes-section";
+import { StatusHistory } from "@/components/status-history";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 const dispositionLabels: Record<string, string> = {
   rework: "Re-Work",
@@ -35,6 +39,8 @@ export default async function NCRDetailPage({
     include: {
       submittedBy: true,
       approvedBy: true,
+      assignedInvestigator: true,
+      secondaryInvestigator: true,
     },
   });
 
@@ -44,17 +50,27 @@ export default async function NCRDetailPage({
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-6">
-        <Link href="/ncrs" className="text-gray-400 hover:text-gray-600 transition-colors">
-          <ArrowLeft size={20} />
-        </Link>
-        <div className="flex-1">
+      <Breadcrumbs items={[
+        { label: "NCRs", href: "/ncrs" },
+        { label: ncr.ncrNumber },
+      ]} />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6">
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">{ncr.ncrNumber}</h1>
           <p className="text-gray-500 text-sm mt-0.5">Non-Conformance Report</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <StatusBadge status={ncr.ncrType} />
           <StatusBadge status={ncr.status} />
+          {isAdmin && (
+            <DeleteRecordButton
+              recordId={id}
+              recordType="ncrs"
+              recordLabel={ncr.ncrNumber}
+              redirectTo="/ncrs"
+              compact
+            />
+          )}
         </div>
       </div>
 
@@ -77,16 +93,30 @@ export default async function NCRDetailPage({
             </div>
           )}
 
-          {isAdmin && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="font-semibold text-gray-900 mb-4">Update Status & Disposition</h2>
-              <NCRStatusUpdate
-                ncrId={ncr.id}
-                currentStatus={ncr.status}
-                currentDisposition={ncr.disposition}
-              />
-            </div>
-          )}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="font-semibold text-gray-900 mb-4">Update Status & Disposition</h2>
+            <NCRStatusUpdate
+              ncrId={ncr.id}
+              currentStatus={ncr.status}
+              currentDisposition={ncr.disposition}
+            />
+          </div>
+
+          <NotesSection
+            recordType="ncr"
+            recordId={id}
+            currentUserId={session?.user.id ?? ""}
+            isAdmin={isAdmin}
+          />
+
+          <AttachmentsSection
+            recordType="ncr"
+            recordId={id}
+            currentUserId={session?.user.id ?? ""}
+            isAdmin={isAdmin}
+          />
+
+          <StatusHistory entityType="nonConformance" entityId={id} />
         </div>
 
         <div className="space-y-6">
@@ -158,7 +188,23 @@ export default async function NCRDetailPage({
               )}
               <div>
                 <dt className="text-xs text-gray-500 uppercase">Submitted By</dt>
-                <dd className="text-sm text-gray-900">{ncr.submittedBy.name}</dd>
+                <dd className="text-sm"><Link href={`/users?highlight=${ncr.submittedBy.id}`} className="text-blue-600 hover:text-blue-800">{ncr.submittedBy.name}</Link></dd>
+              </div>
+              <div>
+                <dt className="text-xs text-gray-500 uppercase">Assigned Investigator</dt>
+                <dd className="text-sm">
+                  {ncr.assignedInvestigator ? (
+                    <Link href={`/users?highlight=${ncr.assignedInvestigator.id}`} className="text-blue-600 hover:text-blue-800">{ncr.assignedInvestigator.name}</Link>
+                  ) : <span className="text-gray-400">Unassigned</span>}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-gray-500 uppercase">Secondary Investigator</dt>
+                <dd className="text-sm">
+                  {ncr.secondaryInvestigator ? (
+                    <Link href={`/users?highlight=${ncr.secondaryInvestigator.id}`} className="text-blue-600 hover:text-blue-800">{ncr.secondaryInvestigator.name}</Link>
+                  ) : <span className="text-gray-400">None</span>}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs text-gray-500 uppercase">Date</dt>
@@ -169,7 +215,7 @@ export default async function NCRDetailPage({
               {ncr.approvedBy && (
                 <div>
                   <dt className="text-xs text-gray-500 uppercase">Approved By</dt>
-                  <dd className="text-sm text-gray-900">{ncr.approvedBy.name}</dd>
+                  <dd className="text-sm"><Link href={`/users?highlight=${ncr.approvedBy.id}`} className="text-blue-600 hover:text-blue-800">{ncr.approvedBy.name}</Link></dd>
                 </div>
               )}
               {ncr.approvedAt && (

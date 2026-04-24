@@ -19,13 +19,18 @@ import {
   AlertTriangle,
   Shield,
   MessageSquareWarning,
+  User,
+  ClipboardCheck,
+  Activity,
 } from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/kpis", label: "KPIs", icon: Activity },
   { href: "/equipment", label: "Equipment", icon: Wrench },
   { href: "/schedules", label: "Schedules", icon: Calendar },
+  { href: "/checklists", label: "PM Checklists", icon: ClipboardCheck },
   { href: "/maintenance", label: "Maintenance Log", icon: FileText },
   { href: "/work-orders", label: "Work Orders", icon: ClipboardList },
   { href: "/ncrs", label: "NCRs", icon: AlertTriangle },
@@ -33,6 +38,7 @@ const navItems = [
   { href: "/complaints", label: "Complaints", icon: MessageSquareWarning },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/notifications", label: "Notifications", icon: Bell, showBadge: true },
+  { href: "/profile", label: "My Profile", icon: User },
   { href: "/settings/m365", label: "My Email Scanner", icon: Mail },
 ];
 
@@ -56,7 +62,7 @@ export function Sidebar({ userName, userRole, unreadCount = 0 }: { userName: str
         <p className="text-xs text-gray-400 mt-0.5">RubberForm Recycled Products</p>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1">
+      <nav className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const badge = (item as { showBadge?: boolean }).showBadge && unreadCount > 0;
@@ -117,8 +123,9 @@ export function Sidebar({ userName, userRole, unreadCount = 0 }: { userName: str
           </div>
           <button
             onClick={() => signOut({ callbackUrl: `${window.location.origin}/login` })}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors inline-flex items-center justify-center min-w-[44px] min-h-[44px]"
             title="Sign out"
+            aria-label="Sign out"
           >
             <LogOut size={18} />
           </button>
@@ -132,7 +139,8 @@ export function Sidebar({ userName, userRole, unreadCount = 0 }: { userName: str
       {/* Mobile hamburger */}
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 bg-gray-800 text-white p-2 rounded-md"
+        className="lg:hidden fixed top-4 left-4 z-50 bg-gray-800 text-white rounded-md inline-flex items-center justify-center min-w-[44px] min-h-[44px]"
+        aria-label={mobileOpen ? "Close menu" : "Open menu"}
       >
         {mobileOpen ? <X size={20} /> : <Menu size={20} />}
       </button>

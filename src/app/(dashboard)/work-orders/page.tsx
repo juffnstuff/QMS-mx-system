@@ -49,7 +49,7 @@ export default async function WorkOrdersPage({
           <select
             name="status"
             defaultValue={params.status || "all"}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Statuses</option>
             <option value="open">Open</option>
@@ -60,7 +60,7 @@ export default async function WorkOrdersPage({
           <select
             name="priority"
             defaultValue={params.priority || "all"}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Priorities</option>
             <option value="critical">Critical</option>
@@ -82,6 +82,9 @@ export default async function WorkOrdersPage({
           <div className="p-8 text-center text-gray-500">
             <ClipboardList size={40} className="mx-auto mb-3 text-gray-300" />
             <p>No work orders found.</p>
+            <Link href="/work-orders/new" className="inline-flex items-center gap-1 mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium">
+              <Plus size={14} /> Create your first work order
+            </Link>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">

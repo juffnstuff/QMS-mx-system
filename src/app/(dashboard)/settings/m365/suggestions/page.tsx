@@ -21,11 +21,46 @@ export default async function SuggestionsPage({
 
   const where = statusFilter === "all" ? {} : { status: statusFilter };
 
-  const [suggestions, total] = await Promise.all([
+  const [suggestions, total, equipment, allProjects, users] = await Promise.all([
     prisma.aISuggestion.findMany({
       where,
-      include: {
-        processedMessage: true,
+      select: {
+        id: true,
+        suggestionType: true,
+        kind: true,
+        proposedFields: true,
+        status: true,
+        payload: true,
+        createdRecordType: true,
+        createdRecordId: true,
+        reviewedAt: true,
+        reviewNote: true,
+        createdAt: true,
+        processedMessage: {
+          select: {
+            id: true,
+            subject: true,
+            senderName: true,
+            senderEmail: true,
+            bodyPreview: true,
+            sourceType: true,
+            receivedAt: true,
+            confidence: true,
+            attachments: {
+              select: {
+                id: true,
+                filename: true,
+                contentType: true,
+                sizeBytes: true,
+                extractedText: true,
+                extractionError: true,
+                excluded: true,
+                userEditedText: true,
+              },
+              orderBy: { createdAt: "asc" },
+            },
+          },
+        },
         reviewer: { select: { name: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -33,6 +68,18 @@ export default async function SuggestionsPage({
       take: limit,
     }),
     prisma.aISuggestion.count({ where }),
+    prisma.equipment.findMany({
+      select: { id: true, name: true, serialNumber: true, location: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.project.findMany({
+      select: { id: true, title: true, parentProjectId: true },
+      orderBy: { title: "asc" },
+    }),
+    prisma.user.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   const pages = Math.ceil(total / limit);
@@ -73,7 +120,13 @@ export default async function SuggestionsPage({
       ) : (
         <div className="space-y-4">
           {suggestions.map((suggestion) => (
-            <SuggestionCard key={suggestion.id} suggestion={suggestion} />
+            <SuggestionCard
+              key={suggestion.id}
+              suggestion={suggestion}
+              equipment={equipment}
+              projects={allProjects}
+              users={users}
+            />
           ))}
         </div>
       )}

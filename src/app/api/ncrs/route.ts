@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { markMessagePromoted } from "@/lib/m365/promote-message";
+import { withYearlyNumber } from "@/lib/record-numbering";
 
 export async function GET(req: NextRequest) {
   try {
@@ -55,6 +57,9 @@ export async function POST(req: NextRequest) {
       immediateAction,
       ncrTagNumber,
       plantLocation,
+      assignedInvestigatorId,
+      secondaryInvestigatorId,
+      fromMessageId,
     } = body;
 
     if (!ncrType || !requirementDescription || !nonConformanceDescription) {
@@ -64,42 +69,44 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Auto-generate ncrNumber: NCR-YYYY-001
-    const year = new Date().getFullYear();
-    const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
-    const endOfYear = new Date(`${year + 1}-01-01T00:00:00.000Z`);
-
-    const count = await prisma.nonConformance.count({
-      where: {
-        createdAt: {
-          gte: startOfYear,
-          lt: endOfYear,
-        },
-      },
+    // Auto-generate ncrNumber (race-safe via pg advisory lock).
+    const ncr = await withYearlyNumber("NCR", {
+      countCurrent: (tx, { startOfYear, endOfYear }) =>
+        tx.nonConformance.count({
+          where: { createdAt: { gte: startOfYear, lt: endOfYear } },
+        }),
+      run: (tx, ncrNumber) =>
+        tx.nonConformance.create({
+          data: {
+            ncrNumber,
+            submittedById: session.user.id,
+            date: new Date(),
+            partNumber: partNumber || null,
+            drawingNumber: drawingNumber || null,
+            drawingRevision: drawingRevision || null,
+            quantityAffected: quantityAffected || null,
+            vendor: vendor || null,
+            otherInfo: otherInfo || null,
+            ncrType,
+            requirementDescription,
+            nonConformanceDescription,
+            disposition: disposition || null,
+            immediateAction: immediateAction || null,
+            ncrTagNumber: ncrTagNumber || null,
+            plantLocation: plantLocation || null,
+            assignedInvestigatorId: assignedInvestigatorId || null,
+            secondaryInvestigatorId: secondaryInvestigatorId || null,
+            status: "open",
+          },
+        }),
     });
 
-    const ncrNumber = `NCR-${year}-${String(count + 1).padStart(3, "0")}`;
-
-    const ncr = await prisma.nonConformance.create({
-      data: {
-        ncrNumber,
-        submittedById: session.user.id,
-        date: new Date(),
-        partNumber: partNumber || null,
-        drawingNumber: drawingNumber || null,
-        drawingRevision: drawingRevision || null,
-        quantityAffected: quantityAffected || null,
-        vendor: vendor || null,
-        otherInfo: otherInfo || null,
-        ncrType,
-        requirementDescription,
-        nonConformanceDescription,
-        disposition: disposition || null,
-        immediateAction: immediateAction || null,
-        ncrTagNumber: ncrTagNumber || null,
-        plantLocation: plantLocation || null,
-        status: "open",
-      },
+    await markMessagePromoted({
+      fromMessageId,
+      kind: "ncr",
+      createdRecordId: ncr.id,
+      reviewerId: session.user.id,
+      payloadSummary: { ncrNumber: ncr.ncrNumber, ncrType, nonConformanceDescription },
     });
 
     return NextResponse.json(ncr, { status: 201 });

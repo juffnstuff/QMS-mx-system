@@ -2,16 +2,33 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { UserPicker } from "./user-picker";
+import { FormActions } from "./form-actions";
+
+interface UserOption {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+interface Prefill {
+  nonConformanceDescription?: string;
+  fromMessageId?: string;
+}
 
 interface Props {
   isAdmin: boolean;
+  users?: UserOption[];
+  prefill?: Prefill;
 }
 
-export function NCRForm({ isAdmin }: Props) {
+export function NCRForm({ isAdmin, users, prefill }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [assignedInvestigatorId, setAssignedInvestigatorId] = useState("");
+  const [secondaryInvestigatorId, setSecondaryInvestigatorId] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -33,6 +50,9 @@ export function NCRForm({ isAdmin }: Props) {
       immediateAction: formData.get("immediateAction") || null,
       ncrTagNumber: formData.get("ncrTagNumber") || null,
       plantLocation: formData.get("plantLocation") || null,
+      assignedInvestigatorId: assignedInvestigatorId || null,
+      secondaryInvestigatorId: secondaryInvestigatorId || null,
+      fromMessageId: prefill?.fromMessageId,
     };
 
     const res = await fetch("/api/ncrs", {
@@ -63,6 +83,13 @@ export function NCRForm({ isAdmin }: Props) {
         </div>
       )}
 
+      <FormActions
+        loading={loading}
+        submitLabel="Create NCR"
+        loadingLabel="Creating..."
+        cancelHref="/ncrs"
+      />
+
       <div className="space-y-4">
         <div>
           <label htmlFor="partNumber" className="block text-sm font-medium text-gray-700 mb-1">
@@ -71,7 +98,7 @@ export function NCRForm({ isAdmin }: Props) {
           <input
             id="partNumber"
             name="partNumber"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., P/N 12345 or Assembly Process"
           />
         </div>
@@ -84,7 +111,7 @@ export function NCRForm({ isAdmin }: Props) {
             <input
               id="drawingNumber"
               name="drawingNumber"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Drawing number"
             />
           </div>
@@ -95,7 +122,7 @@ export function NCRForm({ isAdmin }: Props) {
             <input
               id="drawingRevision"
               name="drawingRevision"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Revision"
             />
           </div>
@@ -106,7 +133,7 @@ export function NCRForm({ isAdmin }: Props) {
             <input
               id="quantityAffected"
               name="quantityAffected"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Quantity"
             />
           </div>
@@ -119,7 +146,7 @@ export function NCRForm({ isAdmin }: Props) {
           <input
             id="vendor"
             name="vendor"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Vendor name"
           />
         </div>
@@ -131,7 +158,7 @@ export function NCRForm({ isAdmin }: Props) {
           <input
             id="otherInfo"
             name="otherInfo"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Any additional information"
           />
         </div>
@@ -144,7 +171,7 @@ export function NCRForm({ isAdmin }: Props) {
             id="ncrType"
             name="ncrType"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select type...</option>
             <option value="aesthetic">Aesthetic</option>
@@ -156,6 +183,25 @@ export function NCRForm({ isAdmin }: Props) {
           </select>
         </div>
 
+        {users && users.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <UserPicker
+              users={users}
+              value={assignedInvestigatorId}
+              onChange={setAssignedInvestigatorId}
+              label="Assigned Investigator"
+              placeholder="Select investigator..."
+            />
+            <UserPicker
+              users={users}
+              value={secondaryInvestigatorId}
+              onChange={setSecondaryInvestigatorId}
+              label="Secondary Investigator"
+              placeholder="Select secondary investigator..."
+            />
+          </div>
+        )}
+
         <div>
           <label htmlFor="requirementDescription" className="block text-sm font-medium text-gray-700 mb-1">
             Describe the Requirement or Specification *
@@ -165,7 +211,7 @@ export function NCRForm({ isAdmin }: Props) {
             name="requirementDescription"
             required
             rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Describe the requirement or specification that was not met..."
           />
         </div>
@@ -179,7 +225,8 @@ export function NCRForm({ isAdmin }: Props) {
             name="nonConformanceDescription"
             required
             rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            defaultValue={prefill?.nonConformanceDescription ?? ""}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Describe how the item or process does not conform..."
           />
         </div>
@@ -191,7 +238,7 @@ export function NCRForm({ isAdmin }: Props) {
           <select
             id="disposition"
             name="disposition"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select disposition...</option>
             <option value="rework">Re-Work</option>
@@ -209,7 +256,7 @@ export function NCRForm({ isAdmin }: Props) {
             id="immediateAction"
             name="immediateAction"
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Describe any immediate actions taken..."
           />
         </div>
@@ -222,7 +269,7 @@ export function NCRForm({ isAdmin }: Props) {
             <input
               id="ncrTagNumber"
               name="ncrTagNumber"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Tag number"
             />
           </div>
@@ -233,25 +280,19 @@ export function NCRForm({ isAdmin }: Props) {
             <input
               id="plantLocation"
               name="plantLocation"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Plant location"
             />
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {loading ? "Creating..." : "Create NCR"}
-        </button>
-        <Link href="/ncrs" className="text-gray-600 hover:text-gray-800 text-sm">
-          Cancel
-        </Link>
-      </div>
+      <FormActions
+        loading={loading}
+        submitLabel="Create NCR"
+        loadingLabel="Creating..."
+        cancelHref="/ncrs"
+      />
     </form>
   );
 }

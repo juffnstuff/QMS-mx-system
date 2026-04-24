@@ -2,8 +2,11 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { formatDistanceToNow } from "date-fns";
+import { Clock } from "lucide-react";
 import { ConnectionCard } from "@/components/m365/connection-card";
 import { ScanButton } from "@/components/m365/scan-button";
+import { RecheckApprovedButton } from "@/components/m365/recheck-approved-button";
 
 export default async function M365SettingsPage({
   searchParams,
@@ -25,14 +28,10 @@ export default async function M365SettingsPage({
     })
     .catch(() => null);
 
-  // Stats scoped to this user's scans
+  // Global suggestion counts so the numbers match what clicking through shows
+  // on /settings/m365/suggestions (which lists everyone's suggestions).
   const pendingSuggestions = await prisma.aISuggestion
-    .count({
-      where: {
-        status: "pending",
-        processedMessage: { scannedByUserId: session.user.id },
-      },
-    })
+    .count({ where: { status: "pending" } })
     .catch(() => 0);
 
   const messagesLast24h = await prisma.processedMessage
@@ -45,12 +44,7 @@ export default async function M365SettingsPage({
     .catch(() => 0);
 
   const approvedTotal = await prisma.aISuggestion
-    .count({
-      where: {
-        status: "approved",
-        processedMessage: { scannedByUserId: session.user.id },
-      },
-    })
+    .count({ where: { status: "approved" } })
     .catch(() => 0);
 
   return (
@@ -58,9 +52,8 @@ export default async function M365SettingsPage({
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">My Email Scanner</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Connect your MS365 account and AI will scan your emails, Teams
-          channels, and SharePoint for maintenance items, equipment, and
-          projects
+          Connect your MS365 account and AI will scan your emails and Teams
+          channels for maintenance items, equipment, and projects
         </p>
       </div>
 
@@ -97,8 +90,8 @@ export default async function M365SettingsPage({
               Connect your @rubberform.com email using the button above
             </li>
             <li>
-              Click &ldquo;Scan All&rdquo; to scan your inbox, Teams channels,
-              and SharePoint
+              Click &ldquo;Scan New&rdquo; to scan your inbox and Teams
+              channels
             </li>
             <li>
               AI analyzes emails from shop@, Joe, Anthony, Jesse, Bill, Aaron
@@ -106,8 +99,7 @@ export default async function M365SettingsPage({
               items
             </li>
             <li>
-              It also scans Teams conversations and SharePoint for SOPs, work
-              instructions, and shop forms
+              It also scans Teams conversations for the same signals
             </li>
             <li>
               Review AI suggestions and approve to create work orders,
@@ -124,12 +116,38 @@ export default async function M365SettingsPage({
       {connection && (
         <div className="mt-6">
           <ScanButton />
+          <div
+            className="mt-3 flex items-center gap-1.5 text-xs text-gray-500"
+            title={
+              connection.lastPolledAt
+                ? new Date(connection.lastPolledAt).toLocaleString()
+                : undefined
+            }
+          >
+            <Clock size={12} className="text-gray-400" />
+            {connection.lastPolledAt ? (
+              <>
+                Last scan:{" "}
+                <span className="text-gray-700 font-medium">
+                  {formatDistanceToNow(new Date(connection.lastPolledAt), {
+                    addSuffix: true,
+                  })}
+                </span>
+                <span className="text-gray-400">
+                  {" "}
+                  ({new Date(connection.lastPolledAt).toLocaleString()})
+                </span>
+              </>
+            ) : (
+              <span>No scans yet — click Scan New to start.</span>
+            )}
+          </div>
         </div>
       )}
 
       {/* Quick Stats */}
       {connection && (
-        <div className="grid grid-cols-3 gap-4 mt-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
           <Link
             href="/settings/m365/suggestions"
             className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
@@ -152,21 +170,29 @@ export default async function M365SettingsPage({
             </p>
             <p className="text-xs text-blue-600 mt-1">View activity &rarr;</p>
           </Link>
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <Link
+            href="/settings/m365/suggestions?status=approved"
+            className="bg-white p-4 rounded-lg border border-gray-200 hover:border-green-300 transition-colors"
+          >
             <p className="text-sm text-gray-500">Approved</p>
             <p className="text-2xl font-bold text-gray-900">{approvedTotal}</p>
             <p className="text-xs text-green-600 mt-1">
-              Items pushed to team
+              Items pushed to team &rarr;
             </p>
-          </div>
+          </Link>
         </div>
       )}
 
-      {/* Last polled info */}
-      {connection?.lastPolledAt && (
-        <div className="mt-4 text-xs text-gray-400 text-center">
-          Last scanned:{" "}
-          {new Date(connection.lastPolledAt).toLocaleString()}
+      {/* Admin tools */}
+      {connection && session.user.role !== "operator" && (
+        <div className="mt-6 p-4 bg-white border border-gray-200 rounded-lg">
+          <h3 className="text-sm font-semibold text-gray-800 mb-1">Admin tools</h3>
+          <p className="text-xs text-gray-500 mb-3">
+            If approved suggestions point to records that no longer exist in the
+            system, re-check will move them back to Pending Review so you can
+            redo them.
+          </p>
+          <RecheckApprovedButton />
         </div>
       )}
     </div>

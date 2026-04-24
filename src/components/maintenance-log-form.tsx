@@ -4,12 +4,18 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+interface Prefill {
+  description?: string;
+  fromMessageId?: string;
+}
+
 interface Props {
   equipment: { id: string; name: string }[];
   defaultEquipmentId?: string;
+  prefill?: Prefill;
 }
 
-export function MaintenanceLogForm({ equipment, defaultEquipmentId }: Props) {
+export function MaintenanceLogForm({ equipment, defaultEquipmentId, prefill }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,6 +31,7 @@ export function MaintenanceLogForm({ equipment, defaultEquipmentId }: Props) {
       description: formData.get("description"),
       partsUsed: formData.get("partsUsed") || null,
       performedAt: formData.get("performedAt") || null,
+      fromMessageId: prefill?.fromMessageId,
     };
 
     const res = await fetch("/api/maintenance", {
@@ -66,7 +73,7 @@ export function MaintenanceLogForm({ equipment, defaultEquipmentId }: Props) {
               name="equipmentId"
               required
               defaultValue={defaultEquipmentId || ""}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select equipment...</option>
               {equipment.map((e) => (
@@ -85,7 +92,7 @@ export function MaintenanceLogForm({ equipment, defaultEquipmentId }: Props) {
               name="performedAt"
               type="date"
               defaultValue={new Date().toISOString().split("T")[0]}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -99,7 +106,8 @@ export function MaintenanceLogForm({ equipment, defaultEquipmentId }: Props) {
             name="description"
             required
             rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            defaultValue={prefill?.description ?? ""}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Describe the maintenance performed..."
           />
         </div>
@@ -112,7 +120,7 @@ export function MaintenanceLogForm({ equipment, defaultEquipmentId }: Props) {
             id="partsUsed"
             name="partsUsed"
             type="text"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., 2x bearings, 1 gallon hydraulic fluid"
           />
         </div>

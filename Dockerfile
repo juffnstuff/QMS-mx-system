@@ -32,13 +32,19 @@ RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npm run build
 FROM base AS runner
 WORKDIR /app
 
-RUN apk add --no-cache openssl
+# su-exec lets start.sh drop privileges from root to nextjs after chown'ing
+# the attachments volume mount (Railway mounts come in owned by root).
+RUN apk add --no-cache openssl su-exec
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
+
+# Attachments directory — mount a Railway volume here in production.
+# Override with ATTACHMENTS_DIR env var if using a different path.
+RUN mkdir -p /data/attachments && chown -R nextjs:nodejs /data
 
 COPY --from=builder /app/public ./public
 
@@ -53,8 +59,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 COPY --from=builder --chown=nextjs:nodejs /app/start.sh ./start.sh
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/prisma/seed.ts ./prisma/seed.ts
+COPY --from=builder --chown=nextjs:nodejs /app/src/data ./src/data
 
-USER nextjs
+# Start as root so start.sh can chown the mounted attachments volume,
+# then drop to the nextjs user via su-exec.
 
 EXPOSE 3000
 

@@ -2,16 +2,34 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { UserPicker } from "./user-picker";
+import { FormActions } from "./form-actions";
 
-interface Props {
-  isAdmin: boolean;
+interface UserOption {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
 }
 
-export function ComplaintForm({ isAdmin }: Props) {
+interface Prefill {
+  complaintDescription?: string;
+  customerName?: string;
+  contactEmail?: string;
+  fromMessageId?: string;
+}
+
+interface Props {
+  users?: UserOption[];
+  prefill?: Prefill;
+}
+
+export function ComplaintForm({ users, prefill }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [assignedToId, setAssignedToId] = useState("");
+  const [secondaryAssignedToId, setSecondaryAssignedToId] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -21,6 +39,8 @@ export function ComplaintForm({ isAdmin }: Props) {
     const formData = new FormData(e.currentTarget);
     const data = {
       customerName: formData.get("customerName"),
+      assignedToId: assignedToId || null,
+      secondaryAssignedToId: secondaryAssignedToId || null,
       customerAddress: formData.get("customerAddress") || null,
       customerContact: formData.get("customerContact") || null,
       contactPhone: formData.get("contactPhone") || null,
@@ -36,19 +56,15 @@ export function ComplaintForm({ isAdmin }: Props) {
       complaintType: formData.get("complaintType"),
       complaintDescription: formData.get("complaintDescription"),
       otherInfo: formData.get("otherInfo") || null,
-      // Admin-only management disposition fields
-      ...(isAdmin
-        ? {
-            disposition: formData.get("disposition") || null,
-            rmaNumber: formData.get("rmaNumber") || null,
-            customerFacingAction: formData.get("customerFacingAction") || null,
-            internalAction: formData.get("internalAction") || null,
-            ncrRequired: formData.get("ncrRequired") === "on",
-            capaRequired: formData.get("capaRequired") === "on",
-            affectsOtherOrders: formData.get("affectsOtherOrders") === "on",
-            rootCauseRequired: formData.get("rootCauseRequired") === "on",
-          }
-        : {}),
+      disposition: formData.get("disposition") || null,
+      rmaNumber: formData.get("rmaNumber") || null,
+      customerFacingAction: formData.get("customerFacingAction") || null,
+      internalAction: formData.get("internalAction") || null,
+      ncrRequired: formData.get("ncrRequired") === "on",
+      capaRequired: formData.get("capaRequired") === "on",
+      affectsOtherOrders: formData.get("affectsOtherOrders") === "on",
+      rootCauseRequired: formData.get("rootCauseRequired") === "on",
+      fromMessageId: prefill?.fromMessageId,
     };
 
     const res = await fetch("/api/complaints", {
@@ -79,6 +95,13 @@ export function ComplaintForm({ isAdmin }: Props) {
         </div>
       )}
 
+      <FormActions
+        loading={loading}
+        submitLabel="Submit Complaint"
+        loadingLabel="Submitting..."
+        cancelHref="/complaints"
+      />
+
       {/* Section: Complaint Details */}
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Complaint Details</h2>
       <div className="space-y-4">
@@ -90,7 +113,8 @@ export function ComplaintForm({ isAdmin }: Props) {
             id="customerName"
             name="customerName"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            defaultValue={prefill?.customerName ?? ""}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., Acme Corporation"
           />
         </div>
@@ -103,7 +127,7 @@ export function ComplaintForm({ isAdmin }: Props) {
             id="customerAddress"
             name="customerAddress"
             rows={2}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Street, City, State, ZIP"
           />
         </div>
@@ -116,7 +140,7 @@ export function ComplaintForm({ isAdmin }: Props) {
             <input
               id="customerContact"
               name="customerContact"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Contact name"
             />
           </div>
@@ -127,7 +151,7 @@ export function ComplaintForm({ isAdmin }: Props) {
             <input
               id="contactPhone"
               name="contactPhone"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="(555) 123-4567"
             />
           </div>
@@ -139,7 +163,8 @@ export function ComplaintForm({ isAdmin }: Props) {
               id="contactEmail"
               name="contactEmail"
               type="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              defaultValue={prefill?.contactEmail ?? ""}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="contact@example.com"
             />
           </div>
@@ -153,7 +178,7 @@ export function ComplaintForm({ isAdmin }: Props) {
             <input
               id="partNumber"
               name="partNumber"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Part number or name"
             />
           </div>
@@ -164,7 +189,7 @@ export function ComplaintForm({ isAdmin }: Props) {
             <input
               id="salesOrderNumber"
               name="salesOrderNumber"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="SO-12345"
             />
           </div>
@@ -177,7 +202,7 @@ export function ComplaintForm({ isAdmin }: Props) {
           <select
             id="invoiced"
             name="invoiced"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select...</option>
             <option value="yes">Yes</option>
@@ -194,7 +219,7 @@ export function ComplaintForm({ isAdmin }: Props) {
             <input
               id="invoiceNumber"
               name="invoiceNumber"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="INV-12345"
             />
           </div>
@@ -205,7 +230,7 @@ export function ComplaintForm({ isAdmin }: Props) {
             <input
               id="invoiceValue"
               name="invoiceValue"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="$0.00"
             />
           </div>
@@ -219,7 +244,7 @@ export function ComplaintForm({ isAdmin }: Props) {
             <input
               id="drawingNumber"
               name="drawingNumber"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="DWG-001"
             />
           </div>
@@ -230,7 +255,7 @@ export function ComplaintForm({ isAdmin }: Props) {
             <input
               id="drawingRevision"
               name="drawingRevision"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="A"
             />
           </div>
@@ -241,7 +266,7 @@ export function ComplaintForm({ isAdmin }: Props) {
             <input
               id="quantityAffected"
               name="quantityAffected"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="0"
             />
           </div>
@@ -255,7 +280,7 @@ export function ComplaintForm({ isAdmin }: Props) {
             id="complaintType"
             name="complaintType"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select complaint type...</option>
             <option value="aesthetic">Aesthetic</option>
@@ -279,7 +304,8 @@ export function ComplaintForm({ isAdmin }: Props) {
             name="complaintDescription"
             required
             rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            defaultValue={prefill?.complaintDescription ?? ""}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Describe the complaint in detail..."
           />
         </div>
@@ -292,16 +318,33 @@ export function ComplaintForm({ isAdmin }: Props) {
             id="otherInfo"
             name="otherInfo"
             rows={2}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Any additional information..."
           />
         </div>
+
+        {users && users.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <UserPicker
+              users={users}
+              value={assignedToId}
+              onChange={setAssignedToId}
+              label="Assigned To"
+              placeholder="Select person to handle this complaint..."
+            />
+            <UserPicker
+              users={users}
+              value={secondaryAssignedToId}
+              onChange={setSecondaryAssignedToId}
+              label="Secondary Assignee"
+              placeholder="Select secondary assignee..."
+            />
+          </div>
+        )}
       </div>
 
-      {/* Section: Management Disposition (admin-only) */}
-      {isAdmin && (
-        <>
-          <div className="border-t border-gray-200 mt-6 pt-6">
+      {/* Section: Management Disposition */}
+      <div className="border-t border-gray-200 mt-6 pt-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Management Disposition</h2>
             <div className="space-y-4">
               <div>
@@ -311,7 +354,7 @@ export function ComplaintForm({ isAdmin }: Props) {
                 <select
                   id="disposition"
                   name="disposition"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select disposition...</option>
                   <option value="return_rework">Return & Rework</option>
@@ -329,7 +372,7 @@ export function ComplaintForm({ isAdmin }: Props) {
                 <input
                   id="rmaNumber"
                   name="rmaNumber"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="RMA-12345"
                 />
               </div>
@@ -342,7 +385,7 @@ export function ComplaintForm({ isAdmin }: Props) {
                   id="customerFacingAction"
                   name="customerFacingAction"
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Action to communicate to the customer..."
                 />
               </div>
@@ -355,7 +398,7 @@ export function ComplaintForm({ isAdmin }: Props) {
                   id="internalAction"
                   name="internalAction"
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Internal corrective actions..."
                 />
               </div>
@@ -396,21 +439,13 @@ export function ComplaintForm({ isAdmin }: Props) {
               </div>
             </div>
           </div>
-        </>
-      )}
 
-      <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {loading ? "Submitting..." : "Submit Complaint"}
-        </button>
-        <Link href="/complaints" className="text-gray-600 hover:text-gray-800 text-sm">
-          Cancel
-        </Link>
-      </div>
+      <FormActions
+        loading={loading}
+        submitLabel="Submit Complaint"
+        loadingLabel="Submitting..."
+        cancelHref="/complaints"
+      />
     </form>
   );
 }

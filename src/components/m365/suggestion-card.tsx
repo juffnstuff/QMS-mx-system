@@ -3,10 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
+import { AttachmentsSection } from "./attachments-section";
+
+type SuggestionKind = "maintenance" | "project" | "equipment" | "child_component";
 
 interface Suggestion {
   id: string;
   suggestionType: string;
+  kind: string | null;
+  proposedFields: unknown; // Prisma Json? — parsed on the server, arrives as object|null
   status: string;
   payload: string;
   createdRecordType: string | null;
@@ -15,6 +20,7 @@ interface Suggestion {
   reviewNote: string | null;
   createdAt: Date | string;
   processedMessage: {
+    id: string;
     subject: string | null;
     senderName: string | null;
     senderEmail: string | null;
@@ -22,8 +28,38 @@ interface Suggestion {
     sourceType: string;
     receivedAt: Date | string;
     confidence: number | null;
+    attachments?: Attachment[];
   };
   reviewer: { name: string } | null;
+}
+
+interface Attachment {
+  id: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  extractedText: string | null;
+  extractionError: string | null;
+  excluded: boolean;
+  userEditedText: string | null;
+}
+
+interface EquipmentOption {
+  id: string;
+  name: string;
+  serialNumber: string;
+  location?: string;
+}
+
+interface ProjectOption {
+  id: string;
+  title: string;
+  parentProjectId?: string | null;
+}
+
+interface UserOption {
+  id: string;
+  name: string;
 }
 
 const typeLabels: Record<string, string> = {
@@ -31,6 +67,8 @@ const typeLabels: Record<string, string> = {
   create_maintenance_log: "Log Maintenance",
   update_equipment_status: "Update Equipment Status",
   create_project: "Create Project",
+  create_auxiliary_equipment: "Create Auxiliary Equipment",
+  progress_existing: "Progress Existing Record",
   flag_for_review: "Flag for Review",
 };
 
@@ -39,6 +77,8 @@ const typeBadgeColors: Record<string, string> = {
   create_maintenance_log: "bg-green-100 text-green-700",
   update_equipment_status: "bg-orange-100 text-orange-700",
   create_project: "bg-indigo-100 text-indigo-700",
+  create_auxiliary_equipment: "bg-cyan-100 text-cyan-700",
+  progress_existing: "bg-purple-100 text-purple-700",
   flag_for_review: "bg-yellow-100 text-yellow-700",
 };
 
@@ -49,28 +89,318 @@ const statusBadgeColors: Record<string, string> = {
   auto_applied: "bg-purple-100 text-purple-700",
 };
 
-export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
+const kindLabels: Record<SuggestionKind, string> = {
+  maintenance: "Maintenance Schedule",
+  project: "Project",
+  equipment: "Equipment",
+  child_component: "Child Component",
+};
+
+// Shape of the AI-proposed payload stored on the suggestion. All fields are
+// optional because the AI only emits the ones relevant to the suggestion type.
+interface SuggestionPayload {
+  title?: string;
+  description?: string;
+  equipmentId?: string;
+  equipmentName?: string;
+  priority?: string;
+  newStatus?: string;
+  partsUsed?: string;
+  budget?: string;
+  isNewEquipment?: boolean;
+  progressNote?: string;
+  existingRecordType?: string;
+  existingRecordId?: string;
+  parentEquipmentId?: string;
+  auxiliaryType?: string;
+  autoCreateWorkOrder?: boolean;
+}
+
+// Per-kind editable form values. Each kind uses only the subset it needs;
+// unused fields stay empty strings so React inputs remain controlled.
+interface ProjectFields {
+  title: string;
+  description: string;
+  priority: string;
+  status: string;
+  phase: string;
+  budget: string;
+  dueDate: string;
+  keywords: string;
+  parentProjectId: string;
+  projectLeadId: string;
+  secondaryLeadId: string;
+  projectJustification: string;
+  designObjectives: string;
+  designRequirements: string;
+  potentialVendors: string;
+  salesMarketingActions: string;
+  engineeringActions: string;
+  actualBudget: string;
+  plannedSchedule: string;
+  actualSchedule: string;
+  isComplete: string;
+  contingentDetails: string;
+}
+
+interface MaintenanceFields {
+  title: string;
+  equipmentId: string;
+  description: string;
+  frequency: string;
+  nextDue: string;
+}
+
+interface EquipmentFields {
+  name: string;
+  type: string;
+  location: string;
+  serialNumber: string;
+  status: string;
+  criticality: string;
+  equipmentClass: string;
+  groupName: string;
+  parentEquipmentId: string;
+  notes: string;
+}
+
+interface ChildComponentFields {
+  name: string;
+  type: string;
+  location: string;
+  serialNumber: string;
+  status: string;
+  parentEquipmentId: string;
+  notes: string;
+}
+
+interface KindFormState {
+  project: ProjectFields;
+  maintenance: MaintenanceFields;
+  equipment: EquipmentFields;
+  child_component: ChildComponentFields;
+}
+
+function pickString(obj: Record<string, unknown> | null, key: string, fallback = ""): string {
+  if (!obj) return fallback;
+  const v = obj[key];
+  return typeof v === "string" ? v : fallback;
+}
+
+function inferKind(suggestion: Suggestion): SuggestionKind {
+  if (
+    suggestion.kind === "maintenance" ||
+    suggestion.kind === "project" ||
+    suggestion.kind === "equipment" ||
+    suggestion.kind === "child_component"
+  ) {
+    return suggestion.kind;
+  }
+  switch (suggestion.suggestionType) {
+    case "create_project":
+      return "project";
+    case "create_maintenance_log":
+      return "maintenance";
+    case "create_auxiliary_equipment":
+      return "child_component";
+    default:
+      return "equipment";
+  }
+}
+
+function initialKindForms(
+  payload: SuggestionPayload,
+  proposedFields: Record<string, unknown> | null
+): KindFormState {
+  const pf = proposedFields;
+  return {
+    project: {
+      title: pickString(pf, "title", payload.title || ""),
+      description: pickString(pf, "description", payload.description || ""),
+      priority: pickString(pf, "priority", payload.priority || "medium"),
+      status: pickString(pf, "status", "planning"),
+      phase: pickString(pf, "phase", "concept"),
+      budget: pickString(pf, "budget", payload.budget || ""),
+      dueDate: pickString(pf, "dueDate", ""),
+      keywords: pickString(pf, "keywords", ""),
+      parentProjectId: pickString(pf, "parentProjectId", ""),
+      projectLeadId: pickString(pf, "projectLeadId", ""),
+      secondaryLeadId: pickString(pf, "secondaryLeadId", ""),
+      projectJustification: pickString(pf, "projectJustification", ""),
+      designObjectives: pickString(pf, "designObjectives", ""),
+      designRequirements: pickString(pf, "designRequirements", ""),
+      potentialVendors: pickString(pf, "potentialVendors", ""),
+      salesMarketingActions: pickString(pf, "salesMarketingActions", ""),
+      engineeringActions: pickString(pf, "engineeringActions", ""),
+      actualBudget: pickString(pf, "actualBudget", ""),
+      plannedSchedule: pickString(pf, "plannedSchedule", ""),
+      actualSchedule: pickString(pf, "actualSchedule", ""),
+      isComplete: pickString(pf, "isComplete", ""),
+      contingentDetails: pickString(pf, "contingentDetails", ""),
+    },
+    maintenance: {
+      title: pickString(pf, "title", payload.title || ""),
+      equipmentId: pickString(
+        pf,
+        "equipmentId",
+        payload.equipmentId && payload.equipmentId !== "unknown" ? payload.equipmentId : ""
+      ),
+      description: pickString(pf, "description", payload.description || ""),
+      frequency: pickString(pf, "frequency", "monthly"),
+      nextDue: pickString(pf, "nextDue", ""),
+    },
+    equipment: {
+      name: pickString(pf, "name", payload.equipmentName || payload.title || ""),
+      type: pickString(pf, "type", ""),
+      location: pickString(pf, "location", ""),
+      serialNumber: pickString(pf, "serialNumber", ""),
+      status: pickString(pf, "status", payload.newStatus || "needs_service"),
+      criticality: pickString(pf, "criticality", "C"),
+      equipmentClass: pickString(pf, "equipmentClass", ""),
+      groupName: pickString(pf, "groupName", ""),
+      parentEquipmentId: pickString(pf, "parentEquipmentId", payload.parentEquipmentId || ""),
+      notes: pickString(pf, "notes", payload.description || ""),
+    },
+    child_component: {
+      name: pickString(
+        pf,
+        "name",
+        payload.equipmentName || payload.auxiliaryType || ""
+      ),
+      type: pickString(pf, "type", payload.auxiliaryType || "Component"),
+      location: pickString(pf, "location", ""),
+      serialNumber: pickString(pf, "serialNumber", ""),
+      status: pickString(pf, "status", "needs_service"),
+      parentEquipmentId: pickString(pf, "parentEquipmentId", payload.parentEquipmentId || ""),
+      notes: pickString(pf, "notes", payload.description || ""),
+    },
+  };
+}
+
+const inputClass =
+  "w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500";
+const labelClass = "block text-xs font-medium text-gray-600 mb-1";
+
+export function SuggestionCard({
+  suggestion,
+  equipment = [],
+  projects = [],
+  users = [],
+}: {
+  suggestion: Suggestion;
+  equipment?: EquipmentOption[];
+  projects?: ProjectOption[];
+  users?: UserOption[];
+}) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
-  const payload = JSON.parse(suggestion.payload);
+  const equipmentList = equipment;
+  // Only top-level projects are valid parents (enforces 2-level hierarchy).
+  const parentProjectOptions = projects.filter((p) => !p.parentProjectId);
+  const payload: SuggestionPayload = JSON.parse(suggestion.payload);
+
+  const proposedFields =
+    suggestion.proposedFields &&
+    typeof suggestion.proposedFields === "object" &&
+    !Array.isArray(suggestion.proposedFields)
+      ? (suggestion.proposedFields as Record<string, unknown>)
+      : null;
+
+  const [kind, setKind] = useState<SuggestionKind>(() => inferKind(suggestion));
+  const [forms, setForms] = useState<KindFormState>(() =>
+    initialKindForms(payload, proposedFields)
+  );
+
+  const isPending = suggestion.status === "pending";
+
+  function updateProject<K extends keyof ProjectFields>(key: K, value: ProjectFields[K]) {
+    setForms((prev) => ({ ...prev, project: { ...prev.project, [key]: value } }));
+  }
+  function updateMaintenance<K extends keyof MaintenanceFields>(
+    key: K,
+    value: MaintenanceFields[K]
+  ) {
+    setForms((prev) => ({
+      ...prev,
+      maintenance: { ...prev.maintenance, [key]: value },
+    }));
+  }
+  function updateEquipment<K extends keyof EquipmentFields>(
+    key: K,
+    value: EquipmentFields[K]
+  ) {
+    setForms((prev) => ({ ...prev, equipment: { ...prev.equipment, [key]: value } }));
+  }
+  function updateChild<K extends keyof ChildComponentFields>(
+    key: K,
+    value: ChildComponentFields[K]
+  ) {
+    setForms((prev) => ({
+      ...prev,
+      child_component: { ...prev.child_component, [key]: value },
+    }));
+  }
+
+  // Convert the kind-specific form state into the `proposedFields` blob sent
+  // to the approval endpoint. Empty strings are dropped so the server can tell
+  // "unset" from "intentionally cleared".
+  function buildProposedFields(): Record<string, unknown> {
+    const raw: Record<string, unknown> =
+      kind === "project"
+        ? { ...forms.project }
+        : kind === "maintenance"
+          ? { ...forms.maintenance }
+          : kind === "equipment"
+            ? { ...forms.equipment }
+            : { ...forms.child_component };
+    const cleaned: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (typeof v === "string" && v === "") continue;
+      cleaned[k] = v;
+    }
+    return cleaned;
+  }
 
   async function handleAction(action: "approve" | "reject") {
     setLoading(true);
     try {
+      const body: Record<string, unknown> = { action };
+      if (action === "approve") {
+        body.kind = kind;
+        body.proposedFields = buildProposedFields();
+      }
       const res = await fetch(`/api/suggestions/${suggestion.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Failed");
+      }
       router.refresh();
-    } catch {
-      alert("Failed to process suggestion");
+    } catch (err) {
+      alert(
+        `Failed to process suggestion: ${err instanceof Error ? err.message : "unknown error"}`
+      );
     } finally {
       setLoading(false);
     }
   }
+
+  const headerTitle = (() => {
+    switch (kind) {
+      case "project":
+        return forms.project.title || payload.title;
+      case "maintenance":
+        return forms.maintenance.title || payload.title;
+      case "equipment":
+        return forms.equipment.name || payload.title;
+      case "child_component":
+        return forms.child_component.name || payload.title;
+    }
+  })();
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -101,22 +431,22 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
                 </span>
               )}
             </div>
-            <p className="font-medium text-gray-900 mt-1">{payload.title}</p>
+            <p className="font-medium text-gray-900 mt-1">{headerTitle}</p>
             <p className="text-sm text-gray-500 mt-0.5">
               From: {suggestion.processedMessage.senderName || "Unknown"} &middot;{" "}
               {suggestion.processedMessage.sourceType === "email" ? "Email" : "Teams"} &middot;{" "}
               {format(new Date(suggestion.processedMessage.receivedAt), "MMM d, h:mm a")}
             </p>
           </div>
-          <span className="text-gray-400 text-sm">{expanded ? "▲" : "▼"}</span>
+          <span className="text-gray-400 text-sm">{expanded ? "\u25B2" : "\u25BC"}</span>
         </div>
       </div>
 
       {expanded && (
-        <div className="border-t border-gray-100 p-4 bg-gray-50">
-          {/* Original Message */}
+        <div className="border-t border-gray-100 p-4 bg-gray-50 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
+          {/* Email Body */}
           <div className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-1">Original Message</h4>
+            <h4 className="text-sm font-medium text-gray-700 mb-1">Email Body</h4>
             <div className="bg-white p-3 rounded border border-gray-200 text-sm text-gray-600">
               {suggestion.processedMessage.subject && (
                 <p className="font-medium mb-1">{suggestion.processedMessage.subject}</p>
@@ -125,46 +455,676 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
             </div>
           </div>
 
-          {/* Proposed Action */}
+          {/* Attachments */}
+          {suggestion.processedMessage.attachments &&
+            suggestion.processedMessage.attachments.length > 0 && (
+              <AttachmentsSection
+                processedMessageId={suggestion.processedMessage.id}
+                suggestionId={suggestion.id}
+                attachments={suggestion.processedMessage.attachments}
+                editable={isPending}
+              />
+            )}
+
+          {/* Proposed Action — editable when pending */}
           <div className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-1">Proposed Action</h4>
-            <div className="bg-white p-3 rounded border border-gray-200 text-sm space-y-1">
-              <p>
-                <span className="text-gray-500">Equipment:</span>{" "}
-                <span className="text-gray-900">{payload.equipmentName}</span>
-                {payload.isNewEquipment && payload.equipmentId === "unknown" && (
-                  <span className="ml-2 px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                    New Equipment — will be registered on approval
-                  </span>
-                )}
-              </p>
-              <p>
-                <span className="text-gray-500">Description:</span>{" "}
-                <span className="text-gray-900">{payload.description}</span>
-              </p>
-              {payload.priority && (
-                <p>
-                  <span className="text-gray-500">Priority:</span>{" "}
-                  <span className="text-gray-900 capitalize">{payload.priority}</span>
-                </p>
+            <div className="flex items-center justify-between mb-1">
+              <h4 className="text-sm font-medium text-gray-700">Proposed Action</h4>
+              {isPending && (
+                <span className="text-xs text-gray-400">Edit any field before approving</span>
               )}
-              {payload.newStatus && (
-                <p>
-                  <span className="text-gray-500">New Status:</span>{" "}
-                  <span className="text-gray-900">{payload.newStatus.replace("_", " ")}</span>
-                </p>
-              )}
-              {payload.partsUsed && (
-                <p>
-                  <span className="text-gray-500">Parts:</span>{" "}
-                  <span className="text-gray-900">{payload.partsUsed}</span>
-                </p>
-              )}
-              {payload.budget && (
-                <p>
-                  <span className="text-gray-500">Budget:</span>{" "}
-                  <span className="text-gray-900">{payload.budget}</span>
-                </p>
+            </div>
+            <div className="bg-white p-3 rounded border border-gray-200 text-sm">
+              {isPending ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className={labelClass}>Kind</label>
+                    <select
+                      value={kind}
+                      onChange={(e) => setKind(e.target.value as SuggestionKind)}
+                      className={inputClass}
+                    >
+                      {(Object.keys(kindLabels) as SuggestionKind[]).map((k) => (
+                        <option key={k} value={k}>
+                          {kindLabels[k]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {kind === "project" && (
+                    <div className="space-y-3">
+                      {parentProjectOptions.length > 0 && (
+                        <div>
+                          <label className={labelClass}>Parent Project</label>
+                          <select
+                            value={forms.project.parentProjectId}
+                            onChange={(e) =>
+                              updateProject("parentProjectId", e.target.value)
+                            }
+                            className={inputClass}
+                          >
+                            <option value="">— None (this is a main project) —</option>
+                            {parentProjectOptions.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.title}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Select a parent to make this a sub-project / task that rolls
+                            up to a main project.
+                          </p>
+                        </div>
+                      )}
+                      <div>
+                        <label className={labelClass}>Title</label>
+                        <input
+                          type="text"
+                          value={forms.project.title}
+                          onChange={(e) => updateProject("title", e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Description</label>
+                        <textarea
+                          rows={3}
+                          value={forms.project.description}
+                          onChange={(e) => updateProject("description", e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Keywords / Facility Area</label>
+                        <input
+                          type="text"
+                          value={forms.project.keywords}
+                          onChange={(e) => updateProject("keywords", e.target.value)}
+                          className={inputClass}
+                          placeholder="comma-separated synonyms for future email matching"
+                        />
+                      </div>
+                      {users.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className={labelClass}>Project Lead</label>
+                            <select
+                              value={forms.project.projectLeadId}
+                              onChange={(e) =>
+                                updateProject("projectLeadId", e.target.value)
+                              }
+                              className={inputClass}
+                            >
+                              <option value="">Unassigned</option>
+                              {users.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className={labelClass}>Secondary Lead</label>
+                            <select
+                              value={forms.project.secondaryLeadId}
+                              onChange={(e) =>
+                                updateProject("secondaryLeadId", e.target.value)
+                              }
+                              className={inputClass}
+                            >
+                              <option value="">None</option>
+                              {users.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className={labelClass}>Status</label>
+                          <select
+                            value={forms.project.status}
+                            onChange={(e) => updateProject("status", e.target.value)}
+                            className={inputClass}
+                          >
+                            <option value="planning">Planning</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="on_hold">On Hold</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelClass}>Priority</label>
+                          <select
+                            value={forms.project.priority}
+                            onChange={(e) => updateProject("priority", e.target.value)}
+                            className={inputClass}
+                          >
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelClass}>Phase</label>
+                          <select
+                            value={forms.project.phase}
+                            onChange={(e) => updateProject("phase", e.target.value)}
+                            className={inputClass}
+                          >
+                            <option value="concept">Concept</option>
+                            <option value="design">Design &amp; Development</option>
+                            <option value="production_release">Production Release</option>
+                            <option value="complete">Complete</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className={labelClass}>Budget</label>
+                          <input
+                            type="text"
+                            value={forms.project.budget}
+                            onChange={(e) => updateProject("budget", e.target.value)}
+                            className={inputClass}
+                            placeholder="e.g., $12,000"
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Due date</label>
+                          <input
+                            type="date"
+                            value={forms.project.dueDate}
+                            onChange={(e) => updateProject("dueDate", e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+
+                      <details className="border border-gray-200 rounded-md overflow-hidden bg-white">
+                        <summary className="px-3 py-2 bg-gray-50 cursor-pointer text-xs font-semibold text-gray-700">
+                          Phase 1: Project Concept
+                        </summary>
+                        <div className="p-3 space-y-3">
+                          <div>
+                            <label className={labelClass}>Project Justification</label>
+                            <textarea
+                              rows={2}
+                              value={forms.project.projectJustification}
+                              onChange={(e) =>
+                                updateProject("projectJustification", e.target.value)
+                              }
+                              className={inputClass}
+                              placeholder="Why is this project needed?"
+                            />
+                          </div>
+                          <div>
+                            <label className={labelClass}>Design Objectives</label>
+                            <textarea
+                              rows={2}
+                              value={forms.project.designObjectives}
+                              onChange={(e) =>
+                                updateProject("designObjectives", e.target.value)
+                              }
+                              className={inputClass}
+                            />
+                          </div>
+                          <div>
+                            <label className={labelClass}>
+                              Design Requirements / Specifications
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={forms.project.designRequirements}
+                              onChange={(e) =>
+                                updateProject("designRequirements", e.target.value)
+                              }
+                              className={inputClass}
+                            />
+                          </div>
+                          <div>
+                            <label className={labelClass}>
+                              Potential Vendors and Contractors
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={forms.project.potentialVendors}
+                              onChange={(e) =>
+                                updateProject("potentialVendors", e.target.value)
+                              }
+                              className={inputClass}
+                            />
+                          </div>
+                        </div>
+                      </details>
+
+                      <details className="border border-gray-200 rounded-md overflow-hidden bg-white">
+                        <summary className="px-3 py-2 bg-gray-50 cursor-pointer text-xs font-semibold text-gray-700">
+                          Phase 2: Design &amp; Development
+                        </summary>
+                        <div className="p-3 space-y-3">
+                          <div>
+                            <label className={labelClass}>Sales &amp; Marketing Actions</label>
+                            <textarea
+                              rows={2}
+                              value={forms.project.salesMarketingActions}
+                              onChange={(e) =>
+                                updateProject("salesMarketingActions", e.target.value)
+                              }
+                              className={inputClass}
+                            />
+                          </div>
+                          <div>
+                            <label className={labelClass}>Engineering Actions</label>
+                            <textarea
+                              rows={2}
+                              value={forms.project.engineeringActions}
+                              onChange={(e) =>
+                                updateProject("engineeringActions", e.target.value)
+                              }
+                              className={inputClass}
+                            />
+                          </div>
+                        </div>
+                      </details>
+
+                      <details className="border border-gray-200 rounded-md overflow-hidden bg-white">
+                        <summary className="px-3 py-2 bg-gray-50 cursor-pointer text-xs font-semibold text-gray-700">
+                          Phase 3: Production Release
+                        </summary>
+                        <div className="p-3 space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className={labelClass}>Actual Budget</label>
+                              <input
+                                type="text"
+                                value={forms.project.actualBudget}
+                                onChange={(e) =>
+                                  updateProject("actualBudget", e.target.value)
+                                }
+                                className={inputClass}
+                              />
+                            </div>
+                            <div>
+                              <label className={labelClass}>Planned Schedule</label>
+                              <input
+                                type="text"
+                                value={forms.project.plannedSchedule}
+                                onChange={(e) =>
+                                  updateProject("plannedSchedule", e.target.value)
+                                }
+                                className={inputClass}
+                              />
+                            </div>
+                            <div>
+                              <label className={labelClass}>Actual Schedule</label>
+                              <input
+                                type="text"
+                                value={forms.project.actualSchedule}
+                                onChange={(e) =>
+                                  updateProject("actualSchedule", e.target.value)
+                                }
+                                className={inputClass}
+                              />
+                            </div>
+                            <div>
+                              <label className={labelClass}>Is Complete?</label>
+                              <select
+                                value={forms.project.isComplete}
+                                onChange={(e) =>
+                                  updateProject("isComplete", e.target.value)
+                                }
+                                className={inputClass}
+                              >
+                                <option value="">—</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                                <option value="contingent">Contingent</option>
+                              </select>
+                            </div>
+                          </div>
+                          {forms.project.isComplete === "contingent" && (
+                            <div>
+                              <label className={labelClass}>Contingent Details</label>
+                              <textarea
+                                rows={2}
+                                value={forms.project.contingentDetails}
+                                onChange={(e) =>
+                                  updateProject("contingentDetails", e.target.value)
+                                }
+                                className={inputClass}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </details>
+                    </div>
+                  )}
+
+                  {kind === "maintenance" && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className={labelClass}>Title</label>
+                        <input
+                          type="text"
+                          value={forms.maintenance.title}
+                          onChange={(e) => updateMaintenance("title", e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Equipment</label>
+                        <select
+                          value={forms.maintenance.equipmentId}
+                          onChange={(e) => updateMaintenance("equipmentId", e.target.value)}
+                          className={inputClass}
+                        >
+                          <option value="">Select equipment</option>
+                          {equipmentList.map((eq) => (
+                            <option key={eq.id} value={eq.id}>
+                              {eq.name} ({eq.serialNumber})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Description</label>
+                        <textarea
+                          rows={3}
+                          value={forms.maintenance.description}
+                          onChange={(e) => updateMaintenance("description", e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className={labelClass}>Frequency</label>
+                          <select
+                            value={forms.maintenance.frequency}
+                            onChange={(e) => updateMaintenance("frequency", e.target.value)}
+                            className={inputClass}
+                          >
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="biannual">Biannual</option>
+                            <option value="annual">Annual</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelClass}>Next due</label>
+                          <input
+                            type="date"
+                            value={forms.maintenance.nextDue}
+                            onChange={(e) => updateMaintenance("nextDue", e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {kind === "equipment" && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className={labelClass}>Name</label>
+                        <input
+                          type="text"
+                          value={forms.equipment.name}
+                          onChange={(e) => updateEquipment("name", e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className={labelClass}>Type</label>
+                          <input
+                            type="text"
+                            value={forms.equipment.type}
+                            onChange={(e) => updateEquipment("type", e.target.value)}
+                            className={inputClass}
+                            placeholder="e.g., Press, Grinder, Forklift"
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Location</label>
+                          <input
+                            type="text"
+                            value={forms.equipment.location}
+                            onChange={(e) => updateEquipment("location", e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Serial number</label>
+                          <input
+                            type="text"
+                            value={forms.equipment.serialNumber}
+                            onChange={(e) => updateEquipment("serialNumber", e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Status</label>
+                          <select
+                            value={forms.equipment.status}
+                            onChange={(e) => updateEquipment("status", e.target.value)}
+                            className={inputClass}
+                          >
+                            <option value="operational">Operational</option>
+                            <option value="needs_service">Needs Service</option>
+                            <option value="down">Down</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelClass}>Criticality</label>
+                          <select
+                            value={forms.equipment.criticality}
+                            onChange={(e) => updateEquipment("criticality", e.target.value)}
+                            className={inputClass}
+                          >
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelClass}>Equipment class</label>
+                          <input
+                            type="text"
+                            value={forms.equipment.equipmentClass}
+                            onChange={(e) =>
+                              updateEquipment("equipmentClass", e.target.value)
+                            }
+                            className={inputClass}
+                            placeholder="e.g., presses, extruders"
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Group name</label>
+                          <input
+                            type="text"
+                            value={forms.equipment.groupName}
+                            onChange={(e) => updateEquipment("groupName", e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Parent equipment (optional)</label>
+                          <select
+                            value={forms.equipment.parentEquipmentId}
+                            onChange={(e) =>
+                              updateEquipment("parentEquipmentId", e.target.value)
+                            }
+                            className={inputClass}
+                          >
+                            <option value="">No parent</option>
+                            {equipmentList.map((eq) => (
+                              <option key={eq.id} value={eq.id}>
+                                {eq.name} ({eq.serialNumber})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Notes</label>
+                        <textarea
+                          rows={2}
+                          value={forms.equipment.notes}
+                          onChange={(e) => updateEquipment("notes", e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {kind === "child_component" && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className={labelClass}>
+                          Parent equipment <span className="text-red-600">(required)</span>
+                        </label>
+                        <select
+                          value={forms.child_component.parentEquipmentId}
+                          onChange={(e) => {
+                            const parentId = e.target.value;
+                            const parent = equipmentList.find((p) => p.id === parentId);
+                            setForms((prev) => ({
+                              ...prev,
+                              child_component: {
+                                ...prev.child_component,
+                                parentEquipmentId: parentId,
+                                // Default child location to parent's when the user
+                                // hasn't set one — keeps the form ergonomic.
+                                location:
+                                  prev.child_component.location ||
+                                  (parent?.location ?? ""),
+                              },
+                            }));
+                          }}
+                          className={inputClass}
+                        >
+                          <option value="">Select parent</option>
+                          {equipmentList.map((eq) => (
+                            <option key={eq.id} value={eq.id}>
+                              {eq.name} ({eq.serialNumber})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Name</label>
+                        <input
+                          type="text"
+                          value={forms.child_component.name}
+                          onChange={(e) => updateChild("name", e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className={labelClass}>Type</label>
+                          <input
+                            type="text"
+                            value={forms.child_component.type}
+                            onChange={(e) => updateChild("type", e.target.value)}
+                            className={inputClass}
+                            placeholder="e.g., pump, motor, charger, VFD"
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Location</label>
+                          <input
+                            type="text"
+                            value={forms.child_component.location}
+                            onChange={(e) => updateChild("location", e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Serial number</label>
+                          <input
+                            type="text"
+                            value={forms.child_component.serialNumber}
+                            onChange={(e) => updateChild("serialNumber", e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Status</label>
+                          <select
+                            value={forms.child_component.status}
+                            onChange={(e) => updateChild("status", e.target.value)}
+                            className={inputClass}
+                          >
+                            <option value="operational">Operational</option>
+                            <option value="needs_service">Needs Service</option>
+                            <option value="down">Down</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Notes</label>
+                        <textarea
+                          rows={2}
+                          value={forms.child_component.notes}
+                          onChange={(e) => updateChild("notes", e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <p>
+                    <span className="text-gray-500">Title:</span>{" "}
+                    <span className="text-gray-900 font-medium">{payload.title}</span>
+                  </p>
+                  {payload.equipmentName && (
+                    <p>
+                      <span className="text-gray-500">Equipment:</span>{" "}
+                      <span className="text-gray-900">{payload.equipmentName}</span>
+                    </p>
+                  )}
+                  {payload.description && (
+                    <p>
+                      <span className="text-gray-500">Description:</span>{" "}
+                      <span className="text-gray-900">{payload.description}</span>
+                    </p>
+                  )}
+                  {payload.priority && (
+                    <p>
+                      <span className="text-gray-500">Priority:</span>{" "}
+                      <span className="text-gray-900 capitalize">{payload.priority}</span>
+                    </p>
+                  )}
+                  {payload.newStatus && (
+                    <p>
+                      <span className="text-gray-500">New Status:</span>{" "}
+                      <span className="text-gray-900">{payload.newStatus.replace("_", " ")}</span>
+                    </p>
+                  )}
+                  {payload.partsUsed && (
+                    <p>
+                      <span className="text-gray-500">Parts:</span>{" "}
+                      <span className="text-gray-900">{payload.partsUsed}</span>
+                    </p>
+                  )}
+                  {payload.budget && (
+                    <p>
+                      <span className="text-gray-500">Budget:</span>{" "}
+                      <span className="text-gray-900">{payload.budget}</span>
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -181,7 +1141,7 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
           )}
 
           {/* Action Buttons */}
-          {suggestion.status === "pending" && (
+          {isPending && (
             <div className="flex gap-2">
               <button
                 onClick={() => handleAction("approve")}
@@ -225,6 +1185,15 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
               View equipment &rarr;
             </a>
           )}
+          {suggestion.createdRecordId &&
+            suggestion.createdRecordType === "MaintenanceSchedule" && (
+              <a
+                href={`/maintenance/${suggestion.createdRecordId}`}
+                className="text-sm text-green-600 hover:underline"
+              >
+                View maintenance schedule &rarr;
+              </a>
+            )}
         </div>
       )}
     </div>

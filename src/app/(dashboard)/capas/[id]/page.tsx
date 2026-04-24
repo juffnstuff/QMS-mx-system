@@ -1,8 +1,13 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { DeleteRecordButton } from "@/components/delete-record-button";
+import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { NotesSection } from "@/components/notes/notes-section";
+import { StatusHistory } from "@/components/status-history";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 const sourceLabels: Record<string, string> = {
   internal_audit: "Internal Audit",
@@ -51,12 +56,14 @@ export default async function CAPADetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const session = await auth();
 
   const capa = await prisma.cAPA.findUnique({
     where: { id },
     include: {
       originator: true,
       assignedTo: true,
+      secondaryAssignedTo: true,
       referenceNcr: true,
       verifiedBy: true,
       actions: { orderBy: { actionNumber: "asc" } },
@@ -67,19 +74,30 @@ export default async function CAPADetailPage({
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-6">
-        <Link href="/capas" className="text-gray-400 hover:text-gray-600 transition-colors">
-          <ArrowLeft size={20} />
-        </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
+      <Breadcrumbs items={[
+        { label: "CAPAs", href: "/capas" },
+        { label: capa.capaNumber },
+      ]} />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <h1 className="text-2xl font-bold text-gray-900">{capa.capaNumber}</h1>
             <StatusBadge status={capa.severityLevel} />
             <StatusBadge status={capa.status} />
           </div>
           <p className="text-gray-500 text-sm mt-0.5">
-            Originated by {capa.originator?.name || "Unknown"} • {new Date(capa.createdAt).toLocaleDateString()}
+            Originated by {capa.originator ? (
+              <Link href={`/users?highlight=${capa.originator.id}`} className="text-blue-600 hover:text-blue-800">{capa.originator.name}</Link>
+            ) : "Unknown"} • {new Date(capa.createdAt).toLocaleDateString()}
           </p>
+        </div>
+        <div className="shrink-0">
+          <DeleteRecordButton
+            recordId={id}
+            recordType="capas"
+            recordLabel={capa.capaNumber}
+            redirectTo="/capas"
+          />
         </div>
       </div>
 
@@ -117,7 +135,15 @@ export default async function CAPADetailPage({
             </div>
             <div>
               <dt className="text-sm text-gray-500">Assigned To</dt>
-              <dd className="text-gray-900">{capa.assignedTo?.name || "Unassigned"}</dd>
+              <dd className="text-gray-900">{capa.assignedTo ? (
+                <Link href={`/users?highlight=${capa.assignedTo.id}`} className="text-blue-600 hover:text-blue-800">{capa.assignedTo.name}</Link>
+              ) : "Unassigned"}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-gray-500">Secondary Responsible</dt>
+              <dd className="text-gray-900">{capa.secondaryAssignedTo ? (
+                <Link href={`/users?highlight=${capa.secondaryAssignedTo.id}`} className="text-blue-600 hover:text-blue-800">{capa.secondaryAssignedTo.name}</Link>
+              ) : <span className="text-gray-400">None</span>}</dd>
             </div>
             <div>
               <dt className="text-sm text-gray-500">Target Close Date</dt>
@@ -259,7 +285,7 @@ export default async function CAPADetailPage({
                 {capa.verifiedBy && (
                   <div>
                     <dt className="text-sm text-gray-500">Verified By</dt>
-                    <dd className="text-gray-900">{capa.verifiedBy.name}</dd>
+                    <dd className="text-gray-900"><Link href={`/users?highlight=${capa.verifiedBy.id}`} className="text-blue-600 hover:text-blue-800">{capa.verifiedBy.name}</Link></dd>
                   </div>
                 )}
                 {capa.verificationDate && (
@@ -302,6 +328,28 @@ export default async function CAPADetailPage({
             </div>
           </div>
         )}
+
+        <div className="mt-6">
+          <NotesSection
+            recordType="capa"
+            recordId={id}
+            currentUserId={session?.user.id ?? ""}
+            isAdmin={session?.user.role === "admin"}
+          />
+        </div>
+
+        <div className="mt-6">
+          <AttachmentsSection
+            recordType="capa"
+            recordId={id}
+            currentUserId={session?.user.id ?? ""}
+            isAdmin={session?.user.role === "admin"}
+          />
+        </div>
+
+        <div className="mt-6">
+          <StatusHistory entityType="capa" entityId={id} />
+        </div>
       </div>
     </div>
   );

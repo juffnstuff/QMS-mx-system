@@ -2,8 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { DeleteRecordButton } from "@/components/delete-record-button";
+import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { NotesSection } from "@/components/notes/notes-section";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 const dispositionLabels: Record<string, string> = {
   return_rework: "Return & Rework",
@@ -37,6 +40,8 @@ export default async function ComplaintDetailPage({
     where: { id },
     include: {
       submittedBy: true,
+      assignedTo: true,
+      secondaryAssignedTo: true,
       linkedNcr: true,
       linkedCapa: true,
     },
@@ -46,15 +51,13 @@ export default async function ComplaintDetailPage({
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-6">
-        <Link
-          href="/complaints"
-          className="text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <ArrowLeft size={20} />
-        </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
+      <Breadcrumbs items={[
+        { label: "Complaints", href: "/complaints" },
+        { label: complaint.complaintNumber },
+      ]} />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
               {complaint.complaintNumber}
             </h1>
@@ -63,6 +66,14 @@ export default async function ComplaintDetailPage({
           <p className="text-gray-500 text-sm mt-0.5">
             {complaint.customerName} {"\u2022"} {complaintTypeLabels[complaint.complaintType] || complaint.complaintType}
           </p>
+        </div>
+        <div className="shrink-0">
+          <DeleteRecordButton
+            recordId={id}
+            recordType="complaints"
+            recordLabel={complaint.complaintNumber}
+            redirectTo="/complaints"
+          />
         </div>
       </div>
 
@@ -152,7 +163,23 @@ export default async function ComplaintDetailPage({
           )}
           <div>
             <dt className="text-sm text-gray-500">Submitted By</dt>
-            <dd className="text-gray-900">{complaint.submittedBy.name}</dd>
+            <dd className="text-gray-900"><Link href={`/users?highlight=${complaint.submittedBy.id}`} className="text-blue-600 hover:text-blue-800">{complaint.submittedBy.name}</Link></dd>
+          </div>
+          <div>
+            <dt className="text-sm text-gray-500">Assigned To</dt>
+            <dd className="text-gray-900">
+              {complaint.assignedTo ? (
+                <Link href={`/users?highlight=${complaint.assignedTo.id}`} className="text-blue-600 hover:text-blue-800">{complaint.assignedTo.name}</Link>
+              ) : <span className="text-gray-400">Unassigned</span>}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-sm text-gray-500">Secondary Assignee</dt>
+            <dd className="text-gray-900">
+              {complaint.secondaryAssignedTo ? (
+                <Link href={`/users?highlight=${complaint.secondaryAssignedTo.id}`} className="text-blue-600 hover:text-blue-800">{complaint.secondaryAssignedTo.name}</Link>
+              ) : <span className="text-gray-400">None</span>}
+            </dd>
           </div>
           <div>
             <dt className="text-sm text-gray-500">Date</dt>
@@ -254,6 +281,24 @@ export default async function ComplaintDetailPage({
           </dl>
         </div>
       )}
+
+      <div className="mt-6">
+        <NotesSection
+          recordType="complaint"
+          recordId={id}
+          currentUserId={session?.user.id ?? ""}
+          isAdmin={session?.user.role === "admin"}
+        />
+      </div>
+
+      <div className="mt-6">
+        <AttachmentsSection
+          recordType="complaint"
+          recordId={id}
+          currentUserId={session?.user.id ?? ""}
+          isAdmin={session?.user.role === "admin"}
+        />
+      </div>
     </div>
   );
 }

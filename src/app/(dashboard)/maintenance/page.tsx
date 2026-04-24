@@ -34,16 +34,17 @@ export default async function MaintenancePage() {
         ) : (
           <div className="divide-y divide-gray-100">
             {logs.map((log) => (
-              <div key={log.id} className="p-4">
+              <Link
+                key={log.id}
+                href={`/maintenance/${log.id}`}
+                className="block p-4 hover:bg-gray-50 transition-colors"
+              >
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Link
-                        href={`/equipment/${log.equipmentId}`}
-                        className="font-medium text-blue-600 hover:text-blue-800"
-                      >
+                      <span className="font-medium text-blue-600">
                         {log.equipment.name}
-                      </Link>
+                      </span>
                     </div>
                     <p className="text-sm text-gray-600 mt-0.5">{log.description}</p>
                     {log.partsUsed && (
@@ -55,7 +56,7 @@ export default async function MaintenancePage() {
                     <p>{new Date(log.performedAt).toLocaleDateString()}</p>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

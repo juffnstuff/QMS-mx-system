@@ -2,15 +2,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { FormActions } from "./form-actions";
+
+interface Prefill {
+  title?: string;
+  description?: string;
+  fromMessageId?: string;
+}
 
 interface Props {
   equipment: { id: string; name: string }[];
   users: { id: string; name: string }[];
   isAdmin: boolean;
+  prefill?: Prefill;
 }
 
-export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
+export function WorkOrderForm({ equipment, users, isAdmin, prefill }: Props) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,6 +34,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
       description: formData.get("description"),
       priority: formData.get("priority"),
       assignedToId: formData.get("assignedToId") || null,
+      secondaryAssignedToId: formData.get("secondaryAssignedToId") || null,
       dueDate: formData.get("dueDate") || null,
       workOrderType: formData.get("workOrderType") || "corrective",
       requirements: (formData.get("requirements") as string) || null,
@@ -34,6 +42,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
       managerNotes: (formData.get("managerNotes") as string) || null,
       estimatedBudget: (formData.get("estimatedBudget") as string) || null,
       estimatedLeadTime: (formData.get("estimatedLeadTime") as string) || null,
+      fromMessageId: prefill?.fromMessageId,
     };
 
     const res = await fetch("/api/work-orders", {
@@ -64,6 +73,13 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
         </div>
       )}
 
+      <FormActions
+        loading={loading}
+        submitLabel="Create Work Order"
+        loadingLabel="Creating..."
+        cancelHref="/work-orders"
+      />
+
       <div className="space-y-4">
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
@@ -73,7 +89,8 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
             id="title"
             name="title"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            defaultValue={prefill?.title ?? ""}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., Replace hydraulic seals"
           />
         </div>
@@ -87,7 +104,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
               id="equipmentId"
               name="equipmentId"
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select equipment...</option>
               {equipment.map((e) => (
@@ -105,7 +122,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
               id="priority"
               name="priority"
               defaultValue="medium"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="low">Low</option>
               <option value="medium">Medium</option>
@@ -123,7 +140,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
             <select
               id="assignedToId"
               name="assignedToId"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Unassigned</option>
               {users.map((u) => (
@@ -134,16 +151,34 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
             </select>
           </div>
           <div>
-            <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
-              Due Date
+            <label htmlFor="secondaryAssignedToId" className="block text-sm font-medium text-gray-700 mb-1">
+              Secondary Assignee
             </label>
-            <input
-              id="dueDate"
-              name="dueDate"
-              type="date"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <select
+              id="secondaryAssignedToId"
+              name="secondaryAssignedToId"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Unassigned</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
+            Due Date
+          </label>
+          <input
+            id="dueDate"
+            name="dueDate"
+            type="date"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
         <div>
@@ -155,7 +190,8 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
             name="description"
             required
             rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            defaultValue={prefill?.description ?? ""}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Describe the work needed..."
           />
         </div>
@@ -168,7 +204,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
             id="workOrderType"
             name="workOrderType"
             defaultValue="corrective"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="routine">Routine</option>
             <option value="preventive">Preventive</option>
@@ -185,7 +221,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
             id="requirements"
             name="requirements"
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Please explain the end goal, specific requirements and detailed expectations"
           />
         </div>
@@ -202,7 +238,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
                 id="plannedStartDate"
                 name="plannedStartDate"
                 type="date"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -214,7 +250,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
                 id="managerNotes"
                 name="managerNotes"
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Supervisor/Manager notes and comments"
               />
             </div>
@@ -227,7 +263,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
                 <input
                   id="estimatedBudget"
                   name="estimatedBudget"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., $5,000"
                 />
               </div>
@@ -238,7 +274,7 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
                 <input
                   id="estimatedLeadTime"
                   name="estimatedLeadTime"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., 2 weeks"
                 />
               </div>
@@ -247,18 +283,12 @@ export function WorkOrderForm({ equipment, users, isAdmin }: Props) {
         )}
       </div>
 
-      <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
-        >
-          {loading ? "Creating..." : "Create Work Order"}
-        </button>
-        <Link href="/work-orders" className="text-gray-600 hover:text-gray-800 text-sm">
-          Cancel
-        </Link>
-      </div>
+      <FormActions
+        loading={loading}
+        submitLabel="Create Work Order"
+        loadingLabel="Creating..."
+        cancelHref="/work-orders"
+      />
     </form>
   );
 }

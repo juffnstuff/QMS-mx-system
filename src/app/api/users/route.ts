@@ -3,6 +3,20 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+export async function GET() {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const users = await prisma.user.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, email: true, role: true },
+  });
+
+  return NextResponse.json(users);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
@@ -11,11 +25,11 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, email, password, role } = body;
+    const { firstName, lastName, email, password, role } = body;
 
-    if (!name || !email || !password) {
+    if (!firstName || !lastName || !email || !password) {
       return NextResponse.json(
-        { error: "Name, email, and password are required" },
+        { error: "First name, last name, email, and password are required" },
         { status: 400 }
       );
     }
@@ -43,10 +57,15 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
+    const cleanFirst = String(firstName).trim();
+    const cleanLast = String(lastName).trim();
+    const fullName = `${cleanFirst} ${cleanLast}`.trim();
 
     const user = await prisma.user.create({
       data: {
-        name,
+        name: fullName,
+        firstName: cleanFirst,
+        lastName: cleanLast,
         email,
         passwordHash,
         role: role === "admin" ? "admin" : "operator",

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { statusToBoardStatus } from "@/lib/board-sync";
+import { logStatusChange } from "@/lib/status-log";
 
 export async function GET(
   _req: NextRequest,
@@ -62,10 +64,10 @@ export async function PUT(
       plantLocation,
       status,
       approvedById,
+      assignedInvestigatorId,
+      secondaryInvestigatorId,
     } = body;
 
-    // Only admin can change status, disposition, or approval
-    const isAdmin = session.user.role === "admin";
     const updateData: Record<string, unknown> = {};
 
     if (partNumber !== undefined) updateData.partNumber = partNumber || null;
@@ -80,16 +82,19 @@ export async function PUT(
     if (immediateAction !== undefined) updateData.immediateAction = immediateAction || null;
     if (ncrTagNumber !== undefined) updateData.ncrTagNumber = ncrTagNumber || null;
     if (plantLocation !== undefined) updateData.plantLocation = plantLocation || null;
+    if (assignedInvestigatorId !== undefined) updateData.assignedInvestigatorId = assignedInvestigatorId || null;
+    if (secondaryInvestigatorId !== undefined) updateData.secondaryInvestigatorId = secondaryInvestigatorId || null;
 
-    // Admin-only fields
-    if (isAdmin) {
-      if (status !== undefined) updateData.status = status;
-      if (disposition !== undefined) updateData.disposition = disposition || null;
-      if (approvedById !== undefined) {
-        updateData.approvedById = approvedById || null;
-        if (approvedById) {
-          updateData.approvedAt = new Date();
-        }
+    if (status !== undefined) {
+      updateData.status = status;
+      const boardStatus = statusToBoardStatus("nonConformance", status);
+      if (boardStatus) updateData.boardStatus = boardStatus;
+    }
+    if (disposition !== undefined) updateData.disposition = disposition || null;
+    if (approvedById !== undefined) {
+      updateData.approvedById = approvedById || null;
+      if (approvedById) {
+        updateData.approvedAt = new Date();
       }
     }
 
@@ -97,6 +102,17 @@ export async function PUT(
       where: { id },
       data: updateData,
     });
+
+    if (status !== undefined && status !== existing.status) {
+      await logStatusChange({
+        entityType: "nonConformance",
+        entityId: id,
+        field: "status",
+        fromValue: existing.status,
+        toValue: status,
+        changedById: session.user.id,
+      });
+    }
 
     return NextResponse.json(ncr);
   } catch (error) {

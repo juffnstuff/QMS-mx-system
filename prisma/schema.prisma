@@ -9,9 +9,12 @@ datasource db {
 model User {
   id             String    @id @default(cuid())
   email          String    @unique
-  name           String
+  name           String    // Combined display name ("First Last") — derived from firstName + lastName
+  firstName      String?
+  lastName       String?
   passwordHash   String
   role           String    @default("operator") // "admin" | "operator"
+  isSuperAdmin   Boolean   @default(false) // Super admins (implicitly admins) can delete users
   phone          String?
   carrier        String?   // SMS gateway domain: "vtext.com", "tmomail.net", etc.
   notifyEmail    Boolean   @default(true)
@@ -34,6 +37,23 @@ model User {
   verifiedCAPAs      CAPA[]             @relation("VerifiedCAPAs")
   submittedComplaints CustomerComplaint[] @relation("SubmittedComplaints")
   approvedWorkOrders WorkOrder[]        @relation("ApprovedWorkOrders")
+  assignedEquipment  Equipment[]        @relation("EquipmentTechnician")
+  secondaryEquipment Equipment[]        @relation("EquipmentSecondaryTech")
+  assignedSchedules  MaintenanceSchedule[] @relation("ScheduleAssignee")
+  secondarySchedules MaintenanceSchedule[] @relation("ScheduleSecondary")
+  investigatedNCRs   NonConformance[]   @relation("NCRInvestigator")
+  secondaryNCRs      NonConformance[]   @relation("NCRSecondary")
+  assignedComplaints CustomerComplaint[] @relation("ComplaintAssignee")
+  secondaryComplaints CustomerComplaint[] @relation("ComplaintSecondary")
+  ledProjects        Project[]          @relation("ProjectLead")
+  secondaryProjects  Project[]          @relation("ProjectSecondary")
+  secondaryOrders    WorkOrder[]        @relation("SecondaryAssignee")
+  secondaryCAPAs     CAPA[]             @relation("CAPASecondary")
+  uploadedAttachments Attachment[]      @relation("UploadedAttachments")
+  statusChanges      StatusChangeLog[]  @relation("UserStatusChanges")
+  checklistsAsTechnician ChecklistCompletion[] @relation("ChecklistTechnician")
+  checklistsAsSupervisor ChecklistCompletion[] @relation("ChecklistSupervisor")
+  authoredNotes      Note[]             @relation("AuthoredNotes")
 }
 
 model Equipment {
@@ -43,35 +63,60 @@ model Equipment {
   location     String
   serialNumber String    @unique
   status       String    @default("operational") // "operational" | "needs_service" | "down"
+  criticality  String    @default("C") // "A" | "B" | "C" — A=production-critical, B=important, C=general
+  equipmentClass String? // "extruders" | "presses" | "forklifts" | "utilities" | "other" — category for organizing equipment
+  groupName    String?   // Equipment group label, e.g. "Dake Press System", "6in Extrusion Line"
+  parentId     String?   // Parent equipment ID for sub-components (e.g. pump → press)
+  assignedTechnicianId String? // User responsible for this equipment
+  secondaryTechnicianId String? // Secondary technician for accountability
   notes        String?
-  criticality  String?   // "A" | "B" | "C" — from PM system
-  groupName    String?   // Functional group: "Compression Molding", "Extrusion", etc.
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  schedules       MaintenanceSchedule[]
-  maintenanceLogs MaintenanceLog[]
-  workOrders      WorkOrder[]
+  parent              Equipment?  @relation("EquipmentHierarchy", fields: [parentId], references: [id])
+  children            Equipment[] @relation("EquipmentHierarchy")
+  assignedTechnician  User?       @relation("EquipmentTechnician", fields: [assignedTechnicianId], references: [id])
+  secondaryTechnician User?       @relation("EquipmentSecondaryTech", fields: [secondaryTechnicianId], references: [id])
+  schedules           MaintenanceSchedule[]
+  maintenanceLogs     MaintenanceLog[]
+  workOrders          WorkOrder[]
+  checklistCompletions ChecklistCompletion[]
 
   @@index([status])
+  @@index([criticality])
+  @@index([equipmentClass])
+  @@index([groupName])
+  @@index([parentId])
+  @@index([assignedTechnicianId])
 }
 
 model MaintenanceSchedule {
   id                String   @id @default(cuid())
   equipmentId       String
+  assignedToId      String?  // User responsible for this schedule
+  secondaryAssignedToId String? // Secondary assignee for accountability
   title             String
   description       String?
   frequency         String   // "daily" | "weekly" | "monthly" | "quarterly" | "annual"
   lastDone          DateTime?
   nextDue           DateTime
+  boardStatus       String   @default("backlog") // "backlog" | "in_progress" | "needs_parts" | "scheduled" | "done"
   sourceWorkOrderId String?
+  checklistTemplateId String? // If set, this schedule spawns ChecklistCompletion rows from the template
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  equipment       Equipment  @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
-  sourceWorkOrder WorkOrder? @relation("SourceWorkOrder", fields: [sourceWorkOrderId], references: [id])
+  equipment            Equipment  @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  assignedTo           User?      @relation("ScheduleAssignee", fields: [assignedToId], references: [id])
+  secondaryAssignedTo  User?      @relation("ScheduleSecondary", fields: [secondaryAssignedToId], references: [id])
+  sourceWorkOrder      WorkOrder? @relation("SourceWorkOrder", fields: [sourceWorkOrderId], references: [id])
+  checklistTemplate    ChecklistTemplate? @relation(fields: [checklistTemplateId], references: [id])
+  checklistCompletions ChecklistCompletion[]
 
   @@index([nextDue])
+  @@index([boardStatus])
+  @@index([assignedToId])
+  @@index([checklistTemplateId])
 }
 
 model MaintenanceLog {
@@ -82,20 +127,129 @@ model MaintenanceLog {
   partsUsed   String?
   performedAt DateTime @default(now())
   createdAt   DateTime @default(now())
+  // Set when this log was auto-created from a submitted PM checklist.
+  sourceChecklistCompletionId String?
 
   equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id])
+  sourceChecklistCompletion ChecklistCompletion? @relation("CompletionLogs", fields: [sourceChecklistCompletionId], references: [id], onDelete: SetNull)
+
+  @@index([sourceChecklistCompletionId])
+}
+
+// ChecklistTemplate — reusable PM checklist blueprint (e.g. "Daily — All Presses").
+// Items are layered: a weekly template embeds all daily items (plus weekly-only),
+// and monthly embeds daily + weekly (plus monthly-only). Drives F-19 forms.
+model ChecklistTemplate {
+  id               String   @id @default(cuid())
+  code             String   @unique // "DAILY_ALL_PRESSES" | "WEEKLY_ALL_PRESSES" | ...
+  name             String              // "Daily — All Presses"
+  frequency        String              // "daily" | "weekly" | "monthly" | "quarterly"
+  scope            String              // "all_presses" | "large_plenum" | "small_plenum" | "dake_300t" | "hot_oil_boiler" | "compressor"
+  description      String?
+  supersedesCodes  String?             // Comma-separated template codes this one supersedes (e.g. weekly supersedes daily)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  items         ChecklistItem[]
+  schedules     MaintenanceSchedule[]
+  completions   ChecklistCompletion[]
+
+  @@index([frequency])
+  @@index([scope])
+}
+
+// ChecklistItem — individual check line in a template (e.g. "Hydraulic oil level").
+// isCritical + escalationNote drive automatic WorkOrder creation on fail.
+model ChecklistItem {
+  id             String   @id @default(cuid())
+  templateId     String
+  sortOrder      Int      @default(0)
+  section        String?  // Grouping header: "ALL PRESSES" | "LARGE PLENUM" | "HOT OIL BOILER" ...
+  label          String
+  details        String?  // Longer description / procedural note
+  inputType      String   @default("checkbox") // "checkbox" | "numeric" | "text"
+  isCritical     Boolean  @default(false)      // If true, a "fail" result auto-creates a WorkOrder
+  escalationNote String?  // Text shown on the form + used in the auto-WO description
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  template ChecklistTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  results  ChecklistItemResult[]
+  sourceWorkOrders WorkOrder[]   @relation("ItemWorkOrders")
+
+  @@index([templateId, sortOrder])
+}
+
+// ChecklistCompletion — one scheduled run of a template against one equipment.
+// Cron creates "pending" rows for the day; techs fill them out; supersede logic
+// closes out older pending dailies when a weekly/monthly is completed.
+model ChecklistCompletion {
+  id             String    @id @default(cuid())
+  templateId     String
+  scheduleId     String?   // Optional link to the owning MaintenanceSchedule
+  equipmentId    String
+  scheduledFor   DateTime  // Date this completion is due (usually the calendar day)
+  status         String    @default("pending") // "pending" | "in_progress" | "completed" | "superseded" | "missed"
+  startedAt      DateTime?
+  completedAt    DateTime?
+  technicianId   String?   // User who performed the checks
+  supervisorId   String?   // Optional sign-off
+  notes          String?
+  supersededById String?   // If superseded, link to the completion that replaced it
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  template     ChecklistTemplate     @relation(fields: [templateId], references: [id])
+  schedule     MaintenanceSchedule?  @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  equipment    Equipment             @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  technician   User?                 @relation("ChecklistTechnician", fields: [technicianId], references: [id])
+  supervisor   User?                 @relation("ChecklistSupervisor", fields: [supervisorId], references: [id])
+  supersededBy ChecklistCompletion?  @relation("ChecklistSupersedes", fields: [supersededById], references: [id])
+  supersedes   ChecklistCompletion[] @relation("ChecklistSupersedes")
+  results      ChecklistItemResult[]
+  sourceMaintenanceLogs MaintenanceLog[] @relation("CompletionLogs")
+  sourceWorkOrders      WorkOrder[]      @relation("CompletionWorkOrders")
+
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([equipmentId, scheduledFor])
+  @@index([templateId, scheduledFor])
+  @@index([technicianId])
+}
+
+// ChecklistItemResult — per-item outcome inside a completion.
+// value holds numeric readings (oil level inches, temperature, etc.).
+model ChecklistItemResult {
+  id           String    @id @default(cuid())
+  completionId String
+  itemId       String
+  result       String    @default("pending") // "pending" | "pass" | "fail" | "na"
+  value        String?   // Numeric reading or measured value, when inputType != checkbox
+  notes        String?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  completion ChecklistCompletion @relation(fields: [completionId], references: [id], onDelete: Cascade)
+  item       ChecklistItem       @relation(fields: [itemId], references: [id])
+
+  @@unique([completionId, itemId])
+  @@index([result])
 }
 
 model WorkOrder {
   id           String    @id @default(cuid())
-  equipmentId  String
-  assignedToId String?
-  createdById  String
-  title        String
+  equipmentId           String
+  assignedToId          String?
+  secondaryAssignedToId String? // Secondary assignee for accountability
+  createdById           String
+  title                 String
   description  String
   priority     String    @default("medium") // "low" | "medium" | "high" | "critical"
   status       String    @default("open")   // "open" | "in_progress" | "completed" | "cancelled"
+  boardStatus  String    @default("backlog") // "backlog" | "in_progress" | "needs_parts" | "scheduled" | "done"
   dueDate      DateTime?
   completedAt  DateTime?
   workOrderType   String    @default("corrective") // "routine" | "preventive" | "corrective" | "emergency"
@@ -106,17 +260,26 @@ model WorkOrder {
   plannedStartDate DateTime? // F-16: planned start date
   approvedById    String?
   approvedAt      DateTime?
+  // Set when this WO was auto-created from a critical PM checklist failure.
+  sourceChecklistCompletionId String?
+  sourceChecklistItemId       String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  equipment  Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
-  assignedTo User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
-  createdBy  User      @relation("CreatedBy", fields: [createdById], references: [id])
-  approvedBy User?     @relation("ApprovedWorkOrders", fields: [approvedById], references: [id])
-  createdSchedules MaintenanceSchedule[] @relation("SourceWorkOrder")
+  equipment           Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  assignedTo          User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
+  secondaryAssignedTo User?     @relation("SecondaryAssignee", fields: [secondaryAssignedToId], references: [id])
+  createdBy           User      @relation("CreatedBy", fields: [createdById], references: [id])
+  approvedBy          User?     @relation("ApprovedWorkOrders", fields: [approvedById], references: [id])
+  createdSchedules    MaintenanceSchedule[] @relation("SourceWorkOrder")
+  sourceChecklistCompletion ChecklistCompletion? @relation("CompletionWorkOrders", fields: [sourceChecklistCompletionId], references: [id], onDelete: SetNull)
+  sourceChecklistItem       ChecklistItem?       @relation("ItemWorkOrders", fields: [sourceChecklistItemId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([priority])
+  @@index([boardStatus])
+  @@index([sourceChecklistCompletionId])
+  @@index([sourceChecklistItemId])
 }
 
 model M365Connection {
@@ -160,7 +323,8 @@ model ProcessedMessage {
   subject         String?
   senderName      String?
   senderEmail     String?
-  bodyPreview     String   // first ~500 chars
+  bodyPreview     String   // first ~500 chars (quick display / previews)
+  bodyContent     String?  // Full email body (HTML or plain) — used for richer prefill when promoting to a record
   receivedAt      DateTime
   processedAt     DateTime @default(now())
   aiAnalysis      String?  // Full JSON from Claude
@@ -169,16 +333,36 @@ model ProcessedMessage {
 
   scannedByUser User? @relation("ScannedMessages", fields: [scannedByUserId], references: [id])
   suggestions   AISuggestion[]
+  attachments   MessageAttachment[]
 
   @@index([scannedByUserId])
+}
+
+model MessageAttachment {
+  id                 String   @id @default(cuid())
+  processedMessageId String
+  filename           String
+  contentType        String   // MIME type from MS Graph
+  sizeBytes          Int
+  extractedText      String?  // Text extracted from the file (PDF/Word/Excel/text)
+  extractionError    String?  // Reason extraction failed (oversize, unsupported, parse error)
+  excluded           Boolean  @default(false) // Reviewer-toggled: skip this attachment when re-analyzing
+  userEditedText     String?  // Reviewer's edited version of extractedText, used by re-analyze
+  createdAt          DateTime @default(now())
+
+  processedMessage ProcessedMessage @relation(fields: [processedMessageId], references: [id], onDelete: Cascade)
+
+  @@index([processedMessageId])
 }
 
 model AISuggestion {
   id                 String    @id @default(cuid())
   processedMessageId String
   suggestionType     String    // "create_work_order" | "create_maintenance_log" | "update_equipment_status" | "flag_for_review"
+  kind               String    @default("project") // "maintenance" | "project" | "equipment" | "child_component"
   status             String    @default("pending") // "pending" | "approved" | "rejected" | "auto_applied"
   payload            String    // JSON with proposed action details
+  proposedFields     Json?     // Per-kind proposed field values the reviewer can edit before approval
   createdRecordType  String?   // "WorkOrder" | "MaintenanceLog" | "Equipment"
   createdRecordId    String?
   sharePointDocId    String?   // optional link to SharePointDocument
@@ -191,6 +375,7 @@ model AISuggestion {
   reviewer         User?            @relation("SuggestionReviewer", fields: [reviewedBy], references: [id])
 
   @@index([status])
+  @@index([kind])
 }
 
 model M365SharePointSite {
@@ -221,11 +406,15 @@ model Project {
   id          String    @id @default(cuid())
   title       String
   description String?
+  keywords    String?   // Comma-separated synonyms / facility areas to help AI match emails (e.g. "2nd floor, upstairs, flooring estimate")
   status      String    @default("planning") // "planning" | "in_progress" | "completed" | "on_hold"
   priority    String    @default("medium")   // "low" | "medium" | "high" | "critical"
+  boardStatus String    @default("backlog") // "backlog" | "in_progress" | "needs_parts" | "scheduled" | "done"
   budget      String?
   dueDate     DateTime?
   completedAt DateTime?
+  projectLeadId      String? // User leading this project
+  secondaryLeadId    String? // Secondary lead for accountability
   phase              String    @default("concept") // "concept" | "design" | "production_release" | "complete"
   projectJustification String? // F-17 Phase 1
   designObjectives   String?   // F-17 Phase 1
@@ -239,31 +428,46 @@ model Project {
   actualSchedule     String?   // F-17 Phase 3
   isComplete         String?   // "yes" | "no" | "contingent"
   contingentDetails  String?
+  parentProjectId String? // Parent project ID — sub-projects/tasks roll up to a main project
   createdById String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  createdBy User @relation("ProjectCreator", fields: [createdById], references: [id])
+  createdBy   User  @relation("ProjectCreator", fields: [createdById], references: [id])
+  projectLead   User? @relation("ProjectLead", fields: [projectLeadId], references: [id])
+  secondaryLead User? @relation("ProjectSecondary", fields: [secondaryLeadId], references: [id])
+  parent        Project?  @relation("ProjectHierarchy", fields: [parentProjectId], references: [id])
+  children      Project[] @relation("ProjectHierarchy")
+
+  @@index([boardStatus])
+  @@index([projectLeadId])
+  @@index([parentProjectId])
 }
 
 model Notification {
   id          String   @id @default(cuid())
   userId      String
-  type        String   // "work_order_assigned" | "status_changed" | "suggestion_review" | "maintenance_due"
+  type        String   // "work_order_assigned" | "status_changed" | "maintenance_due" | "equipment_down" | ...
   title       String
   message     String
   read        Boolean  @default(false)
+  urgency     String   @default("digest") // "immediate" | "digest"
+  emailSent   Boolean  @default(false)    // true once delivered (immediate send or digest batch)
   relatedType String?  // "WorkOrder" | "Equipment" | "AISuggestion" | "MaintenanceSchedule" | "Project"
   relatedId   String?
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([urgency, emailSent])
 }
 
 model NonConformance {
   id                  String    @id @default(cuid())
   ncrNumber           String    @unique // Auto-generated: NCR-YYYY-001
   submittedById       String
+  assignedInvestigatorId String? // User assigned to investigate this NCR
+  secondaryInvestigatorId String? // Secondary investigator for accountability
   date                DateTime  @default(now())
   partNumber          String?   // Part # or Process Description
   drawingNumber       String?
@@ -281,16 +485,21 @@ model NonConformance {
   ncrTagNumber        String?
   plantLocation       String?
   status              String    @default("open") // "open" | "under_review" | "dispositioned" | "closed"
+  boardStatus         String    @default("backlog") // "backlog" | "in_progress" | "needs_parts" | "scheduled" | "done"
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  submittedBy  User  @relation("SubmittedNCRs", fields: [submittedById], references: [id])
-  approvedBy   User? @relation("ApprovedNCRs", fields: [approvedById], references: [id])
-  capas        CAPA[] @relation("NCRToCapa")
-  linkedComplaints CustomerComplaint[] @relation("ComplaintNCR")
+  submittedBy           User  @relation("SubmittedNCRs", fields: [submittedById], references: [id])
+  approvedBy            User? @relation("ApprovedNCRs", fields: [approvedById], references: [id])
+  assignedInvestigator    User? @relation("NCRInvestigator", fields: [assignedInvestigatorId], references: [id])
+  secondaryInvestigator   User? @relation("NCRSecondary", fields: [secondaryInvestigatorId], references: [id])
+  capas                   CAPA[] @relation("NCRToCapa")
+  linkedComplaints      CustomerComplaint[] @relation("ComplaintNCR")
 
   @@index([status])
   @@index([ncrType])
+  @@index([boardStatus])
+  @@index([assignedInvestigatorId])
 }
 
 model CAPA {
@@ -301,6 +510,7 @@ model CAPA {
   referenceNcrId        String?   // Link to NonConformance
   targetCloseDate       DateTime?
   assignedToId          String?
+  secondaryAssignedToId String? // Secondary responsible party for accountability
   source                String    // "internal_audit" | "customer_complaint" | "supplier_issue" | "process_failure" | "product_defect" | "management_review" | "regulatory_finding" | "other"
   sourceOther           String?
   severityLevel         String    // "low" | "medium" | "high" | "critical"
@@ -329,18 +539,21 @@ model CAPA {
   // Section 6 - Approvals & Final
   finalDisposition      String?   // "closed_effective" | "closed_partial_monitor" | "reopened" | "escalated"
   status                String    @default("open") // "open" | "in_progress" | "pending_verification" | "closed"
+  boardStatus           String    @default("backlog") // "backlog" | "in_progress" | "needs_parts" | "scheduled" | "done"
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  originator    User            @relation("OriginatedCAPAs", fields: [originatorId], references: [id])
-  assignedTo    User?           @relation("AssignedCAPAs", fields: [assignedToId], references: [id])
-  verifiedBy    User?           @relation("VerifiedCAPAs", fields: [verifiedById], references: [id])
+  originator           User            @relation("OriginatedCAPAs", fields: [originatorId], references: [id])
+  assignedTo           User?           @relation("AssignedCAPAs", fields: [assignedToId], references: [id])
+  secondaryAssignedTo  User?           @relation("CAPASecondary", fields: [secondaryAssignedToId], references: [id])
+  verifiedBy           User?           @relation("VerifiedCAPAs", fields: [verifiedById], references: [id])
   referenceNcr  NonConformance? @relation("NCRToCapa", fields: [referenceNcrId], references: [id])
   actions       CAPAAction[]
   linkedComplaints CustomerComplaint[] @relation("ComplaintCAPA")
 
   @@index([status])
   @@index([severityLevel])
+  @@index([boardStatus])
 }
 
 model CAPAAction {
@@ -363,6 +576,8 @@ model CustomerComplaint {
   id                  String    @id @default(cuid())
   complaintNumber     String    @unique // Auto-generated: CC-YYYY-001
   submittedById       String
+  assignedToId        String?   // User assigned to handle this complaint
+  secondaryAssignedToId String? // Secondary assignee for accountability
   date                DateTime  @default(now())
   // Customer info
   customerName        String
@@ -399,10 +614,65 @@ model CustomerComplaint {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  submittedBy  User            @relation("SubmittedComplaints", fields: [submittedById], references: [id])
-  linkedNcr    NonConformance? @relation("ComplaintNCR", fields: [linkedNcrId], references: [id])
+  submittedBy           User            @relation("SubmittedComplaints", fields: [submittedById], references: [id])
+  assignedTo            User?           @relation("ComplaintAssignee", fields: [assignedToId], references: [id])
+  secondaryAssignedTo   User?           @relation("ComplaintSecondary", fields: [secondaryAssignedToId], references: [id])
+  linkedNcr             NonConformance? @relation("ComplaintNCR", fields: [linkedNcrId], references: [id])
   linkedCapa   CAPA?           @relation("ComplaintCAPA", fields: [linkedCapaId], references: [id])
 
   @@index([status])
   @@index([complaintType])
+  @@index([assignedToId])
+}
+
+model Attachment {
+  id           String   @id @default(cuid())
+  recordType   String   // "equipment" | "ncr" | "work_order" | "project" | "capa" | "complaint" | "maintenance_schedule" | "maintenance_log"
+  recordId     String
+  filename     String   // Original filename as uploaded
+  mimeType     String
+  sizeBytes    Int
+  storageKey   String   @unique // Relative path under ATTACHMENTS_DIR (e.g. "ab/cd/<id>.bin")
+  caption      String?
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  uploadedBy User @relation("UploadedAttachments", fields: [uploadedById], references: [id])
+
+  @@index([recordType, recordId])
+  @@index([uploadedById])
+}
+
+model StatusChangeLog {
+  id          String   @id @default(cuid())
+  entityType  String   // "workOrder" | "nonConformance" | "capa" | "project" | "maintenanceSchedule"
+  entityId    String
+  field       String   // "status" or "boardStatus"
+  fromValue   String?
+  toValue     String
+  note        String?
+  changedById String
+  changedAt   DateTime @default(now())
+
+  changedBy User @relation("UserStatusChanges", fields: [changedById], references: [id])
+
+  @@index([entityType, entityId, changedAt])
+  @@index([changedById])
+}
+
+// Freeform operator notes on any record. Same recordType vocabulary as
+// Attachment. Editable/deletable by the author or any admin.
+model Note {
+  id          String   @id @default(cuid())
+  recordType  String   // "equipment" | "ncr" | "work_order" | "project" | "capa" | "complaint" | "maintenance_schedule" | "maintenance_log"
+  recordId    String
+  body        String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User @relation("AuthoredNotes", fields: [createdById], references: [id])
+
+  @@index([recordType, recordId, createdAt])
+  @@index([createdById])
 }

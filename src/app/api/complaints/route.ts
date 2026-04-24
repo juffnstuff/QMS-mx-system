@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { markMessagePromoted } from "@/lib/m365/promote-message";
+import { withYearlyNumber } from "@/lib/record-numbering";
 
 export async function GET(req: NextRequest) {
   try {
@@ -66,6 +68,9 @@ export async function POST(req: NextRequest) {
       capaRequired,
       affectsOtherOrders,
       rootCauseRequired,
+      assignedToId,
+      secondaryAssignedToId,
+      fromMessageId,
     } = body;
 
     if (!customerName || !complaintType || !complaintDescription) {
@@ -75,52 +80,58 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Auto-generate complaintNumber: CC-YYYY-001
-    const year = new Date().getFullYear();
-    const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
-    const endOfYear = new Date(`${year + 1}-01-01T00:00:00.000Z`);
-
-    const count = await prisma.customerComplaint.count({
-      where: {
-        createdAt: {
-          gte: startOfYear,
-          lt: endOfYear,
-        },
-      },
+    // Auto-generate complaintNumber (race-safe via pg advisory lock).
+    const complaint = await withYearlyNumber("CC", {
+      countCurrent: (tx, { startOfYear, endOfYear }) =>
+        tx.customerComplaint.count({
+          where: { createdAt: { gte: startOfYear, lt: endOfYear } },
+        }),
+      run: (tx, complaintNumber) =>
+        tx.customerComplaint.create({
+          data: {
+            complaintNumber,
+            submittedById: session.user.id,
+            date: new Date(),
+            customerName,
+            customerAddress: customerAddress || null,
+            customerContact: customerContact || null,
+            contactPhone: contactPhone || null,
+            contactEmail: contactEmail || null,
+            partNumber: partNumber || null,
+            salesOrderNumber: salesOrderNumber || null,
+            invoiced: invoiced || null,
+            invoiceNumber: invoiceNumber || null,
+            invoiceValue: invoiceValue || null,
+            drawingNumber: drawingNumber || null,
+            drawingRevision: drawingRevision || null,
+            quantityAffected: quantityAffected || null,
+            otherInfo: otherInfo || null,
+            complaintType,
+            complaintDescription,
+            disposition: disposition || null,
+            rmaNumber: rmaNumber || null,
+            customerFacingAction: customerFacingAction || null,
+            internalAction: internalAction || null,
+            ncrRequired: ncrRequired || false,
+            capaRequired: capaRequired || false,
+            affectsOtherOrders: affectsOtherOrders || false,
+            rootCauseRequired: rootCauseRequired || false,
+            assignedToId: assignedToId || null,
+            secondaryAssignedToId: secondaryAssignedToId || null,
+            status: "open",
+          },
+        }),
     });
 
-    const complaintNumber = `CC-${year}-${String(count + 1).padStart(3, "0")}`;
-
-    const complaint = await prisma.customerComplaint.create({
-      data: {
-        complaintNumber,
-        submittedById: session.user.id,
-        date: new Date(),
+    await markMessagePromoted({
+      fromMessageId,
+      kind: "complaint",
+      createdRecordId: complaint.id,
+      reviewerId: session.user.id,
+      payloadSummary: {
+        complaintNumber: complaint.complaintNumber,
         customerName,
-        customerAddress: customerAddress || null,
-        customerContact: customerContact || null,
-        contactPhone: contactPhone || null,
-        contactEmail: contactEmail || null,
-        partNumber: partNumber || null,
-        salesOrderNumber: salesOrderNumber || null,
-        invoiced: invoiced || null,
-        invoiceNumber: invoiceNumber || null,
-        invoiceValue: invoiceValue || null,
-        drawingNumber: drawingNumber || null,
-        drawingRevision: drawingRevision || null,
-        quantityAffected: quantityAffected || null,
-        otherInfo: otherInfo || null,
-        complaintType,
         complaintDescription,
-        disposition: disposition || null,
-        rmaNumber: rmaNumber || null,
-        customerFacingAction: customerFacingAction || null,
-        internalAction: internalAction || null,
-        ncrRequired: ncrRequired || false,
-        capaRequired: capaRequired || false,
-        affectsOtherOrders: affectsOtherOrders || false,
-        rootCauseRequired: rootCauseRequired || false,
-        status: "open",
       },
     });
 

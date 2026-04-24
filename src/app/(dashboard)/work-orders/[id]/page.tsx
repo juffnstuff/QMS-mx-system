@@ -4,8 +4,13 @@ import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/status-badge";
 import { WorkOrderStatusUpdate } from "@/components/work-order-status-update";
 import { MakeRecurringButton } from "@/components/make-recurring-button";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { DeleteRecordButton } from "@/components/delete-record-button";
+import { AttachmentsSection } from "@/components/attachments/attachments-section";
+import { NotesSection } from "@/components/notes/notes-section";
+import { StatusHistory } from "@/components/status-history";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 export default async function WorkOrderDetailPage({
   params,
@@ -20,8 +25,13 @@ export default async function WorkOrderDetailPage({
     include: {
       equipment: true,
       assignedTo: true,
+      secondaryAssignedTo: true,
       createdBy: true,
       createdSchedules: true,
+      sourceChecklistCompletion: {
+        select: { id: true, template: { select: { name: true } } },
+      },
+      sourceChecklistItem: { select: { id: true, label: true } },
     },
   });
 
@@ -29,33 +39,94 @@ export default async function WorkOrderDetailPage({
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-6">
-        <Link href="/work-orders" className="text-gray-400 hover:text-gray-600 transition-colors">
-          <ArrowLeft size={20} />
-        </Link>
-        <div className="flex-1">
+      <Breadcrumbs items={[
+        { label: "Work Orders", href: "/work-orders" },
+        { label: order.title },
+      ]} />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6">
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">{order.title}</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{order.equipment.name}</p>
+          <p className="text-gray-500 text-sm mt-0.5">
+            <Link href={`/equipment/${order.equipmentId}`} className="text-blue-600 hover:text-blue-800">
+              {order.equipment.name}
+            </Link>
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <StatusBadge status={order.priority} />
           <StatusBadge status={order.status} />
+          {session?.user.role === "admin" && (
+            <DeleteRecordButton
+              recordId={id}
+              recordType="work-orders"
+              recordLabel={order.title}
+              redirectTo="/work-orders"
+              compact
+            />
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {order.sourceChecklistCompletion && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-start sm:items-center gap-2 flex-col sm:flex-row sm:justify-between">
+              <div className="flex items-start gap-2 text-sm text-red-900">
+                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                <span>
+                  Auto-created from a PM failure
+                  {order.sourceChecklistItem && (
+                    <>
+                      : <span className="font-medium">{order.sourceChecklistItem.label}</span>
+                    </>
+                  )}
+                  {order.sourceChecklistCompletion.template && (
+                    <>
+                      {" "}on{" "}
+                      <span className="font-medium">
+                        {order.sourceChecklistCompletion.template.name}
+                      </span>
+                    </>
+                  )}
+                  .
+                </span>
+              </div>
+              <Link
+                href={`/checklists/${order.sourceChecklistCompletion.id}`}
+                className="text-sm font-medium text-red-700 hover:text-red-900 whitespace-nowrap"
+              >
+                View checklist →
+              </Link>
+            </div>
+          )}
+
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="font-semibold text-gray-900 mb-3">Description</h2>
             <p className="text-gray-700 whitespace-pre-wrap">{order.description}</p>
           </div>
+
+          {(order.requirements || order.managerNotes) && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
+              {order.requirements && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-1">Requirements / End Goal</h3>
+                  <p className="text-gray-700 whitespace-pre-wrap text-sm">{order.requirements}</p>
+                </div>
+              )}
+              {order.managerNotes && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-1">Manager Notes</h3>
+                  <p className="text-gray-700 whitespace-pre-wrap text-sm">{order.managerNotes}</p>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Update Status</h2>
             <WorkOrderStatusUpdate
               workOrderId={order.id}
               currentStatus={order.status}
-              isAdmin={session?.user.role === "admin"}
             />
             {order.status === "completed" && (
               <p className="text-sm text-green-600 mt-2">
@@ -64,33 +135,47 @@ export default async function WorkOrderDetailPage({
             )}
           </div>
 
+          <NotesSection
+            recordType="work_order"
+            recordId={id}
+            currentUserId={session?.user.id ?? ""}
+            isAdmin={session?.user.role === "admin"}
+          />
+
+          <AttachmentsSection
+            recordType="work_order"
+            recordId={id}
+            currentUserId={session?.user.id ?? ""}
+            isAdmin={session?.user.role === "admin"}
+          />
+
+          <StatusHistory entityType="workOrder" entityId={id} />
+
           {/* Recurring Maintenance */}
-          {session?.user.role === "admin" && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="font-semibold text-gray-900 mb-3">Recurring Maintenance</h2>
-              {order.createdSchedules.length > 0 ? (
-                <div className="space-y-2">
-                  {order.createdSchedules.map((schedule) => (
-                    <div key={schedule.id} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-700">{schedule.title}</span>
-                      <span className="text-gray-500 capitalize">{schedule.frequency}</span>
-                    </div>
-                  ))}
-                  <Link href="/schedules" className="text-blue-600 hover:underline text-sm">
-                    View schedules &rarr;
-                  </Link>
-                </div>
-              ) : (
-                <MakeRecurringButton
-                  workOrderId={order.id}
-                  defaultTitle={order.title}
-                  defaultDescription={order.description}
-                  equipmentId={order.equipmentId}
-                  equipmentName={order.equipment.name}
-                />
-              )}
-            </div>
-          )}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="font-semibold text-gray-900 mb-3">Recurring Maintenance</h2>
+            {order.createdSchedules.length > 0 ? (
+              <div className="space-y-2">
+                {order.createdSchedules.map((schedule) => (
+                  <div key={schedule.id} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">{schedule.title}</span>
+                    <span className="text-gray-500 capitalize">{schedule.frequency}</span>
+                  </div>
+                ))}
+                <Link href="/schedules" className="text-blue-600 hover:underline text-sm">
+                  View schedules &rarr;
+                </Link>
+              </div>
+            ) : (
+              <MakeRecurringButton
+                workOrderId={order.id}
+                defaultTitle={order.title}
+                defaultDescription={order.description}
+                equipmentId={order.equipmentId}
+                equipmentName={order.equipment.name}
+              />
+            )}
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -115,13 +200,25 @@ export default async function WorkOrderDetailPage({
               </div>
               <div>
                 <dt className="text-xs text-gray-500 uppercase">Assigned To</dt>
-                <dd className="text-sm text-gray-900">
-                  {order.assignedTo ? order.assignedTo.name : "Unassigned"}
+                <dd className="text-sm">
+                  {order.assignedTo ? (
+                    <Link href={`/users?highlight=${order.assignedTo.id}`} className="text-blue-600 hover:text-blue-800">{order.assignedTo.name}</Link>
+                  ) : "Unassigned"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-gray-500 uppercase">Secondary Assignee</dt>
+                <dd className="text-sm">
+                  {order.secondaryAssignedTo ? (
+                    <Link href={`/users?highlight=${order.secondaryAssignedTo.id}`} className="text-blue-600 hover:text-blue-800">{order.secondaryAssignedTo.name}</Link>
+                  ) : <span className="text-gray-400">None</span>}
                 </dd>
               </div>
               <div>
                 <dt className="text-xs text-gray-500 uppercase">Created By</dt>
-                <dd className="text-sm text-gray-900">{order.createdBy.name}</dd>
+                <dd className="text-sm">
+                  <Link href={`/users?highlight=${order.createdBy.id}`} className="text-blue-600 hover:text-blue-800">{order.createdBy.name}</Link>
+                </dd>
               </div>
               <div>
                 <dt className="text-xs text-gray-500 uppercase">Created</dt>
@@ -135,6 +232,30 @@ export default async function WorkOrderDetailPage({
                   <dd className={`text-sm ${new Date(order.dueDate) < new Date() && order.status !== "completed" ? "text-red-600 font-medium" : "text-gray-900"}`}>
                     {new Date(order.dueDate).toLocaleDateString()}
                   </dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-xs text-gray-500 uppercase">Work Order Type</dt>
+                <dd className="text-sm text-gray-900 capitalize">{order.workOrderType}</dd>
+              </div>
+              {order.plannedStartDate && (
+                <div>
+                  <dt className="text-xs text-gray-500 uppercase">Planned Start</dt>
+                  <dd className="text-sm text-gray-900">
+                    {new Date(order.plannedStartDate).toLocaleDateString()}
+                  </dd>
+                </div>
+              )}
+              {order.estimatedBudget && (
+                <div>
+                  <dt className="text-xs text-gray-500 uppercase">Estimated Budget</dt>
+                  <dd className="text-sm text-gray-900">{order.estimatedBudget}</dd>
+                </div>
+              )}
+              {order.estimatedLeadTime && (
+                <div>
+                  <dt className="text-xs text-gray-500 uppercase">Estimated Lead Time</dt>
+                  <dd className="text-sm text-gray-900">{order.estimatedLeadTime}</dd>
                 </div>
               )}
             </dl>

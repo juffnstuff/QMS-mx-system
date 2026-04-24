@@ -23,7 +23,7 @@ export default async function NCRsPage({
   const ncrs = await prisma.nonConformance.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: { submittedBy: true, approvedBy: true },
+    include: { submittedBy: true, approvedBy: true, assignedInvestigator: true },
     take: 50,
   });
 
@@ -46,7 +46,7 @@ export default async function NCRsPage({
           <select
             name="status"
             defaultValue={params.status || "all"}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Statuses</option>
             <option value="open">Open</option>
@@ -57,7 +57,7 @@ export default async function NCRsPage({
           <select
             name="ncrType"
             defaultValue={params.ncrType || "all"}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All NCR Types</option>
             <option value="aesthetic">Aesthetic</option>
@@ -81,6 +81,9 @@ export default async function NCRsPage({
           <div className="p-8 text-center text-gray-500">
             <AlertTriangle size={40} className="mx-auto mb-3 text-gray-300" />
             <p>No non-conformance reports found.</p>
+            <Link href="/ncrs/new" className="inline-flex items-center gap-1 mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium">
+              <Plus size={14} /> Create your first NCR
+            </Link>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
@@ -95,6 +98,7 @@ export default async function NCRsPage({
                       {ncr.partNumber || "No part number"}
                       {" \u2022 "}
                       Submitted by {ncr.submittedBy.name}
+                      {ncr.assignedInvestigator && ` \u2022 Investigator: ${ncr.assignedInvestigator.name}`}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {new Date(ncr.date).toLocaleDateString()}

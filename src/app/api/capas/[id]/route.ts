@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { statusToBoardStatus } from "@/lib/board-sync";
+import { logStatusChange } from "@/lib/status-log";
 
 export async function GET(
   _req: NextRequest,
@@ -57,6 +59,7 @@ export async function PUT(
       referenceNcrId,
       targetCloseDate,
       assignedToId,
+      secondaryAssignedToId,
       source,
       sourceOther,
       severityLevel,
@@ -89,6 +92,7 @@ export async function PUT(
     if (referenceNcrId !== undefined) updateData.referenceNcrId = referenceNcrId || null;
     if (targetCloseDate !== undefined) updateData.targetCloseDate = targetCloseDate ? new Date(targetCloseDate) : null;
     if (assignedToId !== undefined) updateData.assignedToId = assignedToId || null;
+    if (secondaryAssignedToId !== undefined) updateData.secondaryAssignedToId = secondaryAssignedToId || null;
     if (source !== undefined) updateData.source = source;
     if (sourceOther !== undefined) updateData.sourceOther = sourceOther || null;
     if (severityLevel !== undefined) updateData.severityLevel = severityLevel;
@@ -111,7 +115,11 @@ export async function PUT(
     if (lessonsLearned !== undefined) updateData.lessonsLearned = lessonsLearned || null;
     if (preventiveActions !== undefined) updateData.preventiveActions = preventiveActions || null;
     if (finalDisposition !== undefined) updateData.finalDisposition = finalDisposition || null;
-    if (status !== undefined) updateData.status = status;
+    if (status !== undefined) {
+      updateData.status = status;
+      const boardStatus = statusToBoardStatus("capa", status);
+      if (boardStatus) updateData.boardStatus = boardStatus;
+    }
 
     // If actions array provided, delete existing and recreate
     if (actions !== undefined) {
@@ -146,6 +154,17 @@ export async function PUT(
       data: updateData,
       include: { actions: true },
     });
+
+    if (status !== undefined && status !== existing.status) {
+      await logStatusChange({
+        entityType: "capa",
+        entityId: id,
+        field: "status",
+        fromValue: existing.status,
+        toValue: status,
+        changedById: session.user.id,
+      });
+    }
 
     return NextResponse.json(capa);
   } catch (error) {
