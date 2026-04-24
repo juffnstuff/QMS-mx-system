@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Paperclip } from "lucide-react";
 
 interface Props {
   scheduleId: string;
@@ -15,7 +15,9 @@ export function ScheduleCompleteButton({ scheduleId, scheduleTitle }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [notes, setNotes] = useState("");
   const [partsUsed, setPartsUsed] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<{ newNextDue: string } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const handleComplete = async () => {
     setLoading(true);
@@ -37,10 +39,29 @@ export function ScheduleCompleteButton({ scheduleId, scheduleTitle }: Props) {
       }
 
       const data = await res.json();
+
+      // If a cert was attached, upload it against the new MaintenanceLog so
+      // the vendor's completion record lives with the log entry.
+      if (file && data.log?.id) {
+        try {
+          const form = new FormData();
+          form.append("recordType", "maintenance_log");
+          form.append("recordId", data.log.id);
+          form.append("files", file);
+          const up = await fetch("/api/attachments", { method: "POST", body: form });
+          if (!up.ok) {
+            console.warn("[schedule-complete] cert upload failed:", await up.text());
+          }
+        } catch (err) {
+          console.warn("[schedule-complete] cert upload errored:", err);
+        }
+      }
+
       setResult(data);
       setShowForm(false);
       setNotes("");
       setPartsUsed("");
+      setFile(null);
       router.refresh();
     } catch {
       alert("Failed to complete maintenance");
@@ -98,6 +119,40 @@ export function ScheduleCompleteButton({ scheduleId, scheduleTitle }: Props) {
           className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
           placeholder="e.g., Oil filter, hydraulic fluid"
         />
+      </div>
+      <div>
+        <label className="block text-xs text-gray-500 mb-1">
+          Vendor certificate / doc (optional)
+        </label>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            <Paperclip size={14} />
+            {file ? "Replace file" : "Attach file"}
+          </button>
+          {file && (
+            <span className="text-xs text-gray-600 truncate flex-1">
+              {file.name}
+              <button
+                type="button"
+                onClick={() => setFile(null)}
+                className="ml-2 text-gray-400 hover:text-gray-700"
+              >
+                remove
+              </button>
+            </span>
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/pdf,image/*"
+            className="hidden"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+        </div>
       </div>
       <div className="flex items-center gap-2">
         <button

@@ -10,6 +10,7 @@ import { AttachmentsSection } from "@/components/attachments/attachments-section
 import { NotesSection } from "@/components/notes/notes-section";
 import { StatusHistory } from "@/components/status-history";
 import Link from "next/link";
+import { AlertTriangle } from "lucide-react";
 
 export default async function WorkOrderDetailPage({
   params,
@@ -27,6 +28,10 @@ export default async function WorkOrderDetailPage({
       secondaryAssignedTo: true,
       createdBy: true,
       createdSchedules: true,
+      sourceChecklistCompletion: {
+        select: { id: true, template: { select: { name: true } } },
+      },
+      sourceChecklistItem: { select: { id: true, label: true } },
     },
   });
 
@@ -64,6 +69,37 @@ export default async function WorkOrderDetailPage({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {order.sourceChecklistCompletion && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-start sm:items-center gap-2 flex-col sm:flex-row sm:justify-between">
+              <div className="flex items-start gap-2 text-sm text-red-900">
+                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                <span>
+                  Auto-created from a PM failure
+                  {order.sourceChecklistItem && (
+                    <>
+                      : <span className="font-medium">{order.sourceChecklistItem.label}</span>
+                    </>
+                  )}
+                  {order.sourceChecklistCompletion.template && (
+                    <>
+                      {" "}on{" "}
+                      <span className="font-medium">
+                        {order.sourceChecklistCompletion.template.name}
+                      </span>
+                    </>
+                  )}
+                  .
+                </span>
+              </div>
+              <Link
+                href={`/checklists/${order.sourceChecklistCompletion.id}`}
+                className="text-sm font-medium text-red-700 hover:text-red-900 whitespace-nowrap"
+              >
+                View checklist →
+              </Link>
+            </div>
+          )}
+
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="font-semibold text-gray-900 mb-3">Description</h2>
             <p className="text-gray-700 whitespace-pre-wrap">{order.description}</p>

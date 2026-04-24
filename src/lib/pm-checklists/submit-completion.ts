@@ -91,12 +91,68 @@ export async function submitCompletion(input: SubmitInput): Promise<SubmitOutcom
     completion.id,
     input.technicianId,
   );
+  // Auto-write a MaintenanceLog summary so the equipment's maintenance
+  // history is unified. Idempotent on the completion id.
+  await writeCompletionSummaryLog(completion.id, input.technicianId);
 
   return {
     completionId: completion.id,
     superseded,
     workOrdersCreated,
   };
+}
+
+// Create a single MaintenanceLog entry summarizing a submitted checklist.
+// Skips silently if a log already exists for this completion (e.g. when a
+// tech un-starts + resubmits) so the equipment history stays clean.
+async function writeCompletionSummaryLog(
+  completionId: string,
+  userId: string,
+): Promise<void> {
+  const existing = await prisma.maintenanceLog.findFirst({
+    where: { sourceChecklistCompletionId: completionId },
+    select: { id: true },
+  });
+  if (existing) return;
+
+  const completion = await prisma.checklistCompletion.findUniqueOrThrow({
+    where: { id: completionId },
+    include: {
+      template: { select: { name: true } },
+      results: { include: { item: { select: { label: true } } } },
+    },
+  });
+
+  const total = completion.results.length;
+  const passed = completion.results.filter((r) => r.result === "pass").length;
+  const failed = completion.results.filter((r) => r.result === "fail").length;
+  const na = completion.results.filter((r) => r.result === "na").length;
+
+  const failLabels = completion.results
+    .filter((r) => r.result === "fail")
+    .map((r) => r.item.label);
+  const firstThreeFails = failLabels.slice(0, 3).join(", ");
+  const moreFails = failLabels.length > 3 ? ` (+${failLabels.length - 3} more)` : "";
+
+  const parts = [`${completion.template.name} — ${passed}/${total} passed`];
+  if (na > 0) parts.push(`${na} N/A`);
+  if (failed > 0) parts.push(`${failed} fail${failed === 1 ? "" : "s"}`);
+  let description = parts.join(", ");
+  if (failed > 0) description += `\nFailed: ${firstThreeFails}${moreFails}`;
+
+  try {
+    await prisma.maintenanceLog.create({
+      data: {
+        equipmentId: completion.equipmentId,
+        userId,
+        description,
+        performedAt: completion.completedAt ?? new Date(),
+        sourceChecklistCompletionId: completion.id,
+      },
+    });
+  } catch (err) {
+    console.error("[submit-completion] Failed to write summary log:", err);
+  }
 }
 
 // If this completion's template has supersedesCodes (e.g. weekly supersedes
@@ -204,6 +260,8 @@ async function createEscalationWorkOrders(
         workOrderType: "corrective",
         assignedToId: completion.equipment.assignedTechnicianId,
         secondaryAssignedToId: completion.equipment.secondaryTechnicianId,
+        sourceChecklistCompletionId: completion.id,
+        sourceChecklistItemId: failure.itemId,
       },
     });
     created.push(workOrder.id);

@@ -127,9 +127,14 @@ model MaintenanceLog {
   partsUsed   String?
   performedAt DateTime @default(now())
   createdAt   DateTime @default(now())
+  // Set when this log was auto-created from a submitted PM checklist.
+  sourceChecklistCompletionId String?
 
   equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id])
+  sourceChecklistCompletion ChecklistCompletion? @relation("CompletionLogs", fields: [sourceChecklistCompletionId], references: [id], onDelete: SetNull)
+
+  @@index([sourceChecklistCompletionId])
 }
 
 // ChecklistTemplate — reusable PM checklist blueprint (e.g. "Daily — All Presses").
@@ -172,6 +177,7 @@ model ChecklistItem {
 
   template ChecklistTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
   results  ChecklistItemResult[]
+  sourceWorkOrders WorkOrder[]   @relation("ItemWorkOrders")
 
   @@index([templateId, sortOrder])
 }
@@ -203,6 +209,8 @@ model ChecklistCompletion {
   supersededBy ChecklistCompletion?  @relation("ChecklistSupersedes", fields: [supersededById], references: [id])
   supersedes   ChecklistCompletion[] @relation("ChecklistSupersedes")
   results      ChecklistItemResult[]
+  sourceMaintenanceLogs MaintenanceLog[] @relation("CompletionLogs")
+  sourceWorkOrders      WorkOrder[]      @relation("CompletionWorkOrders")
 
   @@index([status])
   @@index([scheduledFor])
@@ -252,6 +260,9 @@ model WorkOrder {
   plannedStartDate DateTime? // F-16: planned start date
   approvedById    String?
   approvedAt      DateTime?
+  // Set when this WO was auto-created from a critical PM checklist failure.
+  sourceChecklistCompletionId String?
+  sourceChecklistItemId       String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -261,10 +272,14 @@ model WorkOrder {
   createdBy           User      @relation("CreatedBy", fields: [createdById], references: [id])
   approvedBy          User?     @relation("ApprovedWorkOrders", fields: [approvedById], references: [id])
   createdSchedules    MaintenanceSchedule[] @relation("SourceWorkOrder")
+  sourceChecklistCompletion ChecklistCompletion? @relation("CompletionWorkOrders", fields: [sourceChecklistCompletionId], references: [id], onDelete: SetNull)
+  sourceChecklistItem       ChecklistItem?       @relation("ItemWorkOrders", fields: [sourceChecklistItemId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([priority])
   @@index([boardStatus])
+  @@index([sourceChecklistCompletionId])
+  @@index([sourceChecklistItemId])
 }
 
 model M365Connection {

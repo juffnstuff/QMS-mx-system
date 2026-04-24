@@ -60,6 +60,15 @@ export default async function DashboardPage() {
     prisma.maintenanceSchedule.findMany({
       where: {
         nextDue: { lt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) },
+        // Filter out schedules stuck at boardStatus="done" — that value is a
+        // transient kanban state that the API resets to "scheduled" on
+        // completion. Any rows stuck there are legacy / pre-reset-logic data.
+        boardStatus: { not: "done" },
+        // Checklist-backed schedules are completed via /checklists where each
+        // item is actually checked off. Showing them on the kanban invites
+        // users to drag-to-done, which would skip the real PM work and the
+        // escalation WO flow. /kpis tracks their compliance.
+        checklistTemplateId: null,
         ...mineOr(["assignedToId", "secondaryAssignedToId"]),
       },
       orderBy: { nextDue: "asc" },
@@ -115,6 +124,9 @@ export default async function DashboardPage() {
       title: wo.title,
       subtitle: wo.equipment.name,
       assigneeName: wo.assignedTo?.name || null,
+      assigneeIds: [wo.assignedToId, wo.secondaryAssignedToId].filter(
+        (v): v is string => !!v,
+      ),
       dueDate: wo.dueDate?.toISOString() || null,
       href: `/work-orders/${wo.id}`,
       priority: wo.priority,
@@ -133,6 +145,9 @@ export default async function DashboardPage() {
       title: ms.title,
       subtitle: ms.equipment.name,
       assigneeName: ms.assignedTo?.name || null,
+      assigneeIds: [ms.assignedToId, ms.secondaryAssignedToId].filter(
+        (v): v is string => !!v,
+      ),
       dueDate: ms.nextDue?.toISOString() || null,
       href: `/schedules/${ms.id}`,
       priority: null,
@@ -151,6 +166,9 @@ export default async function DashboardPage() {
       title: `${ncr.ncrNumber} — ${ncr.nonConformanceDescription.slice(0, 60)}`,
       subtitle: ncr.partNumber || ncr.ncrType,
       assigneeName: ncr.assignedInvestigator?.name || ncr.submittedBy?.name || null,
+      assigneeIds: [ncr.assignedInvestigatorId, ncr.secondaryInvestigatorId].filter(
+        (v): v is string => !!v,
+      ),
       dueDate: null,
       href: `/ncrs/${ncr.id}`,
       priority: null,
@@ -169,6 +187,9 @@ export default async function DashboardPage() {
       title: `${capa.capaNumber} — ${capa.nonconformanceDescription.slice(0, 60)}`,
       subtitle: capa.department || capa.source,
       assigneeName: capa.assignedTo?.name || capa.originator?.name || null,
+      assigneeIds: [capa.assignedToId, capa.secondaryAssignedToId].filter(
+        (v): v is string => !!v,
+      ),
       dueDate: capa.targetCloseDate?.toISOString() || null,
       href: `/capas/${capa.id}`,
       priority: capa.severityLevel,
@@ -187,6 +208,9 @@ export default async function DashboardPage() {
       title: proj.title,
       subtitle: proj.phase ? `Phase: ${proj.phase}` : "Project",
       assigneeName: proj.projectLead?.name || proj.createdBy?.name || null,
+      assigneeIds: [proj.projectLeadId, proj.secondaryLeadId].filter(
+        (v): v is string => !!v,
+      ),
       dueDate: proj.dueDate?.toISOString() || null,
       href: `/projects/${proj.id}`,
       priority: proj.priority,
@@ -194,6 +218,16 @@ export default async function DashboardPage() {
     if (columnMap[col]) columnMap[col].push(key);
     else columnMap.backlog.push(key);
   }
+
+  // For the admin assignee filter on the kanban board. Skipped for operators
+  // since they only see their own cards anyway.
+  const allUsers = isAdmin
+    ? await prisma.user.findMany({
+        where: { role: { in: ["admin", "operator"] } },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      })
+    : [];
 
   const stats = [
     {
@@ -303,7 +337,12 @@ export default async function DashboardPage() {
       </div>
 
       {/* Kanban Board */}
-      <KanbanBoard initialCards={cards} initialColumns={columnMap} />
+      <KanbanBoard
+        initialCards={cards}
+        initialColumns={columnMap}
+        isAdmin={isAdmin}
+        allUsers={allUsers}
+      />
     </div>
   );
 }

@@ -77,6 +77,8 @@ export async function POST(
 
   return NextResponse.json({
     success: true,
+    log: { id: maintenanceLog.id },
+    // Back-compat for older clients.
     maintenanceLogId: maintenanceLog.id,
     previousDue: schedule.nextDue,
     newNextDue: updatedSchedule.nextDue,
